@@ -1,0 +1,1 @@
+Soon here will be an ember plus plugin
