@@ -3,6 +3,7 @@ package plugin
 import (
 	"git.zabbix.com/ap/ember-plus/plugin/dbconn"
 	"git.zabbix.com/ap/ember-plus/plugin/handlers"
+	"git.zabbix.com/ap/ember-plus/plugin/params"
 	"git.zabbix.com/ap/plugin-support/errs"
 	"git.zabbix.com/ap/plugin-support/metric"
 	"git.zabbix.com/ap/plugin-support/plugin"
@@ -23,11 +24,11 @@ type Plugin struct {
 	plugin.Base
 }
 
-// var (
-// 	_ plugin.Configurator = (*emberPlugin)(nil)
-// 	_ plugin.Exporter     = (*emberPlugin)(nil)
-// 	_ plugin.Runner       = (*emberPlugin)(nil)
-// )
+var (
+	_ plugin.Configurator = (*emberPlugin)(nil)
+	_ plugin.Exporter     = (*emberPlugin)(nil)
+	_ plugin.Runner       = (*emberPlugin)(nil)
+)
 
 type emberMetricKey string
 
@@ -69,6 +70,8 @@ func Launch() error {
 }
 
 func (p *emberPlugin) Start() {
+	p.Infof("timeout, %d", p.config.Timeout)
+	p.Infof("timeout, %d", p.config.KeepAlive)
 	p.conns.Init(p.config.KeepAlive, p.config.Timeout, p)
 }
 
@@ -104,7 +107,14 @@ func (p *emberPlugin) Export(key string, rawParams []string, _ plugin.ContextPro
 
 func (p *emberPlugin) registerMetrics() error {
 	p.metrics = map[emberMetricKey]*emberMetric{
-		get: nil,
+		get: {
+			metric: metric.New(
+				"Returns the ember data based on path.",
+				params.Join(params.BaseParams, params.EmberGetParams),
+				false,
+			),
+			handler: p.conns.WithConnHandlerFunc(handlers.GetEmber()),
+		},
 	}
 
 	metricSet := metric.MetricSet{}

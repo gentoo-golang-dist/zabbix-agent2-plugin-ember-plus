@@ -16,9 +16,12 @@ const (
 	setByte = 49 //HEX set is 31 I do not know is this always or only in my example.
 
 	universalObjectTag = 0x0D //13
+	intObjectTag       = 0xA0 //13
 
 	emberGetDirCommand = 32
 	DirFieldMaskAll    = -1
+
+	emberIntTag = 0x02
 
 	maxLengthBytes = 4
 
@@ -29,6 +32,7 @@ const (
 	elementCollectionTag     = 4
 	qualifiedParameterTag    = 9
 	qualifiedNodeTag         = 10
+	nodeTag                  = 3
 	rootElementCollectionTag = 0
 	valueTag                 = 3
 
@@ -339,6 +343,35 @@ func (c *DefaultASN1Codec) DecodeUniversal() ([]int, error) {
 	return out, nil
 }
 
+func (c *DefaultASN1Codec) DecodeInteger() (int, error) {
+	t, err := c.glow.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+
+	if t != emberIntTag {
+		return 0, errors.New("incorrect integer byte")
+	}
+
+	lenB, err := c.ReadLength()
+	if err != nil {
+		return 0, err
+	}
+
+	var out int
+
+	for ; lenB > 0; lenB-- {
+		b, err := c.glow.ReadByte()
+		if err != nil {
+			return 0, err
+		}
+
+		out = (out << 8) | int(b)
+	}
+
+	return out, nil
+}
+
 func (c *DefaultASN1Codec) GetRootTreeRequest() {
 	c.openSequence(application(rootElementCollectionTag))
 	defer c.closeSequence()
@@ -366,17 +399,18 @@ func NewAsn1Encoder() ASN1Encoder {
 	return &DefaultASN1Codec{}
 }
 
-func (c *DefaultASN1Codec) writeInt(i int, cont uint8) {
+func (c *DefaultASN1Codec) writeInt(i int, cont uint8) error {
 	c.emBER.WriteByte(context(cont))
 
 	b, err := asn1.Marshal(i)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	c.emBER.WriteByte(uint8(len(b)))
-
 	c.emBER.Write(b)
+
+	return nil
 }
 
 func readInt([]byte) {}
@@ -386,11 +420,13 @@ func (c *DefaultASN1Codec) openSequence(appl byte) {
 	c.emBER.WriteByte(contextByte)
 }
 
-func (c *DefaultASN1Codec) closeSequence() {
+func (c *DefaultASN1Codec) closeSequence() error {
 	_, err := c.emBER.Write([]byte{0, 0})
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 func checkStart(b byte) bool {

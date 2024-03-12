@@ -430,14 +430,24 @@ func Test_decodeInteger(t *testing.T) {
 		want    int
 		wantErr bool
 	}{
+		// {
+		// 	"+valid",
+		// 	args{
+		// 		[]byte{
+		// 			0x0D, 0x01, 0x01,
+		// 		},
+		// 	},
+		// 	12,
+		// 	false,
+		// },
 		{
-			"+valid",
+			"+single_int",
 			args{
 				[]byte{
-					0x0D, 0x01, 0x01,
+					0x01, 0x01,
 				},
 			},
-			12,
+			1,
 			false,
 		},
 	}
@@ -649,6 +659,140 @@ func TestDefaultASN1Codec_DecodeUniversal(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DefaultASN1Codec.DecodeUniversal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_decodeString(t *testing.T) {
+	type args struct {
+		in []byte
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			"+valid",
+			args{
+				[]byte{
+					0x02, 0x01, 0x01,
+				},
+			},
+			"1",
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := decodeString(tt.args.in)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("decodeString() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("decodeString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDefaultASN1Codec_writeInt(t *testing.T) {
+	type args struct {
+		i    int
+		cont uint8
+	}
+	tests := []struct {
+		name    string
+		c       *DefaultASN1Codec
+		args    args
+		want    *DefaultASN1Codec
+		wantErr bool
+	}{
+		{
+			"+valid",
+			NewASN1Decoder(nil),
+			args{
+				1,
+				0xa0,
+			},
+			&DefaultASN1Codec{
+				emBER: *bytes.NewBuffer([]byte{0xa0, 0x03, 0x02, 0x01, 0x01}),
+			},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.c.writeInt(tt.args.i, tt.args.cont); (err != nil) != tt.wantErr {
+				t.Errorf("DefaultASN1Codec.writeInt() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if diff := cmp.Diff(tt.want.emBER.Bytes(), tt.c.emBER.Bytes()); diff != "" {
+				t.Fatalf("defaultASN1Codec.encode() = %s", diff)
+			}
+		})
+	}
+}
+
+func TestDefaultASN1Codec_DecodeInteger(t *testing.T) {
+	tests := []struct {
+		name    string
+		c       *DefaultASN1Codec
+		want    int
+		wantErr bool
+	}{
+		{
+			"+valid",
+			NewASN1Decoder([]byte{0x02, 0x01, 0x01}),
+			1,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.c.DecodeInteger()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DefaultASN1Codec.DecodeInteger() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("DefaultASN1Codec.DecodeInteger() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_decodeBool(t *testing.T) {
+	type args struct {
+		in []byte
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			"+valid",
+			args{
+				[]byte{0x01, 0x01, 0xff},
+			},
+			true,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := decodeBool(tt.args.in)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("decodeBool() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("decodeBool() = %v, want %v", got, tt.want)
 			}
 		})
 	}

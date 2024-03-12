@@ -61,15 +61,13 @@ func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
 // connection for the given metric parameters and calls the given handler
 // function with the connection.
 func (c *ConnCollection) WithConnHandlerFunc(handler handlers.ConnHandlerFunc) handlers.HandlerFunc {
-	return func(
-		metricParams map[string]string, extraParams ...string,
-	) (any, error) {
+	return func(metricParams map[string]string, extraParams ...string) (any, error) {
 		conn, err := c.get(time.Duration(c.callTimeout)*time.Second, newConnConfig(metricParams))
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to get conn")
 		}
 
-		return handler(conn, metricParams, extraParams...)
+		return handler(conn, c.logr, metricParams, extraParams...)
 	}
 }
 
@@ -108,8 +106,6 @@ func (c *ConnCollection) get(timeout time.Duration, conf connConfig) (net.Conn, 
 }
 
 func (c *ConnCollection) newConn(timeout time.Duration, conf *connConfig) (net.Conn, error) {
-	c.logr.Infof("Creating new connection to %q, with user %q to database %q", conf.URI)
-
 	connURI, err := uri.New(conf.URI, nil)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set URI defaults")
@@ -121,7 +117,8 @@ func (c *ConnCollection) newConn(timeout time.Duration, conf *connConfig) (net.C
 	}
 
 	d := &net.Dialer{Timeout: timeout, KeepAlive: time.Duration(c.keepAlive)}
-	conn, err := d.Dial("TCP", u.String())
+
+	conn, err := d.Dial("tcp", u.Host)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create connection")
 	}
@@ -130,7 +127,5 @@ func (c *ConnCollection) newConn(timeout time.Duration, conf *connConfig) (net.C
 }
 
 func newConnConfig(metricParams map[string]string) connConfig {
-	return connConfig{
-		URI: metricParams[params.URI.Name()],
-	}
+	return connConfig{URI: metricParams[params.URI.Name()]}
 }

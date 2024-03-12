@@ -24,7 +24,8 @@ import (
 //nolint:gochecknoglobals // global constants.
 var (
 	// BaseParams groups parameters common for all connections.
-	BaseParams = []*metric.Param{URI}
+	BaseParams     = []*metric.Param{URI}
+	EmberGetParams = []*metric.Param{Path}
 
 	// URI is a metric param tha specifies database connection URI.
 	URI = metric.NewConnParam(
@@ -32,6 +33,8 @@ var (
 	).
 		WithDefault("localhost:9998").
 		WithSession()
+
+	Path = metric.NewParam("Path", "Path to requires ember collection, node or parameter").WithDefault("")
 )
 
 // Join combines multiple parameter groups into one.
