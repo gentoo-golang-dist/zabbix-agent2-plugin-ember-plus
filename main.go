@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"git.zabbix.com/ap/ember-plus/plugin"
-	"git.zabbix.com/ap/plugin-support/plugin/container"
 	"git.zabbix.com/ap/plugin-support/plugin/flag"
 	"git.zabbix.com/ap/plugin-support/zbxerr"
 )
@@ -26,9 +25,9 @@ limitations under the License.`
 const (
 	PLUGIN_VERSION_MAJOR = 6
 	PLUGIN_VERSION_MINOR = 0
-	PLUGIN_VERSION_PATCH = 0
-	PLUGIN_VERSION_RC    = "test"
+	PLUGIN_VERSION_PATCH = 28
 	PLUGIN_LICENSE_YEAR  = 2024
+	PLUGIN_VERSION_RC    = "rc1"
 )
 
 func main() {
@@ -49,14 +48,8 @@ func main() {
 		return
 	}
 
-	h, err := container.NewHandler(plugin.Impl.Name())
+	err = plugin.Launch()
 	if err != nil {
-		panic(fmt.Sprintf("failed to create plugin handler %s", err.Error()))
-	}
-	plugin.Impl.Logger = &h
-
-	err = h.Execute()
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute plugin handler %s", err.Error()))
+		panic(err)
 	}
 }

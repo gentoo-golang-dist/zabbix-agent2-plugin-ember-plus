@@ -1,0 +1,46 @@
+/*
+** Zabbix
+** Copyright 2001-2024 Zabbix SIA
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+**/
+
+package params
+
+import (
+	"git.zabbix.com/ap/plugin-support/metric"
+)
+
+//nolint:gochecknoglobals // global constants.
+var (
+	// BaseParams groups parameters common for all connections.
+	BaseParams = []*metric.Param{URI}
+
+	// URI is a metric param tha specifies database connection URI.
+	URI = metric.NewConnParam(
+		"URI", "URL connection string to connect to the database.",
+	).
+		WithDefault("localhost:9998").
+		WithSession()
+)
+
+// Join combines multiple parameter groups into one.
+func Join(params ...[]*metric.Param) []*metric.Param {
+	var res []*metric.Param
+
+	for _, p := range params {
+		res = append(res, p...)
+	}
+
+	return res
+}
