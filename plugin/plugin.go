@@ -1,8 +1,10 @@
 package plugin
 
 import (
-	"git.zabbix.com/ap/ember-plus/plugin/dbconn"
-	"git.zabbix.com/ap/ember-plus/plugin/handlers"
+	"encoding/json"
+
+	ember "git.zabbix.com/ap/ember-plus/emberPlus"
+	"git.zabbix.com/ap/ember-plus/plugin/conn"
 	"git.zabbix.com/ap/ember-plus/plugin/params"
 	"git.zabbix.com/ap/plugin-support/errs"
 	"git.zabbix.com/ap/plugin-support/metric"
@@ -28,25 +30,29 @@ var (
 	_ plugin.Configurator = (*emberPlugin)(nil)
 	_ plugin.Exporter     = (*emberPlugin)(nil)
 	_ plugin.Runner       = (*emberPlugin)(nil)
+	_ handlerFunc         = (*emberPlugin)(nil).GetEmber
 )
+
+// HandlerFunc describes the signature all metric handler functions must have.
+type handlerFunc func(metricParams map[string]string, extraParams ...string) (any, error)
 
 type emberMetricKey string
 
 type emberMetric struct {
 	metric  *metric.Metric
-	handler handlers.HandlerFunc
+	handler handlerFunc
 }
 
 type emberPlugin struct {
 	plugin.Base
-	conns   *dbconn.ConnCollection
+	conns   *conn.ConnCollection
 	config  *pluginConfig
 	metrics map[emberMetricKey]*emberMetric
 }
 
 func Launch() error {
 	p := &emberPlugin{
-		conns: &dbconn.ConnCollection{},
+		conns: &conn.ConnCollection{},
 	}
 
 	err := p.registerMetrics()
@@ -69,15 +75,14 @@ func Launch() error {
 	return nil
 }
 
+// Start initiates the connection handler.
 func (p *emberPlugin) Start() {
-	p.Infof("timeout, %d", p.config.Timeout)
-	p.Infof("timeout, %d", p.config.KeepAlive)
 	p.conns.Init(p.config.KeepAlive, p.config.Timeout, p)
 }
 
 // Stop stops the mssql plugin, closing all the connections.
 func (p *emberPlugin) Stop() {
-	p.conns.Close()
+	p.conns.CloseAll()
 }
 
 // Export collects all the metrics.
@@ -113,7 +118,7 @@ func (p *emberPlugin) registerMetrics() error {
 				params.Join(params.BaseParams, params.EmberGetParams),
 				false,
 			),
-			handler: p.conns.WithConnHandlerFunc(handlers.GetEmber()),
+			handler: p.GetEmber,
 		},
 	}
 
@@ -129,4 +134,48 @@ func (p *emberPlugin) registerMetrics() error {
 	}
 
 	return nil
+}
+
+func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any, error) {
+	path := metricParams[params.Path.Name()]
+	if path == "" {
+		return p.handleRequest("", metricParams, ember.GetRootRequest)
+	}
+
+	return p.handleRequest(path, metricParams, ember.GetPathRequest)
+}
+
+func (p *emberPlugin) handleRequest(
+	path string, metricParams map[string]string, reqFunc ember.RequestFunction,
+) (any, error) {
+	req, err := reqFunc(path)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := p.conns.HandleRequest(req, metricParams)
+	if err != nil {
+		return nil, err
+	}
+
+	codec := ember.NewCodec()
+
+	glow, err := codec.Decode(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	el := ember.NewElementConnection()
+
+	err = el.Populate(ember.NewASN1Decoder(glow))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := json.Marshal(el)
+	if err != nil {
+		return nil, err
+	}
+
+	return string(out), nil
 }

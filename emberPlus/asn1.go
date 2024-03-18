@@ -32,25 +32,19 @@ const (
 	elementCollectionTag     = 4
 	qualifiedParameterTag    = 9
 	qualifiedNodeTag         = 10
+	functionTag              = 20
 	nodeTag                  = 3
 	rootElementCollectionTag = 0
 	valueTag                 = 3
 
-	nodePath       = 0
-	nodeProperties = 1
-	nodeChildren   = 2
-
-	relativeObjectID = 0
+	pathContextTag       = 0
+	propertiesContextTag = 1
+	childrenContextTag   = 2
 )
 
 type ASN1Encoder interface {
 	Encode()
 }
-
-// type asn1Codec interface {
-// 	Encode()
-// 	Decode()
-// }
 
 type cntxt struct {
 	data *DefaultASN1Codec
@@ -413,8 +407,6 @@ func (c *DefaultASN1Codec) writeInt(i int, cont uint8) error {
 	return nil
 }
 
-func readInt([]byte) {}
-
 func (c *DefaultASN1Codec) openSequence(appl byte) {
 	c.emBER.WriteByte(appl)
 	c.emBER.WriteByte(contextByte)
@@ -427,10 +419,6 @@ func (c *DefaultASN1Codec) closeSequence() error {
 	}
 
 	return nil
-}
-
-func checkStart(b byte) bool {
-	return b == application(rootElementCollectionTag)
 }
 
 func application(num byte) byte {

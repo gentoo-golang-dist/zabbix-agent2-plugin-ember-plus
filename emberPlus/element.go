@@ -2,107 +2,40 @@ package ember
 
 import (
 	"errors"
-	"net"
 	"strconv"
 	"strings"
 
-	"git.zabbix.com/ap/plugin-support/log"
+	"git.zabbix.com/ap/plugin-support/errs"
 )
 
 const (
 	parameterType = "parameter"
 	nodeType      = "node"
-	Command
+	functionType  = "function"
 )
 
-type ElementCollection map[string]*Element
+var (
+	_ RequestFunction = GetRootRequest
+	_ RequestFunction = GetPathRequest
+)
 
-type Element struct {
-	IsRoot      bool   `json:"is_root,omitempty"`
-	IsOnline    bool   `json:"is_online,omitempty"`
-	Identifier  string `json:"identifier,omitempty"`
-	Description string `json:"description,omitempty"`
-	Path        string `json:"path"`
-	ElementType string `json:"type,omitempty"`
-	Enumeration string `json:"Enumeration,omitempty"`
-}
-
-func (ec ElementCollection) PopulateRootElement(conn net.Conn, log log.Logger) error {
-	ass1 := &DefaultASN1Codec{}
-	ass1.GetRootTreeRequest()
-
-	codec := NewCodec()
-	m := codec.Encode(ass1.GetData(), FirstMultiPacket)
-
-	_, err := conn.Write(m)
-	if err != nil {
-		return err
+type (
+	Element struct {
+		IsRoot      bool   `json:"is_root,omitempty"`
+		IsOnline    bool   `json:"is_online,omitempty"`
+		Identifier  string `json:"identifier,omitempty"`
+		Description string `json:"description,omitempty"`
+		Path        string `json:"path"`
+		ElementType string `json:"type,omitempty"`
+		Enumeration string `json:"Enumeration,omitempty"`
 	}
 
-	response := make([]byte, 1024)
-	_, err = conn.Read(response)
-	if err != nil {
-		return err
-	}
+	ElementCollection map[string]*Element
 
-	log.Infof("resp %x", response)
+	RequestFunction func(path string) ([]byte, error)
 
-	glow, err := codec.Decode(response)
-	if err != nil {
-		return err
-	}
-
-	return ec.Populate(NewASN1Decoder(glow))
-}
-
-func (ec ElementCollection) PopulateByPath(conn net.Conn, path string) error {
-	ass1 := &DefaultASN1Codec{}
-
-	parsed, err := parsePath(path)
-	if err != nil {
-		return err
-	}
-
-	ass1.GetRequest(parsed)
-
-	codec := NewCodec()
-	m := codec.Encode(ass1.GetData(), FirstMultiPacket)
-	_, err = conn.Write(m)
-	if err != nil {
-		return err
-	}
-
-	response := make([]byte, 1024)
-	_, err = conn.Read(response)
-	if err != nil {
-		return err
-	}
-
-	glow, err := codec.Decode(response)
-	if err != nil {
-		return err
-	}
-
-	respCodec := NewASN1Decoder(glow)
-
-	return ec.Populate(respCodec)
-}
-
-func parsePath(path string) ([]int, error) {
-	paths := strings.Split(path, ".")
-	var out []int
-
-	for _, p := range paths {
-		i, err := strconv.Atoi(p)
-		if err != nil {
-			return nil, err
-		}
-
-		out = append(out, i)
-	}
-
-	return out, nil
-}
+	valueHandlerFunc func(values []cntxt) error
+)
 
 func (ec ElementCollection) Populate(data *DefaultASN1Codec) error {
 	app0Codec, err := data.Read(rootElementCollectionTag, application)
@@ -120,66 +53,51 @@ func (ec ElementCollection) Populate(data *DefaultASN1Codec) error {
 		return err
 	}
 
-	for _, conts := range cnts {
-		t, err := conts.data.Peek()
+	for _, cont := range cnts {
+		t, err := cont.data.Peek()
 		if err != nil {
 			return err
 		}
 
-		var appl *DefaultASN1Codec
-
 		switch application(t) {
 		case application(qualifiedNodeTag):
-			appl, err = conts.data.Read(qualifiedNodeTag, application)
-			if err != nil {
-				return err
-			}
-
-			values, err := appl.ReadAllContext()
-			if err != nil {
-				return err
-			}
-
-			err = ec.handleQualifiedNodeTag(values)
-			if err != nil {
-				return err
-			}
+			handleApplication(cont, qualifiedNodeTag, ec.handleQualifiedNodeTag)
 		case application(qualifiedParameterTag):
-			appl, err = conts.data.Read(qualifiedParameterTag, application)
-			if err != nil {
-				return err
-			}
-
-			values, err := appl.ReadAllContext()
-			if err != nil {
-				return err
-			}
-
-			err = ec.handleProperty(values)
-			if err != nil {
-				return err
-			}
+			handleApplication(cont, qualifiedParameterTag, ec.handleProperty)
 		case application(nodeTag):
-			appl, err = conts.data.Read(nodeTag, application)
-			if err != nil {
-				return err
-			}
-
-			values, err := appl.ReadAllContext()
-			if err != nil {
-				return err
-			}
-
-			err = ec.handleNodeTag(values)
-			if err != nil {
-				return err
-			}
+			handleApplication(cont, nodeTag, ec.handleNodeTag)
+		case application(functionTag):
+			handleApplication(cont, functionTag, ec.handleFunction)
 		default:
-			return errors.New("unknown type")
+			return errs.Errorf("unknown type: %x", t)
 		}
 	}
 
 	return nil
+}
+
+func NewElementConnection() ElementCollection {
+	return make(ElementCollection)
+}
+
+func GetRootRequest(_ string) ([]byte, error) {
+	asn1 := &DefaultASN1Codec{}
+	asn1.GetRootTreeRequest()
+
+	return NewCodec().Encode(asn1.GetData(), FirstMultiPacket), nil
+}
+
+func GetPathRequest(path string) ([]byte, error) {
+	asn1 := &DefaultASN1Codec{}
+
+	parsed, err := parsePath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	asn1.GetRequest(parsed)
+
+	return NewCodec().Encode(asn1.GetData(), FirstMultiPacket), nil
 }
 
 func (ec ElementCollection) handleProperty(values []cntxt) error {
@@ -189,35 +107,11 @@ func (ec ElementCollection) handleProperty(values []cntxt) error {
 
 	for _, node := range values {
 		switch node.tag {
-		case nodeChildren:
+		case childrenContextTag:
 			//currently not implemented
-		case nodeProperties:
-			conts, err := node.data.ReadSet()
-			if err != nil {
-				return err
-			}
-
-			for _, c := range conts {
-				switch context(uint8(c.tag)) {
-				case context(0):
-					el.Identifier, err = decodeString(c.data.glow.Bytes())
-					if err != nil {
-						return err
-					}
-				case context(1):
-					el.Description, err = decodeString(c.data.glow.Bytes())
-					if err != nil {
-						return err
-					}
-				case context(7):
-					el.Enumeration, err = decodeString(c.data.glow.Bytes())
-					if err != nil {
-						return err
-					}
-				}
-			}
-
-		case nodePath:
+		case propertiesContextTag:
+			el.handlePropertyContext(node)
+		case pathContextTag:
 			var path []int
 
 			b, err := node.data.Peek()
@@ -264,35 +158,11 @@ func (ec ElementCollection) handleQualifiedNodeTag(values []cntxt) error {
 
 	for _, node := range values {
 		switch node.tag {
-		case nodeChildren:
+		case childrenContextTag:
 			//currently not implemented
-		case nodeProperties:
-			conts, err := node.data.ReadSet()
-			if err != nil {
-				return err
-			}
-
-			for _, c := range conts {
-				switch context(uint8(c.tag)) {
-				case context(0):
-					el.Identifier, err = decodeString(c.data.glow.Bytes())
-					if err != nil {
-						return err
-					}
-				case context(1):
-					el.Description, err = decodeString(c.data.glow.Bytes())
-					if err != nil {
-						return err
-					}
-				case context(7):
-					el.Description, err = decodeString(c.data.glow.Bytes())
-					if err != nil {
-						return err
-					}
-				}
-			}
-
-		case nodePath:
+		case propertiesContextTag:
+			el.handlePropertyContext(node)
+		case pathContextTag:
 			path, err := node.data.DecodeUniversal()
 			if err != nil {
 				return err
@@ -306,7 +176,7 @@ func (ec ElementCollection) handleQualifiedNodeTag(values []cntxt) error {
 
 			el.Path = strings.Join(strPath, ".")
 		default:
-			errors.New("incorrect node values")
+			return errors.New("incorrect node values")
 		}
 
 		ec[el.Path] = &el
@@ -320,9 +190,9 @@ func (ec ElementCollection) handleNodeTag(values []cntxt) error {
 
 	for _, node := range values {
 		switch node.tag {
-		case nodeChildren:
+		case childrenContextTag:
 			//currently not implemented
-		case nodeProperties:
+		case propertiesContextTag:
 			conts, err := node.data.ReadSet()
 			if err != nil {
 				return err
@@ -342,7 +212,7 @@ func (ec ElementCollection) handleNodeTag(values []cntxt) error {
 					}
 				}
 			}
-		case nodePath:
+		case pathContextTag:
 			path, err := node.data.DecodeInteger()
 			if err != nil {
 				return err
@@ -350,7 +220,7 @@ func (ec ElementCollection) handleNodeTag(values []cntxt) error {
 
 			el.Path = strconv.Itoa(path)
 		default:
-			errors.New("incorrect node values")
+			return errors.New("incorrect node values")
 		}
 
 		ec[el.Path] = &el
@@ -359,6 +229,109 @@ func (ec ElementCollection) handleNodeTag(values []cntxt) error {
 	return nil
 }
 
-func NewElementConnection() ElementCollection {
-	return make(ElementCollection)
+func (ec ElementCollection) handleFunction(values []cntxt) error {
+	var el Element
+
+	for _, v := range values {
+		switch v.tag {
+		case childrenContextTag:
+			//currently not implemented
+		case propertiesContextTag:
+			conts, err := v.data.ReadSet()
+			if err != nil {
+				return err
+			}
+
+			for _, c := range conts {
+				switch context(uint8(c.tag)) {
+				case context(0):
+					el.Identifier, err = decodeString(c.data.glow.Bytes())
+					if err != nil {
+						return err
+					}
+					/*
+						contains other cases that might be required, but these are sequences and require different
+						decoding.
+					*/
+				}
+			}
+		case pathContextTag:
+			path, err := v.data.DecodeInteger()
+			if err != nil {
+				return err
+			}
+
+			el.Path = strconv.Itoa(path)
+		default:
+			return errors.New("incorrect node values")
+		}
+
+		ec[el.Path] = &el
+	}
+
+	return nil
+}
+
+func (el *Element) handlePropertyContext(node cntxt) error {
+	conts, err := node.data.ReadSet()
+	if err != nil {
+		return err
+	}
+
+	for _, c := range conts {
+		switch context(uint8(c.tag)) {
+		case context(0):
+			el.Identifier, err = decodeString(c.data.glow.Bytes())
+			if err != nil {
+				return err
+			}
+		case context(1):
+			el.Description, err = decodeString(c.data.glow.Bytes())
+			if err != nil {
+				return err
+			}
+		case context(7):
+			el.Enumeration, err = decodeString(c.data.glow.Bytes())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func handleApplication(cont cntxt, tag uint8, valHandler valueHandlerFunc) error {
+	appl, err := cont.data.Read(tag, application)
+	if err != nil {
+		return err
+	}
+
+	values, err := appl.ReadAllContext()
+	if err != nil {
+		return err
+	}
+
+	err = valHandler(values)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func parsePath(path string) ([]int, error) {
+	paths := strings.Split(path, ".")
+	var out []int
+
+	for _, p := range paths {
+		i, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, i)
+	}
+
+	return out, nil
 }
