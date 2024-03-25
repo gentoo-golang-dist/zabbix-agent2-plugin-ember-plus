@@ -2,6 +2,8 @@ package plugin
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	ember "git.zabbix.com/ap/ember-plus/emberPlus"
 	"git.zabbix.com/ap/ember-plus/plugin/conn"
@@ -118,7 +120,7 @@ func (p *emberPlugin) registerMetrics() error {
 				params.Join(params.BaseParams, params.EmberGetParams),
 				false,
 			),
-			handler: p.GetEmber,
+			handler: withJSONResponse(p.GetEmber),
 		},
 	}
 
@@ -137,18 +139,43 @@ func (p *emberPlugin) registerMetrics() error {
 }
 
 func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any, error) {
-	path := metricParams[params.Path.Name()]
-	if path == "" {
-		return p.handleRequest("", metricParams, ember.GetRootRequest)
+	rootColl, err := p.handleRequest("", "", metricParams, ember.GetRootRequest)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to retrieve root element collection")
 	}
 
-	return p.handleRequest(path, metricParams, ember.GetPathRequest)
+	path := metricParams[params.Path.Name()]
+	if path == "" {
+		return rootColl, nil
+	}
+
+	parsedPath := parsePathString(path)
+
+	out := rootColl
+
+	var currentPath string
+
+	for _, pp := range parsedPath {
+		currentPath = pathJoin(currentPath, pp)
+
+		el, ok := out[currentPath]
+		if !ok {
+			return nil, errs.Errorf("failed to retrieve element with path %s", currentPath)
+		}
+
+		out, err = p.handleRequest(currentPath, el.ElementType, metricParams, ember.GetRequestByType)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to retrieve element collection with path %s", currentPath)
+		}
+	}
+
+	return out, nil
 }
 
 func (p *emberPlugin) handleRequest(
-	path string, metricParams map[string]string, reqFunc ember.RequestFunction,
-) (any, error) {
-	req, err := reqFunc(path)
+	path string, elType ember.ElementType, metricParams map[string]string, reqFunc ember.RequestFunction,
+) (ember.ElementCollection, error) {
+	req, err := reqFunc(elType, path)
 	if err != nil {
 		return nil, err
 	}
@@ -172,10 +199,39 @@ func (p *emberPlugin) handleRequest(
 		return nil, err
 	}
 
-	out, err := json.Marshal(el)
-	if err != nil {
-		return nil, err
+	return el, nil
+}
+
+func withJSONResponse(handler handlerFunc) handlerFunc {
+	return func(
+		metricParams map[string]string, extraParams ...string,
+	) (any, error) {
+		res, err := handler(metricParams, extraParams...)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to execute handler")
+		}
+
+		jsonRes, err := json.Marshal(res)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to marshal result to JSON")
+		}
+
+		return string(jsonRes), nil
+	}
+}
+
+func pathJoin(currentPath, pathPart string) string {
+	if currentPath == "" {
+		return pathPart
 	}
 
-	return string(out), nil
+	return fmt.Sprintf("%s.%s", currentPath, pathPart)
+}
+
+func parsePathString(path string) []string {
+	if len(path) == 0 {
+		return nil
+	}
+
+	return strings.Split(path, ".")
 }

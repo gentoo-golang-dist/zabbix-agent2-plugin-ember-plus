@@ -9,30 +9,34 @@ import (
 )
 
 const (
-	parameterType = "parameter"
-	nodeType      = "node"
-	functionType  = "function"
+	ParameterType          = "parameter"
+	QualifiedParameterType = "qualified_parameter"
+	QualifiedNodeType      = "qualified_node"
+	NodeType               = "node"
+	FunctionType           = "function"
 )
 
 var (
 	_ RequestFunction = GetRootRequest
-	_ RequestFunction = GetPathRequest
+	_ RequestFunction = GetRequestByType
 )
 
 type (
 	Element struct {
-		IsRoot      bool   `json:"is_root,omitempty"`
-		IsOnline    bool   `json:"is_online,omitempty"`
-		Identifier  string `json:"identifier,omitempty"`
-		Description string `json:"description,omitempty"`
-		Path        string `json:"path"`
-		ElementType string `json:"type,omitempty"`
-		Enumeration string `json:"Enumeration,omitempty"`
+		IsRoot      bool        `json:"is_root,omitempty"`
+		IsOnline    bool        `json:"is_online,omitempty"`
+		Identifier  string      `json:"identifier,omitempty"`
+		Description string      `json:"description,omitempty"`
+		Path        string      `json:"path"`
+		ElementType ElementType `json:"type"`
+		Enumeration string      `json:"Enumeration,omitempty"`
 	}
 
 	ElementCollection map[string]*Element
 
-	RequestFunction func(path string) ([]byte, error)
+	RequestFunction func(t ElementType, path string) ([]byte, error)
+
+	ElementType string
 
 	valueHandlerFunc func(values []cntxt) error
 )
@@ -63,7 +67,7 @@ func (ec ElementCollection) Populate(data *DefaultASN1Codec) error {
 		case application(qualifiedNodeTag):
 			handleApplication(cont, qualifiedNodeTag, ec.handleQualifiedNodeTag)
 		case application(qualifiedParameterTag):
-			handleApplication(cont, qualifiedParameterTag, ec.handleProperty)
+			handleApplication(cont, qualifiedParameterTag, ec.handleParameter)
 		case application(nodeTag):
 			handleApplication(cont, nodeTag, ec.handleNodeTag)
 		case application(functionTag):
@@ -80,14 +84,14 @@ func NewElementConnection() ElementCollection {
 	return make(ElementCollection)
 }
 
-func GetRootRequest(_ string) ([]byte, error) {
+func GetRootRequest(_ ElementType, path string) ([]byte, error) {
 	asn1 := &DefaultASN1Codec{}
 	asn1.GetRootTreeRequest()
 
 	return NewCodec().Encode(asn1.GetData(), FirstMultiPacket), nil
 }
 
-func GetPathRequest(path string) ([]byte, error) {
+func GetRequestByType(et ElementType, path string) ([]byte, error) {
 	asn1 := &DefaultASN1Codec{}
 
 	parsed, err := parsePath(path)
@@ -95,38 +99,41 @@ func GetPathRequest(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	asn1.GetRequest(parsed)
+	err = asn1.GetRequest(parsed, et)
+	if err != nil {
+		return nil, err
+	}
 
 	return NewCodec().Encode(asn1.GetData(), FirstMultiPacket), nil
 }
 
-func (ec ElementCollection) handleProperty(values []cntxt) error {
+func (ec ElementCollection) handleParameter(values []cntxt) error {
 	var el Element
 
-	el.ElementType = parameterType
+	el.ElementType = ParameterType
 
-	for _, node := range values {
-		switch node.tag {
+	for _, v := range values {
+		switch v.tag {
 		case childrenContextTag:
 			//currently not implemented
 		case propertiesContextTag:
-			el.handlePropertyContext(node)
+			el.handlePropertyContext(v)
 		case pathContextTag:
 			var path []int
 
-			b, err := node.data.Peek()
+			b, err := v.data.Peek()
 			if err != nil {
 				return err
 			}
 
 			switch b {
 			case universalObjectTag:
-				path, err = node.data.DecodeUniversal()
+				path, err = v.data.DecodeUniversal()
 				if err != nil {
 					return err
 				}
 			case intObjectTag:
-				p, err := node.data.DecodeInteger()
+				p, err := v.data.DecodeInteger()
 				if err != nil {
 					return err
 				}
@@ -154,7 +161,7 @@ func (ec ElementCollection) handleProperty(values []cntxt) error {
 func (ec ElementCollection) handleQualifiedNodeTag(values []cntxt) error {
 	var el Element
 
-	el.ElementType = nodeType
+	el.ElementType = QualifiedNodeType
 
 	for _, node := range values {
 		switch node.tag {
@@ -187,6 +194,8 @@ func (ec ElementCollection) handleQualifiedNodeTag(values []cntxt) error {
 
 func (ec ElementCollection) handleNodeTag(values []cntxt) error {
 	var el Element
+
+	el.ElementType = NodeType
 
 	for _, node := range values {
 		switch node.tag {
@@ -231,6 +240,8 @@ func (ec ElementCollection) handleNodeTag(values []cntxt) error {
 
 func (ec ElementCollection) handleFunction(values []cntxt) error {
 	var el Element
+
+	el.ElementType = FunctionType
 
 	for _, v := range values {
 		switch v.tag {
@@ -321,6 +332,10 @@ func handleApplication(cont cntxt, tag uint8, valHandler valueHandlerFunc) error
 }
 
 func parsePath(path string) ([]int, error) {
+	if len(path) == 0 {
+		return nil, nil
+	}
+
 	paths := strings.Split(path, ".")
 	var out []int
 

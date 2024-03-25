@@ -14,14 +14,17 @@ const (
 	MinorVersion     = 40
 	MajorVersion     = 2
 	EOF              = 0xff
+	EOF16            = 0xffff
 	CE               = 0xfd
 	FirstMultiPacket = 0x80
 	LastMultiPacket  = 0x40
 	XORCE            = 0x20
 	BOFNE            = 0xf8
 
-	S101LenTilGlow = 10
-	CheckSumLen    = 2
+	S101LenTilGlow          = 10
+	CheckSumLen             = 2
+	CheckSumSecondDeviation = 8
+	byteSkip                = 1
 )
 
 type Decoder interface {

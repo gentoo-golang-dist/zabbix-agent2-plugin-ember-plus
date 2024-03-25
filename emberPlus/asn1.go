@@ -5,6 +5,8 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+
+	"git.zabbix.com/ap/plugin-support/errs"
 )
 
 const (
@@ -30,10 +32,11 @@ const (
 
 	rootElementTag           = 11
 	elementCollectionTag     = 4
+	parameterTag             = 1
 	qualifiedParameterTag    = 9
 	qualifiedNodeTag         = 10
-	functionTag              = 20
 	nodeTag                  = 3
+	functionTag              = 20
 	rootElementCollectionTag = 0
 	valueTag                 = 3
 
@@ -78,7 +81,7 @@ func (c *DefaultASN1Codec) Read(tag uint8, compareByte func(num uint8) uint8) (*
 		return nil, fmt.Errorf("is not correct byte: %x got %x", compareByte(tag), b)
 	}
 
-	lenB, err := c.ReadLength()
+	lenB, _, err := c.ReadLength()
 	if err != nil {
 		return nil, err
 	}
@@ -97,33 +100,37 @@ func (c *DefaultASN1Codec) Read(tag uint8, compareByte func(num uint8) uint8) (*
 	return NewASN1Decoder(out), nil
 }
 
-func (c *DefaultASN1Codec) ReadLength() (int, error) {
+func (c *DefaultASN1Codec) ReadLength() (int, int, error) {
+	var offset int
+
 	lenB, err := c.glow.ReadByte()
 	if err != nil {
-		return 0, errors.New("failed to read length")
+		return 0, 0, errors.New("failed to read length")
 	}
 
+	offset++
+
 	if lenB&contextByte != contextByte {
-		return int(lenB), nil
+		return int(lenB), offset, nil
 	}
 
 	lenB &= lenByte
 
 	if lenB > maxLengthBytes {
-		return 0, errors.New("length higher than 4")
+		return 0, 0, errors.New("length higher than 4")
 	}
 
 	var len int
 	for i := 0; i < int(lenB); i++ {
 		val, err := c.glow.ReadByte()
 		if err != nil {
-			return 0, errors.New("failed to read length")
+			return 0, 0, errors.New("failed to read length")
 		}
-
 		len = len<<8 + int(val)
+		offset++
 	}
 
-	return len, nil
+	return len, offset, nil
 }
 
 func (c *DefaultASN1Codec) ReadAllContext() ([]cntxt, error) {
@@ -272,7 +279,7 @@ func (c *DefaultASN1Codec) ReadContextByte(tag uint8) (byte, error) {
 	return rootElemCollByte, nil
 }
 
-func (c *DefaultASN1Codec) GetRequest(path []int) {
+func (c *DefaultASN1Codec) GetRequest(path []int, tag ElementType) error {
 	c.openSequence(application(rootElementCollectionTag))
 	defer c.closeSequence()
 
@@ -282,7 +289,17 @@ func (c *DefaultASN1Codec) GetRequest(path []int) {
 	c.openSequence(context(0))
 	defer c.closeSequence()
 
-	c.openSequence(application(qualifiedNodeTag))
+	switch tag {
+	case ParameterType, QualifiedParameterType:
+		c.openSequence(application(qualifiedParameterTag))
+	case NodeType, QualifiedNodeType:
+		c.openSequence(application(qualifiedNodeTag))
+	case FunctionType:
+		c.openSequence(application(functionTag))
+	default:
+		return errs.Errorf("unknown application tag %s", tag)
+	}
+
 	defer c.closeSequence()
 
 	c.openSequence(context(0))
@@ -297,6 +314,8 @@ func (c *DefaultASN1Codec) GetRequest(path []int) {
 	defer c.closeSequence()
 
 	c.WriteGetDirCommand()
+
+	return nil
 }
 
 func (c *DefaultASN1Codec) EncodeUniversal(path []int) {
@@ -318,7 +337,7 @@ func (c *DefaultASN1Codec) DecodeUniversal() ([]int, error) {
 		return nil, errors.New("incorrect universal byte")
 	}
 
-	lenB, err := c.ReadLength()
+	lenB, _, err := c.ReadLength()
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +366,7 @@ func (c *DefaultASN1Codec) DecodeInteger() (int, error) {
 		return 0, errors.New("incorrect integer byte")
 	}
 
-	lenB, err := c.ReadLength()
+	lenB, _, err := c.ReadLength()
 	if err != nil {
 		return 0, err
 	}
@@ -433,17 +452,6 @@ func universal(num uint8) uint8 {
 	return num
 }
 
-func decodeInteger(in []byte) (int, error) {
-	var out int
-
-	_, err := asn1.Unmarshal(in, &out)
-	if err != nil {
-		return 0, err
-	}
-
-	return out, nil
-}
-
 func decodeString(in []byte) (string, error) {
 	var out string
 
@@ -461,28 +469,6 @@ func decodeBool(in []byte) (bool, error) {
 	_, err := asn1.Unmarshal(in, &out)
 	if err != nil {
 		return false, err
-	}
-
-	return out, nil
-}
-
-func decodeInterface(in []byte) (interface{}, error) {
-	var out interface{}
-
-	_, err := asn1.Unmarshal(in, &out)
-	if err != nil {
-		return false, err
-	}
-
-	return out, nil
-}
-
-func decodeFloat(in []byte) (interface{}, error) {
-	var out int32
-
-	_, err := asn1.Unmarshal(in, &out)
-	if err != nil {
-		return 0, err
 	}
 
 	return out, nil

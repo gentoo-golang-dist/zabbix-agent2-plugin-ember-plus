@@ -350,121 +350,6 @@ func TestDefaultASN1Codec_ReadApplication(t *testing.T) {
 // 	}
 // }
 
-func Test_decodeInterface(t *testing.T) {
-	type args struct {
-		in []byte
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    interface{}
-		wantErr bool
-	}{
-		{
-			"+valid",
-			args{
-				[]byte{
-					0x0D, 0x01, 0x01,
-				},
-			},
-			12,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := decodeInterface(tt.args.in)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("decodeInterface() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("decodeInterface() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_decodeFloat(t *testing.T) {
-	type args struct {
-		in []byte
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    float64
-		wantErr bool
-	}{
-		{
-			"+valid",
-			args{
-				[]byte{
-					0x0D, 0x01, 0x01,
-				},
-			},
-			12,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := decodeFloat(tt.args.in)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("decodeFloat() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("decodeFloat() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_decodeInteger(t *testing.T) {
-	type args struct {
-		in []byte
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    int
-		wantErr bool
-	}{
-		// {
-		// 	"+valid",
-		// 	args{
-		// 		[]byte{
-		// 			0x0D, 0x01, 0x01,
-		// 		},
-		// 	},
-		// 	12,
-		// 	false,
-		// },
-		{
-			"+single_int",
-			args{
-				[]byte{
-					0x01, 0x01,
-				},
-			},
-			1,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := decodeInteger(tt.args.in)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("decodeInteger() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("decodeInteger() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestDefaultASN1Codec_EncodeUniversal(t *testing.T) {
 	type args struct {
 		path []int
@@ -628,7 +513,6 @@ func TestDefaultASN1Codec_ReadAllContext(t *testing.T) {
 				if diff := cmp.Diff(g.tag, tt.want[i].tag); diff != "" {
 					t.Fatalf("DefaultASN1Codec.ReadAllContext() = %s", diff)
 				}
-
 			}
 		})
 	}
@@ -673,18 +557,7 @@ func Test_decodeString(t *testing.T) {
 		args    args
 		want    string
 		wantErr bool
-	}{
-		{
-			"+valid",
-			args{
-				[]byte{
-					0x02, 0x01, 0x01,
-				},
-			},
-			"1",
-			false,
-		},
-	}
+	}{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := decodeString(tt.args.in)

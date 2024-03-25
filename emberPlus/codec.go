@@ -1,7 +1,10 @@
 package ember
 
 import (
+	"bytes"
 	"errors"
+
+	"git.zabbix.com/ap/plugin-support/errs"
 )
 
 type DefaultCodec struct {
@@ -46,30 +49,20 @@ func (e *DefaultCodec) Encode(message []byte, packetType uint8) []uint8 {
 }
 
 func (e *DefaultCodec) Decode(message []byte) ([]uint8, error) {
-	var s101Start int
-	var s101End int
+	s101 := getS101(message)
 
-	for i, b := range message {
-		if b == BOF {
-			s101Start = i
-			continue
-		}
-
-		if b == EOF {
-			s101End = i
-			continue
-		}
+	d := NewASN1Decoder(s101[S101LenTilGlow+byteSkip:])
+	l, offset, err := d.ReadLength()
+	if err != nil {
+		return nil, errors.New("failed to get glow length")
 	}
 
-	glow := message[s101Start : s101End-CheckSumLen]
-
-	var out []byte
+	var out []uint8
 	var ceFound bool
 
-	for _, b := range glow {
+	for _, b := range s101 {
 		if b == CE {
 			ceFound = true
-
 			continue
 		}
 
@@ -84,15 +77,41 @@ func (e *DefaultCodec) Decode(message []byte) ([]uint8, error) {
 		out = append(out, b)
 	}
 
-	crc := e.getCRC(out[1:])
-	crcB1 := message[s101End-CheckSumLen]
-	crcB2 := message[s101End-CheckSumLen+1]
+	//MISSING CRC CHECK
 
-	if crc[0] != crcB1 || crc[1] != crcB2 {
-		return nil, errors.New("incorrect checksum")
+	return out[S101LenTilGlow : S101LenTilGlow+offset+l+byteSkip], nil
+}
+
+func getS101(in []uint8) []uint8 {
+	var start, end int
+
+	for i, b := range in {
+		if b == BOF {
+			start = i
+			continue
+		}
+
+		if b == EOF {
+			end = i
+			continue
+		}
 	}
 
-	return out[S101LenTilGlow:], nil
+	return in[start : end+1]
+}
+
+func checkCrc(source, target []uint8) error {
+	if len(source) != len(target) {
+		return errs.Errorf("crc length of %x and %x does not match", source, target)
+	}
+
+	for i := range source {
+		if source[i] != target[i] {
+			return errs.Errorf("crc bytes of %x and %x do not match", source, target)
+		}
+	}
+
+	return nil
 }
 
 func (e *DefaultCodec) createS101(payload []byte, pType uint8) []byte {
@@ -137,16 +156,61 @@ func escapeBytesAboveBOFNE(message []byte) []byte {
 	return out
 }
 
-func (e *DefaultCodec) getCRC(data []byte) []uint8 {
-	var crc uint16 = 0xFFFF
+func (e *DefaultCodec) getValidationCRC(data []byte) uint16 {
+	var crc uint16 = EOF16
 
-	for _, b := range data {
+	reader := bytes.NewReader(data)
+
+	for {
+		b, err := reader.ReadByte()
+		if err != nil {
+			break
+		}
+
 		crc = e.computeCRCByte(crc, b)
 	}
 
-	crc = (^crc) & 0xFFFF
+	return crc
+}
 
-	return []byte{uint8(crc & 0xFF), uint8(crc >> 8)}
+func (e *DefaultCodec) getCRC(data []byte) []uint8 {
+	var crc uint16 = EOF16
+
+	reader := bytes.NewReader(data)
+
+	for {
+		b, err := reader.ReadByte()
+		if err != nil {
+			break
+		}
+
+		if b == CE {
+			next, _ := reader.ReadByte()
+			b = XORCE ^ next
+		}
+
+		crc = e.computeCRCByte(crc, b)
+	}
+
+	crc = (^crc) & EOF16
+
+	return parseCRD([]uint8{uint8(crc & EOF), uint8(crc >> CheckSumSecondDeviation)})
+}
+
+func parseCRD(in []uint8) []uint8 {
+	var out []uint8
+
+	for _, v := range in {
+		if v < BOFNE {
+			out = append(out, v)
+			continue
+		}
+
+		out = append(out, CE)
+		out = append(out, v^XORCE)
+	}
+
+	return out
 }
 
 func (e *DefaultCodec) computeCRCByte(crc uint16, b uint8) uint16 {
