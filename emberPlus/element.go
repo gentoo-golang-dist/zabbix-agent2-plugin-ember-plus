@@ -21,6 +21,11 @@ var (
 	_ RequestFunction = GetRequestByType
 )
 
+type ElementKey struct {
+	Id   string
+	Path string
+}
+
 type (
 	Element struct {
 		IsRoot      bool        `json:"is_root,omitempty"`
@@ -32,7 +37,7 @@ type (
 		Enumeration string      `json:"Enumeration,omitempty"`
 	}
 
-	ElementCollection map[string]*Element
+	ElementCollection map[ElementKey]*Element
 
 	RequestFunction func(t ElementType, path string) ([]byte, error)
 
@@ -44,34 +49,46 @@ type (
 func (ec ElementCollection) Populate(data *DefaultASN1Codec) error {
 	app0Codec, err := data.Read(rootElementCollectionTag, application)
 	if err != nil {
-		return err
+		return errs.Wrapf(err, "failed to read element root collection tag")
 	}
 
 	app11Codec, err := app0Codec.Read(rootElementTag, application)
 	if err != nil {
-		return err
+		return errs.Wrapf(err, "failed to read element tag")
 	}
 
 	cnts, err := app11Codec.ReadAllContext()
 	if err != nil {
-		return err
+		return errs.Wrapf(err, "failed to read all contexts")
 	}
 
 	for _, cont := range cnts {
 		t, err := cont.data.Peek()
 		if err != nil {
-			return err
+			return errs.Wrapf(err, "failed to read context")
 		}
 
 		switch application(t) {
 		case application(qualifiedNodeTag):
-			handleApplication(cont, qualifiedNodeTag, ec.handleQualifiedNodeTag)
+			err = handleApplication(cont, qualifiedNodeTag, ec.handleQualifiedNodeTag)
+			if err != nil {
+				return errs.Wrapf(err, "failed to handle qualified node")
+			}
 		case application(qualifiedParameterTag):
-			handleApplication(cont, qualifiedParameterTag, ec.handleParameter)
+			err = handleApplication(cont, qualifiedParameterTag, ec.handleParameter)
+			if err != nil {
+				return errs.Wrapf(err, "failed to handle qualified parameter")
+			}
 		case application(nodeTag):
-			handleApplication(cont, nodeTag, ec.handleNodeTag)
+			err = handleApplication(cont, nodeTag, ec.handleNodeTag)
+			if err != nil {
+				return errs.Wrapf(err, "failed to handle node tag")
+			}
 		case application(functionTag):
-			handleApplication(cont, functionTag, ec.handleFunction)
+			err = handleApplication(cont, functionTag, ec.handleFunction)
+			if err != nil {
+				return errs.Wrapf(err, "failed to handle function tag")
+			}
 		default:
 			return errs.Errorf("unknown type: %x", t)
 		}
@@ -152,7 +169,7 @@ func (ec ElementCollection) handleParameter(values []cntxt) error {
 			return errors.New("incorrect node tag")
 		}
 
-		ec[el.Path] = &el
+		ec[ElementKey{Id: el.Identifier, Path: el.Path}] = &el
 	}
 
 	return nil
@@ -186,7 +203,7 @@ func (ec ElementCollection) handleQualifiedNodeTag(values []cntxt) error {
 			return errors.New("incorrect node values")
 		}
 
-		ec[el.Path] = &el
+		ec[ElementKey{Id: el.Identifier, Path: el.Path}] = &el
 	}
 
 	return nil
@@ -232,7 +249,7 @@ func (ec ElementCollection) handleNodeTag(values []cntxt) error {
 			return errors.New("incorrect node values")
 		}
 
-		ec[el.Path] = &el
+		ec[ElementKey{Id: el.Identifier, Path: el.Path}] = &el
 	}
 
 	return nil
@@ -250,7 +267,7 @@ func (ec ElementCollection) handleFunction(values []cntxt) error {
 		case propertiesContextTag:
 			conts, err := v.data.ReadSet()
 			if err != nil {
-				return err
+				return errs.Wrapf(err, "failed to read set")
 			}
 
 			for _, c := range conts {
@@ -258,7 +275,7 @@ func (ec ElementCollection) handleFunction(values []cntxt) error {
 				case context(0):
 					el.Identifier, err = decodeString(c.data.glow.Bytes())
 					if err != nil {
-						return err
+						return errs.Wrapf(err, "failed to decode string")
 					}
 					/*
 						contains other cases that might be required, but these are sequences and require different
@@ -267,17 +284,23 @@ func (ec ElementCollection) handleFunction(values []cntxt) error {
 				}
 			}
 		case pathContextTag:
-			path, err := v.data.DecodeInteger()
+			path, err := v.data.DecodeUniversal()
 			if err != nil {
-				return err
+				return errs.Wrapf(err, "failed to decode integer")
 			}
 
-			el.Path = strconv.Itoa(path)
+			var strPath []string
+
+			for _, p := range path {
+				strPath = append(strPath, strconv.Itoa(p))
+			}
+
+			el.Path = strings.Join(strPath, ".")
 		default:
 			return errors.New("incorrect node values")
 		}
 
-		ec[el.Path] = &el
+		ec[ElementKey{Id: el.Identifier, Path: el.Path}] = &el
 	}
 
 	return nil

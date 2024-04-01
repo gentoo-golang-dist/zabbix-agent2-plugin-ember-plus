@@ -45,3 +45,22 @@ func Test_parsePath(t *testing.T) {
 		})
 	}
 }
+
+func TestElementCollection_handleFunction(t *testing.T) {
+	type args struct {
+		values []cntxt
+	}
+	tests := []struct {
+		name    string
+		ec      ElementCollection
+		args    args
+		wantErr bool
+	}{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.ec.handleFunction(tt.args.values); (err != nil) != tt.wantErr {
+				t.Errorf("ElementCollection.handleFunction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

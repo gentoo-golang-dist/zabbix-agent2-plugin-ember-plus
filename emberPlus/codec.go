@@ -77,7 +77,7 @@ func (e *DefaultCodec) Decode(message []byte) ([]uint8, error) {
 		out = append(out, b)
 	}
 
-	//MISSING CRC CHECK
+	//needs CRC check
 
 	return out[S101LenTilGlow : S101LenTilGlow+offset+l+byteSkip], nil
 }

@@ -9,36 +9,34 @@ import (
 	"git.zabbix.com/ap/plugin-support/errs"
 )
 
+// these constants are based on ember+ protocol documentation
 const (
 	contextByte   = 0x80
 	contextOR     = 0xa0
 	applicationOR = 0x60
 	lenByte       = 0x7F //no clue why
 
-	setByte = 49 //HEX set is 31 I do not know is this always or only in my example.
+	setByte = 49 //HEX set is 31 I am not sure if this is universal
 
 	universalObjectTag = 0x0D //13
 	intObjectTag       = 0xA0 //13
 
 	emberGetDirCommand = 32
-	DirFieldMaskAll    = -1
+	dirFieldMaskAll    = -1
 
 	emberIntTag = 0x02
 
 	maxLengthBytes = 4
 
 	commandApplicationTag = 2
-	nodeApplicationTag    = 3
 
 	rootElementTag           = 11
 	elementCollectionTag     = 4
-	parameterTag             = 1
 	qualifiedParameterTag    = 9
 	qualifiedNodeTag         = 10
 	nodeTag                  = 3
 	functionTag              = 20
 	rootElementCollectionTag = 0
-	valueTag                 = 3
 
 	pathContextTag       = 0
 	propertiesContextTag = 1
@@ -196,7 +194,6 @@ func (c *DefaultASN1Codec) ReadAllContext() ([]cntxt, error) {
 }
 
 func (c *DefaultASN1Codec) Peek() (byte, error) {
-
 	b, err := c.glow.ReadByte()
 	if err != nil {
 		return 0, err
@@ -403,7 +400,7 @@ func (c *DefaultASN1Codec) WriteGetDirCommand() {
 	defer c.closeSequence()
 
 	c.writeInt(emberGetDirCommand, 0)
-	c.writeInt(DirFieldMaskAll, 1)
+	c.writeInt(dirFieldMaskAll, 1)
 }
 
 func (c *DefaultASN1Codec) Encode() {}

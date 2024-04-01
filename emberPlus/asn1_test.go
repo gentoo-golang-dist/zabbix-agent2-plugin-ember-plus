@@ -623,6 +623,12 @@ func TestDefaultASN1Codec_DecodeInteger(t *testing.T) {
 			1,
 			false,
 		},
+		{
+			"+te",
+			NewASN1Decoder([]byte{0x0D, 0x03, 0x01, 0x02, 0x03}),
+			1,
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

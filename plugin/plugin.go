@@ -3,6 +3,7 @@ package plugin
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	ember "git.zabbix.com/ap/ember-plus/emberPlus"
@@ -120,7 +121,7 @@ func (p *emberPlugin) registerMetrics() error {
 				params.Join(params.BaseParams, params.EmberGetParams),
 				false,
 			),
-			handler: withJSONResponse(p.GetEmber),
+			handler: withJSONResponse(withRootCollectionResponse(p.GetEmber)),
 		},
 	}
 
@@ -139,37 +140,103 @@ func (p *emberPlugin) registerMetrics() error {
 }
 
 func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any, error) {
-	rootColl, err := p.handleRequest("", "", metricParams, ember.GetRootRequest)
+	rootCollection, err := p.handleRequest("", "", metricParams, ember.GetRootRequest)
 	if err != nil {
-		return nil, errs.Wrap(err, "failed to retrieve root element collection")
+		return nil, errs.Wrap(err, "failed to retrieve root collection")
 	}
 
 	path := metricParams[params.Path.Name()]
 	if path == "" {
-		return rootColl, nil
+		return rootCollection, nil
 	}
 
-	parsedPath := parsePathString(path)
+	parsedPath, byID, err := parsePathString(path)
+	if err != nil {
+		return nil, errs.Errorf("failed to parse input path '%s', err: %s", path, err.Error())
+	}
 
-	out := rootColl
+	collection, err := p.getCollection(rootCollection, parsedPath, metricParams, byID)
+	if err != nil {
+		return nil, errs.Errorf("failed to retrieve collection for path '%s', err: %s", path, err.Error())
+	}
 
-	var currentPath string
+	return collection, nil
+}
 
-	for _, pp := range parsedPath {
-		currentPath = pathJoin(currentPath, pp)
+func (p *emberPlugin) getCollection(
+	collection ember.ElementCollection, paths []string, params map[string]string, byId bool,
+) (ember.ElementCollection, error) {
+	if byId {
+		return p.getCollectionByID(collection, params, paths)
+	}
 
-		el, ok := out[currentPath]
-		if !ok {
-			return nil, errs.Errorf("failed to retrieve element with path %s", currentPath)
-		}
+	return p.getCollectionByPath(collection, params, paths)
+}
 
-		out, err = p.handleRequest(currentPath, el.ElementType, metricParams, ember.GetRequestByType)
+func (p *emberPlugin) getCollectionByPath(
+	collection ember.ElementCollection, params map[string]string, paths []string,
+) (ember.ElementCollection, error) {
+	var fullPath string
+
+	for _, path := range paths {
+		fullPath = pathJoin(fullPath, path)
+
+		el, err := getElementByPath(collection, fullPath)
 		if err != nil {
-			return nil, errs.Wrapf(err, "failed to retrieve element collection with path %s", currentPath)
+			return nil, errs.Errorf("failed to retrieve element with path %s", fullPath)
+		}
+
+		collection, err = p.handleRequest(fullPath, el.ElementType, params, ember.GetRequestByType)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to retrieve element collection with path %s", fullPath)
 		}
 	}
 
-	return out, nil
+	return collection, nil
+}
+
+func (p *emberPlugin) getCollectionByID(
+	collection ember.ElementCollection, params map[string]string, ids []string,
+) (ember.ElementCollection, error) {
+	var fullPath string
+
+	for _, id := range ids {
+		el, err := getElementByID(collection, id)
+		if err != nil {
+			return nil, errs.Errorf(
+				"failed to retrieve element with id %s, path to element '%s'", id, fullPath,
+			)
+		}
+
+		fullPath = el.Path
+
+		collection, err = p.handleRequest(fullPath, el.ElementType, params, ember.GetRequestByType)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to retrieve element collection with path '%s'", fullPath)
+		}
+	}
+
+	return collection, nil
+}
+
+func getElementByPath(collection ember.ElementCollection, currentPath string) (*ember.Element, error) {
+	for key, value := range collection {
+		if key.Path == currentPath {
+			return value, nil
+		}
+	}
+
+	return nil, errs.Errorf("element not found")
+}
+
+func getElementByID(collection ember.ElementCollection, id string) (*ember.Element, error) {
+	for key, value := range collection {
+		if key.Id == id {
+			return value, nil
+		}
+	}
+
+	return nil, errs.Errorf("element not found")
 }
 
 func (p *emberPlugin) handleRequest(
@@ -220,6 +287,30 @@ func withJSONResponse(handler handlerFunc) handlerFunc {
 	}
 }
 
+func withRootCollectionResponse(handler handlerFunc) handlerFunc {
+	return func(
+		metricParams map[string]string, extraParams ...string,
+	) (any, error) {
+		res, err := handler(metricParams, extraParams...)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to execute handler")
+		}
+
+		collection, ok := res.(ember.ElementCollection)
+		if !ok {
+			return nil, errs.Wrapf(err, "unknown response type %T", res)
+		}
+
+		out := make(map[string]*ember.Element)
+
+		for k, v := range collection {
+			out[k.Path] = v
+		}
+
+		return out, nil
+	}
+}
+
 func pathJoin(currentPath, pathPart string) string {
 	if currentPath == "" {
 		return pathPart
@@ -228,10 +319,25 @@ func pathJoin(currentPath, pathPart string) string {
 	return fmt.Sprintf("%s.%s", currentPath, pathPart)
 }
 
-func parsePathString(path string) []string {
+func parsePathString(path string) ([]string, bool, error) {
 	if len(path) == 0 {
-		return nil
+		return nil, false, nil
 	}
 
-	return strings.Split(path, ".")
+	var idPath bool
+
+	split := strings.Split(path, ".")
+
+	for _, s := range split {
+		if strings.Trim(s, " ") == "" {
+			return nil, false, errs.New("path part can not be empty")
+		}
+
+		_, err := strconv.Atoi(s)
+		if err != nil {
+			idPath = true
+		}
+	}
+
+	return split, idPath, nil
 }
