@@ -1,3 +1,4 @@
+//nolint:gci,gofmt
 package plugin
 
 import (
@@ -17,17 +18,11 @@ import (
 )
 
 const (
+	// Name is the name of the plugin.
 	Name = "EmberPlus"
 
 	get = emberMetricKey("ember.get")
 )
-
-var Impl Plugin
-
-// Plugin -
-type Plugin struct {
-	plugin.Base
-}
 
 var (
 	_ plugin.Configurator = (*emberPlugin)(nil)
@@ -53,6 +48,12 @@ type emberPlugin struct {
 	metrics map[emberMetricKey]*emberMetric
 }
 
+// Plugin holds require plugin data.
+type Plugin struct {
+	plugin.Base
+}
+
+// Launch starts the plugin.
 func Launch() error {
 	p := &emberPlugin{
 		conns: &conn.ConnCollection{},
@@ -113,6 +114,32 @@ func (p *emberPlugin) Export(key string, rawParams []string, _ plugin.ContextPro
 	return res, nil
 }
 
+// GetEmber handles ember.get metric, returns collection data based on request metrics, response needs to be handled,
+// otherwise it is not possible to json marshal it.
+func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any, error) {
+	rootCollection, err := p.handleRequest("", "", metricParams, ember.GetRootRequest)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to retrieve root collection")
+	}
+
+	path := metricParams[params.Path.Name()]
+	if path == "" {
+		return rootCollection, nil
+	}
+
+	parsedPath, byID, err := parsePathString(path)
+	if err != nil {
+		return nil, errs.Errorf("failed to parse input path '%s', err: %s", path, err.Error())
+	}
+
+	collection, err := p.getCollection(rootCollection, parsedPath, metricParams, byID)
+	if err != nil {
+		return nil, errs.Errorf("failed to retrieve collection for path '%s', err: %s", path, err.Error())
+	}
+
+	return collection, nil
+}
+
 func (p *emberPlugin) registerMetrics() error {
 	p.metrics = map[emberMetricKey]*emberMetric{
 		get: {
@@ -139,42 +166,18 @@ func (p *emberPlugin) registerMetrics() error {
 	return nil
 }
 
-func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any, error) {
-	rootCollection, err := p.handleRequest("", "", metricParams, ember.GetRootRequest)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to retrieve root collection")
-	}
-
-	path := metricParams[params.Path.Name()]
-	if path == "" {
-		return rootCollection, nil
-	}
-
-	parsedPath, byID, err := parsePathString(path)
-	if err != nil {
-		return nil, errs.Errorf("failed to parse input path '%s', err: %s", path, err.Error())
-	}
-
-	collection, err := p.getCollection(rootCollection, parsedPath, metricParams, byID)
-	if err != nil {
-		return nil, errs.Errorf("failed to retrieve collection for path '%s', err: %s", path, err.Error())
-	}
-
-	return collection, nil
-}
-
 func (p *emberPlugin) getCollection(
-	collection ember.ElementCollection, paths []string, params map[string]string, byId bool,
+	collection ember.ElementCollection, paths []string, metricParams map[string]string, byID bool,
 ) (ember.ElementCollection, error) {
-	if byId {
-		return p.getCollectionByID(collection, params, paths)
+	if byID {
+		return p.getCollectionByID(collection, metricParams, paths)
 	}
 
-	return p.getCollectionByPath(collection, params, paths)
+	return p.getCollectionByPath(collection, metricParams, paths)
 }
 
 func (p *emberPlugin) getCollectionByPath(
-	collection ember.ElementCollection, params map[string]string, paths []string,
+	collection ember.ElementCollection, metricParams map[string]string, paths []string,
 ) (ember.ElementCollection, error) {
 	var fullPath string
 
@@ -186,7 +189,7 @@ func (p *emberPlugin) getCollectionByPath(
 			return nil, errs.Errorf("failed to retrieve element with path %s", fullPath)
 		}
 
-		collection, err = p.handleRequest(fullPath, el.ElementType, params, ember.GetRequestByType)
+		collection, err = p.handleRequest(fullPath, el.ElementType, metricParams, ember.GetRequestByType)
 		if err != nil {
 			return nil, errs.Wrapf(err, "failed to retrieve element collection with path %s", fullPath)
 		}
@@ -196,7 +199,7 @@ func (p *emberPlugin) getCollectionByPath(
 }
 
 func (p *emberPlugin) getCollectionByID(
-	collection ember.ElementCollection, params map[string]string, ids []string,
+	collection ember.ElementCollection, metricParams map[string]string, ids []string,
 ) (ember.ElementCollection, error) {
 	var fullPath string
 
@@ -210,7 +213,7 @@ func (p *emberPlugin) getCollectionByID(
 
 		fullPath = el.Path
 
-		collection, err = p.handleRequest(fullPath, el.ElementType, params, ember.GetRequestByType)
+		collection, err = p.handleRequest(fullPath, el.ElementType, metricParams, ember.GetRequestByType)
 		if err != nil {
 			return nil, errs.Wrapf(err, "failed to retrieve element collection with path '%s'", fullPath)
 		}
@@ -231,7 +234,7 @@ func getElementByPath(collection ember.ElementCollection, currentPath string) (*
 
 func getElementByID(collection ember.ElementCollection, id string) (*ember.Element, error) {
 	for key, value := range collection {
-		if key.Id == id {
+		if key.ID == id {
 			return value, nil
 		}
 	}
@@ -244,26 +247,26 @@ func (p *emberPlugin) handleRequest(
 ) (ember.ElementCollection, error) {
 	req, err := reqFunc(elType, path)
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "failed to get request")
 	}
 
 	resp, err := p.conns.HandleRequest(req, metricParams)
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "failed to handle request")
 	}
 
 	codec := ember.NewCodec()
 
 	glow, err := codec.Decode(resp)
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "failed to decode response")
 	}
 
 	el := ember.NewElementConnection()
 
 	err = el.Populate(ember.NewASN1Decoder(glow))
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "failed to populate glow response")
 	}
 
 	return el, nil
@@ -320,7 +323,7 @@ func pathJoin(currentPath, pathPart string) string {
 }
 
 func parsePathString(path string) ([]string, bool, error) {
-	if len(path) == 0 {
+	if path == "" {
 		return nil, false, nil
 	}
 

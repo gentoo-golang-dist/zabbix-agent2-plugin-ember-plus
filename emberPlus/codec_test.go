@@ -1,3 +1,4 @@
+//nolint:gci,gofmt
 package ember
 
 import (
@@ -14,7 +15,7 @@ func TestDefaultEncoder_Encode(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		e    *DefaultCodec
+		e    *S101Codec
 		args args
 		want []uint8
 	}{
@@ -51,7 +52,7 @@ func TestDefaultEncoder_getCRC(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		e    *DefaultCodec
+		e    *S101Codec
 		args args
 		want []uint8
 	}{
@@ -149,7 +150,7 @@ func TestDefaultCodec_Decode(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		e       *DefaultCodec
+		e       *S101Codec
 		args    args
 		want    []uint8
 		wantErr bool

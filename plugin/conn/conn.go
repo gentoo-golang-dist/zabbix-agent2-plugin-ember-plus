@@ -1,3 +1,4 @@
+//nolint:gci,gofmt
 /*
 ** Zabbix
 ** Copyright 2001-2024 Zabbix SIA
@@ -62,37 +63,52 @@ func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
 	go c.housekeeper(interval * time.Second)
 }
 
+// HandleRequest sends a request and reads response based on the provided connection parameters.
 func (c *ConnCollection) HandleRequest(req []byte, metricParams map[string]string) ([]byte, error) {
 	conf := newConnConfig(metricParams)
+
 	ch, err := c.get(time.Duration(c.callTimeout)*time.Second, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
 
-	ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
+	err = ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to set write deadline for connection")
+	}
 
 	_, err = ch.conn.Write(req)
 	if err != nil {
-		c.close(conf)
+		cerr := c.close(conf)
+		if cerr != nil {
+			c.logr.Errf("write connection clean-up failed, err: %w", cerr)
+		}
 
-		return nil, err
+		return nil, errs.Wrap(err, "failed to write to connection")
 	}
 
-	ch.conn.SetReadDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
+	err = ch.conn.SetReadDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to set read deadline for connection")
+	}
 
+	//nolint:makezero
 	response := make([]byte, 1024)
 
 	_, err = ch.conn.Read(response)
 	if err != nil {
-		c.close(conf)
+		cerr := c.close(conf)
+		if cerr != nil {
+			c.logr.Errf("read connection clean-up failed, err: %w", cerr)
+		}
 
-		return nil, err
+		return nil, errs.Wrap(err, "failed to read from connection")
 	}
 
 	return response, nil
 }
 
-// Close closes all connections in the collection.
+// CloseAll closes all connections in the collection.
 func (c *ConnCollection) CloseAll() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -108,19 +124,24 @@ func (c *ConnCollection) CloseAll() {
 	}
 }
 
-// Close closes all connections in the collection.
-func (c *ConnCollection) close(conf connConfig) {
+// close closes the connection with the provided configuration.
+func (c *ConnCollection) close(conf connConfig) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	ch, ok := c.conns[conf]
 	if !ok {
-		return
+		return nil
 	}
 
-	ch.conn.Close()
+	err := ch.conn.Close()
+	if err != nil {
+		return errs.Wrap(err, "failed to close connection")
+	}
 
 	delete(c.conns, conf)
+
+	return nil
 }
 
 func (c *ConnCollection) get(timeout time.Duration, conf connConfig) (*connHandler, error) {
@@ -136,7 +157,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf connConfig) (*connHandl
 		return ch, nil
 	}
 
-	ch, err := c.newConn(timeout, &conf)
+	ch, err := newConn(timeout, &conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create conn")
 	}
@@ -146,30 +167,10 @@ func (c *ConnCollection) get(timeout time.Duration, conf connConfig) (*connHandl
 	return ch, nil
 }
 
-func (c *ConnCollection) newConn(timeout time.Duration, conf *connConfig) (*connHandler, error) {
-	connURI, err := uri.New(conf.URI, nil)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to set URI defaults")
-	}
-
-	u, err := url.Parse(connURI.String())
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to parse URI")
-	}
-
-	d := &net.Dialer{Timeout: timeout, KeepAlive: 4 * time.Second}
-
-	conn, err := d.Dial("tcp", u.Host)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to create connection")
-	}
-
-	return &connHandler{conn: conn, lastAccessTime: time.Now()}, nil
-}
-
 // housekeeper repeatedly checks for unused connections and closes them.
 func (c *ConnCollection) housekeeper(interval time.Duration) {
 	ticker := time.NewTicker(interval)
+
 	c.logr.Debugf("starting housekeeper")
 
 	for {
@@ -192,11 +193,36 @@ func (c *ConnCollection) closeUnused() {
 
 	for conf, conn := range c.conns {
 		if time.Since(conn.lastAccessTime) > c.keepAlive {
-			conn.conn.Close()
+			err := conn.conn.Close()
+			if err != nil {
+				c.logr.Errf("failed to close connection: %s", conf.URI)
+			}
+
 			delete(c.conns, conf)
-			c.logr.Debugf("[%s] Closed unused connection: %s", conf.URI)
+			c.logr.Debugf("closed unused connection: %s", conf.URI)
 		}
 	}
+}
+
+func newConn(timeout time.Duration, conf *connConfig) (*connHandler, error) {
+	connURI, err := uri.New(conf.URI, nil)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to set URI defaults")
+	}
+
+	u, err := url.Parse(connURI.String())
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to parse URI")
+	}
+
+	d := &net.Dialer{Timeout: timeout, KeepAlive: 4 * time.Second}
+
+	conn, err := d.Dial("tcp", u.Host)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to create connection")
+	}
+
+	return &connHandler{conn: conn, lastAccessTime: time.Now()}, nil
 }
 
 func newConnConfig(metricParams map[string]string) connConfig {

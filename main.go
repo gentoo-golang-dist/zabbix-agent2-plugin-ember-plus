@@ -1,3 +1,4 @@
+//nolint:gci,gofmt
 package main
 
 import (
@@ -22,6 +23,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.`
 
+//nolint:revive
 const (
 	PLUGIN_VERSION_MAJOR = 6
 	PLUGIN_VERSION_MINOR = 0
@@ -41,11 +43,11 @@ func main() {
 		PLUGIN_VERSION_PATCH,
 	)
 	if err != nil {
-		if !errors.Is(err, zbxerr.ErrorOSExitZero) {
-			panic(fmt.Sprintf("failed to handle flags %s", err.Error()))
+		if errors.Is(err, zbxerr.ErrorOSExitZero) {
+			return
 		}
 
-		return
+		panic(err)
 	}
 
 	err = plugin.Launch()

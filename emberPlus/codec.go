@@ -1,19 +1,21 @@
+//nolint:gci,gofmt
 package ember
 
 import (
 	"bytes"
-	"errors"
 
 	"git.zabbix.com/ap/plugin-support/errs"
 )
 
-type DefaultCodec struct {
+// S101Codec is an encoder used for encoding and decoding S101 packets.
+type S101Codec struct {
 	s101CRCTable []uint16
 }
 
-func NewCodec() *DefaultCodec {
+// NewCodec creates a new S101Codec capable of encoding and decoding S101 packets.
+func NewCodec() *S101Codec {
 	// CRC table taken from ember+ protocol documentation
-	return &DefaultCodec{
+	return &S101Codec{
 		[]uint16{
 			0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf, 0x8c48, 0x9dc1, 0xaf5a, 0xbed3, 0xca6c,
 			0xdbe5, 0xe97e, 0xf8f7, 0x1081, 0x0108, 0x3393, 0x221a, 0x56a5, 0x472c, 0x75b7, 0x643e, 0x9cc9, 0x8d40,
@@ -39,7 +41,9 @@ func NewCodec() *DefaultCodec {
 	}
 }
 
-func (e *DefaultCodec) Encode(message []byte, packetType uint8) []uint8 {
+// Encode creates a 101 packet from the message adding all the required S101 bytes based on the S101 protocol, if
+// package type is multi packet message, adds an empty packet to the end as require by the protocol.
+func (e *S101Codec) Encode(message []byte, packetType uint8) []uint8 {
 	out := e.createS101(message, packetType)
 	if packetType == FirstMultiPacket {
 		out = append(out, e.createS101([]byte{}, LastMultiPacket)...)
@@ -48,21 +52,30 @@ func (e *DefaultCodec) Encode(message []byte, packetType uint8) []uint8 {
 	return out
 }
 
-func (e *DefaultCodec) Decode(message []byte) ([]uint8, error) {
+// Decode removes all the S101 addons from the packet returning only glow data, currently does not check CRC.
+//
+// e variable will be used for crc check
+//
+//nolint:revive
+func (e *S101Codec) Decode(message []byte) ([]uint8, error) {
 	s101 := getS101(message)
 
 	d := NewASN1Decoder(s101[S101LenTilGlow+byteSkip:])
+
 	l, offset, err := d.ReadLength()
 	if err != nil {
-		return nil, errors.New("failed to get glow length")
+		return nil, errs.Wrap(err, "failed to get glow length")
 	}
 
-	var out []uint8
 	var ceFound bool
+
+	//nolint:prealloc
+	var out []uint8
 
 	for _, b := range s101 {
 		if b == CE {
 			ceFound = true
+
 			continue
 		}
 
@@ -77,22 +90,25 @@ func (e *DefaultCodec) Decode(message []byte) ([]uint8, error) {
 		out = append(out, b)
 	}
 
-	//needs CRC check
+	// needs CRC check
 
 	return out[S101LenTilGlow : S101LenTilGlow+offset+l+byteSkip], nil
 }
 
+// getS101 reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.
 func getS101(in []uint8) []uint8 {
 	var start, end int
 
 	for i, b := range in {
 		if b == BOF {
 			start = i
+
 			continue
 		}
 
 		if b == EOF {
 			end = i
+
 			continue
 		}
 	}
@@ -100,32 +116,27 @@ func getS101(in []uint8) []uint8 {
 	return in[start : end+1]
 }
 
-func checkCrc(source, target []uint8) error {
-	if len(source) != len(target) {
-		return errs.Errorf("crc length of %x and %x does not match", source, target)
-	}
+// func checkCrc(source, target []uint8) error {
+// 	if len(source) != len(target) {
+// 		return errs.Errorf("crc length of %x and %x does not match", source, target)
+// 	}
 
-	for i := range source {
-		if source[i] != target[i] {
-			return errs.Errorf("crc bytes of %x and %x do not match", source, target)
-		}
-	}
+// 	for i := range source {
+// 		if source[i] != target[i] {
+// 			return errs.Errorf("crc bytes of %x and %x do not match", source, target)
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func (e *DefaultCodec) createS101(payload []byte, pType uint8) []byte {
+// createS101 creates a S101 packet from the provided payload and packet type.
+func (e *S101Codec) createS101(payload []byte, pType uint8) []byte {
 	var s101, tmp []byte
 
-	s101 = append(s101, Slot)
-	s101 = append(s101, MessageType)
-	s101 = append(s101, CommandType)
-	s101 = append(s101, Version)
-	s101 = append(s101, pType)
-	s101 = append(s101, DTDType)
-	s101 = append(s101, AppBytes)
-	s101 = append(s101, MinorVersion)
-	s101 = append(s101, MajorVersion)
+	s101 = append(
+		s101, Slot, MessageType, CommandType, Version, pType, DTDType, AppBytes, MinorVersion, MajorVersion,
+	)
 
 	tmp = append(tmp, s101...)
 	tmp = append(tmp, payload...)
@@ -140,40 +151,28 @@ func (e *DefaultCodec) createS101(payload []byte, pType uint8) []byte {
 	return s101
 }
 
+// escapeBytesAboveBOFNE parses the message as based on Glow protocol all the bytes with bigger value then 0xf8 must
+// preceded with and 0xfd byte and XORed with 0x20 byte.
 func escapeBytesAboveBOFNE(message []byte) []byte {
+	//nolint:prealloc
 	var out []byte
 
 	for _, b := range message {
 		if b >= BOFNE {
-			out = append(out, CE)
-			out = append(out, XORCE^b)
+			out = append(out, CE, XORCE^b)
 
 			continue
 		}
 
 		out = append(out, b)
 	}
+
 	return out
 }
 
-func (e *DefaultCodec) getValidationCRC(data []byte) uint16 {
-	var crc uint16 = EOF16
-
-	reader := bytes.NewReader(data)
-
-	for {
-		b, err := reader.ReadByte()
-		if err != nil {
-			break
-		}
-
-		crc = e.computeCRCByte(crc, b)
-	}
-
-	return crc
-}
-
-func (e *DefaultCodec) getCRC(data []byte) []uint8 {
+// getCRC prepares and returns CRC for S101 packet based on the payload, crc is generated based on the S101 protocol
+// requirements.
+func (e *S101Codec) getCRC(data []byte) []uint8 {
 	var crc uint16 = EOF16
 
 	reader := bytes.NewReader(data)
@@ -185,7 +184,11 @@ func (e *DefaultCodec) getCRC(data []byte) []uint8 {
 		}
 
 		if b == CE {
-			next, _ := reader.ReadByte()
+			next, err := reader.ReadByte()
+			if err != nil {
+				break
+			}
+
 			b = XORCE ^ next
 		}
 
@@ -194,25 +197,29 @@ func (e *DefaultCodec) getCRC(data []byte) []uint8 {
 
 	crc = (^crc) & EOF16
 
-	return parseCRD([]uint8{uint8(crc & EOF), uint8(crc >> CheckSumSecondDeviation)})
+	return parseCRC([]uint8{uint8(crc & EOF), uint8(crc >> CheckSumSecondDeviation)})
 }
 
-func parseCRD(in []uint8) []uint8 {
+// parseCRC bytes above 0xf8 must be preceded with and 0xfd byte and XORed with 0x20 byte.
+func parseCRC(in []uint8) []uint8 {
+	//nolint:prealloc
 	var out []uint8
 
 	for _, v := range in {
 		if v < BOFNE {
 			out = append(out, v)
+
 			continue
 		}
 
-		out = append(out, CE)
-		out = append(out, v^XORCE)
+		out = append(out, CE, v^XORCE)
 	}
 
 	return out
 }
 
-func (e *DefaultCodec) computeCRCByte(crc uint16, b uint8) uint16 {
+// computeCRCByte creates crc double byte value bases on the S101 crc table against current crc byte using the
+// provided byte.
+func (e *S101Codec) computeCRCByte(crc uint16, b uint8) uint16 {
 	return ((crc >> 8) ^ e.s101CRCTable[(crc^uint16(b))&0xFF]) & 0xFFFF
 }

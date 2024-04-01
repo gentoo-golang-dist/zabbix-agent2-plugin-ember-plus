@@ -48,7 +48,7 @@ func Test_parsePath(t *testing.T) {
 
 func TestElementCollection_handleFunction(t *testing.T) {
 	type args struct {
-		values []cntxt
+		values []Context
 	}
 	tests := []struct {
 		name    string

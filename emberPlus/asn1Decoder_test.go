@@ -1,38 +1,11 @@
 package ember
 
 import (
-	"bytes"
 	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
-
-func Test_defaultASN1Codec_encode(t *testing.T) {
-	tests := []struct {
-		name string
-		c    *DefaultASN1Codec
-		want []byte
-	}{
-		{
-			"+valid",
-			&DefaultASN1Codec{},
-			[]byte{
-				0x60, 0x80, 0x6B, 0x80, 0xA0, 0x80, 0x62, 0x80, 0xA0, 0x03, 0x02, 0x01, 0x20, 0xA1, 0x03, 0x02, 0x01,
-				0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.c.GetRootTreeRequest()
-
-			if diff := cmp.Diff(tt.want, tt.c.emBER.Bytes()); diff != "" {
-				t.Fatalf("defaultASN1Codec.encode() = %s", diff)
-			}
-		})
-	}
-}
 
 func TestDefaultASN1Codec_ReadApplication(t *testing.T) {
 	type args struct {
@@ -41,9 +14,9 @@ func TestDefaultASN1Codec_ReadApplication(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		c       *DefaultASN1Codec
+		c       *ASN1Decoder
 		args    args
-		want    *DefaultASN1Codec
+		want    *ASN1Decoder
 		wantErr bool
 	}{
 		{
@@ -157,7 +130,7 @@ func TestDefaultASN1Codec_ReadApplication(t *testing.T) {
 				t.Errorf("DefaultASN1Codec.ReadApplication() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if diff := cmp.Diff(tt.want.glow.Bytes(), got.glow.Bytes()); diff != "" {
+			if diff := cmp.Diff(tt.want.data.Bytes(), got.data.Bytes()); diff != "" {
 				t.Fatalf("DefaultASN1Codec.ReadApplication() = %s", diff)
 			}
 		})
@@ -350,57 +323,11 @@ func TestDefaultASN1Codec_ReadApplication(t *testing.T) {
 // 	}
 // }
 
-func TestDefaultASN1Codec_EncodeUniversal(t *testing.T) {
-	type args struct {
-		path []int
-	}
-	tests := []struct {
-		name string
-		c    *DefaultASN1Codec
-		args args
-		want *DefaultASN1Codec
-	}{
-		{
-			"+valid",
-			NewASN1Decoder(nil),
-			args{
-				[]int{1},
-			},
-			&DefaultASN1Codec{
-				emBER: *bytes.NewBuffer([]byte{
-					0x0D, 0x01, 0x01,
-				}),
-			},
-		},
-		{
-			"+multiple",
-			NewASN1Decoder(nil),
-			args{
-				[]int{1, 2},
-			},
-			&DefaultASN1Codec{
-				emBER: *bytes.NewBuffer([]byte{
-					0x0D, 0x02, 0x01, 0x02,
-				}),
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.c.EncodeUniversal(tt.args.path)
-		})
-
-		if diff := cmp.Diff(tt.c.emBER.Bytes(), tt.want.emBER.Bytes()); diff != "" {
-			t.Fatalf("DefaultASN1Codec.EncodeUniversal() = %s", diff)
-		}
-	}
-}
-
 func TestDefaultASN1Codec_ReadAllContext(t *testing.T) {
 	tests := []struct {
 		name    string
-		c       *DefaultASN1Codec
-		want    []cntxt
+		c       *ASN1Decoder
+		want    []Context
 		wantErr bool
 	}{
 		{
@@ -434,10 +361,10 @@ func TestDefaultASN1Codec_ReadAllContext(t *testing.T) {
 					0x03, 0x02, 0x01, 0xff, 0xa3, 0x03, 0x02, 0x01, 0x00, 0xa2, 0x03, 0x02, 0x01, 0x03,
 				},
 			),
-			[]cntxt{
+			[]Context{
 				{
 					tag: 0,
-					data: NewASN1Decoder(
+					value: NewASN1Decoder(
 						[]byte{
 							0x6a, 0x2b, 0xa0, 0x05, 0x0d, 0x03, 0x01, 0x01, 0x05, 0xa1, 0x22, 0x31, 0x20,
 							0xa0, 0x11, 0x0c, 0x0f, 0x45, 0x6e, 0x76, 0x69, 0x72, 0x6f, 0x6e, 0x6d, 0x65, 0x6e, 0x74,
@@ -448,7 +375,7 @@ func TestDefaultASN1Codec_ReadAllContext(t *testing.T) {
 				},
 				{
 					tag: 0,
-					data: NewASN1Decoder(
+					value: NewASN1Decoder(
 						[]byte{
 							0x69, 0x4e, 0xa0, 0x05, 0x0d, 0x03, 0x01, 0x01, 0x01, 0xa1, 0x45, 0x31, 0x43,
 							0xa0, 0x13, 0x0c, 0x11, 0x45, 0x6e, 0x76, 0x69, 0x72, 0x6f, 0x6e, 0x6d, 0x65, 0x6e, 0x74,
@@ -461,7 +388,7 @@ func TestDefaultASN1Codec_ReadAllContext(t *testing.T) {
 				},
 				{
 					tag: 0,
-					data: NewASN1Decoder(
+					value: NewASN1Decoder(
 						[]byte{
 							0x69, 0x36, 0xa0, 0x05, 0x0d, 0x03, 0x01, 0x01, 0x02, 0xa1, 0x2d, 0x31, 0x2b,
 							0xa0, 0x10, 0x0c, 0x0e, 0x45, 0x6e, 0x76, 0x69, 0x72, 0x6f, 0x6e, 0x6d, 0x65, 0x6e, 0x74,
@@ -472,7 +399,7 @@ func TestDefaultASN1Codec_ReadAllContext(t *testing.T) {
 				},
 				{
 					tag: 0,
-					data: NewASN1Decoder(
+					value: NewASN1Decoder(
 						[]byte{
 							0x69, 0x37, 0xa0, 0x05, 0x0d, 0x03, 0x01, 0x01, 0x03, 0xa1, 0x2e, 0x31, 0x2c,
 							0xa0, 0x11, 0x0c, 0x0f, 0x45, 0x6e, 0x76, 0x69, 0x72, 0x6f, 0x6e, 0x6d, 0x65, 0x6e, 0x74,
@@ -483,7 +410,7 @@ func TestDefaultASN1Codec_ReadAllContext(t *testing.T) {
 				},
 				{
 					tag: 0,
-					data: NewASN1Decoder(
+					value: NewASN1Decoder(
 						[]byte{
 							0x69, 0x3a, 0xa0, 0x05, 0x0d, 0x03, 0x01, 0x01, 0x04, 0xa1, 0x31, 0x31, 0x2f,
 							0xa0, 0x14, 0x0c, 0x12, 0x45, 0x6e, 0x76, 0x69, 0x72, 0x6f, 0x6e, 0x6d, 0x65, 0x6e, 0x74,
@@ -506,7 +433,7 @@ func TestDefaultASN1Codec_ReadAllContext(t *testing.T) {
 			}
 
 			for i, g := range got {
-				if diff := cmp.Diff(g.data.glow.Bytes(), tt.want[i].data.glow.Bytes()); diff != "" {
+				if diff := cmp.Diff(g.value.data.Bytes(), tt.want[i].value.data.Bytes()); diff != "" {
 					t.Fatalf("DefaultASN1Codec.ReadAllContext() = %s", diff)
 				}
 
@@ -521,7 +448,7 @@ func TestDefaultASN1Codec_ReadAllContext(t *testing.T) {
 func TestDefaultASN1Codec_DecodeUniversal(t *testing.T) {
 	tests := []struct {
 		name    string
-		c       *DefaultASN1Codec
+		c       *ASN1Decoder
 		want    []int
 		wantErr bool
 	}{
@@ -572,77 +499,39 @@ func Test_decodeString(t *testing.T) {
 	}
 }
 
-func TestDefaultASN1Codec_writeInt(t *testing.T) {
-	type args struct {
-		i    int
-		cont uint8
-	}
-	tests := []struct {
-		name    string
-		c       *DefaultASN1Codec
-		args    args
-		want    *DefaultASN1Codec
-		wantErr bool
-	}{
-		{
-			"+valid",
-			NewASN1Decoder(nil),
-			args{
-				1,
-				0xa0,
-			},
-			&DefaultASN1Codec{
-				emBER: *bytes.NewBuffer([]byte{0xa0, 0x03, 0x02, 0x01, 0x01}),
-			},
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.c.writeInt(tt.args.i, tt.args.cont); (err != nil) != tt.wantErr {
-				t.Errorf("DefaultASN1Codec.writeInt() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if diff := cmp.Diff(tt.want.emBER.Bytes(), tt.c.emBER.Bytes()); diff != "" {
-				t.Fatalf("defaultASN1Codec.encode() = %s", diff)
-			}
-		})
-	}
-}
-
-func TestDefaultASN1Codec_DecodeInteger(t *testing.T) {
-	tests := []struct {
-		name    string
-		c       *DefaultASN1Codec
-		want    int
-		wantErr bool
-	}{
-		{
-			"+valid",
-			NewASN1Decoder([]byte{0x02, 0x01, 0x01}),
-			1,
-			false,
-		},
-		{
-			"+te",
-			NewASN1Decoder([]byte{0x0D, 0x03, 0x01, 0x02, 0x03}),
-			1,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.c.DecodeInteger()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("DefaultASN1Codec.DecodeInteger() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("DefaultASN1Codec.DecodeInteger() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+// func TestDefaultASN1Codec_DecodeInteger(t *testing.T) {
+// 	tests := []struct {
+// 		name    string
+// 		c       *DefaultASN1Codec
+// 		want    int
+// 		wantErr bool
+// 	}{
+// 		{
+// 			"+valid",
+// 			NewASN1Decoder([]byte{0x02, 0x01, 0x01}),
+// 			1,
+// 			false,
+// 		},
+// 		{
+// 			"+te",
+// 			NewASN1Decoder([]byte{0x0D, 0x03, 0x01, 0x02, 0x03}),
+// 			1,
+// 			false,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			got, err := tt.c.DecodeInteger()
+// 			if (err != nil) != tt.wantErr {
+// 				t.Errorf("DefaultASN1Codec.DecodeInteger() error = %v, wantErr %v", err, tt.wantErr)
+// 				return
+// 			}
+// 			if got != tt.want {
+// 				t.Errorf("DefaultASN1Codec.DecodeInteger() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }
 
 func Test_decodeBool(t *testing.T) {
 	type args struct {
