@@ -1,4 +1,3 @@
-//nolint:gofmt
 /*
 ** Zabbix
 ** Copyright 2001-2024 Zabbix SIA

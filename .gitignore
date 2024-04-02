@@ -103,3 +103,4 @@ $RECYCLE.BIN/
 # go build binary
 zabbix-ember-plus-plugin
 ember-plus
+.vscode

@@ -1,4 +1,3 @@
-//nolint:gci,gofmt
 package ember
 
 import (

@@ -1,4 +1,3 @@
-//nolint:gci,gofmt
 package plugin
 
 import (
