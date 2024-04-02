@@ -50,6 +50,8 @@ type (
 )
 
 // Populate filles in collection with data from the decoder.
+//
+//nolint:gocyclo,cyclop
 func (ec ElementCollection) Populate(data *ASN1Decoder) error {
 	app0Codec, err := data.Read(rootElementCollectionTag, application)
 	if err != nil {
@@ -151,35 +153,10 @@ func (ec ElementCollection) handleParameter(contexts []Context) error {
 				return errs.Wrap(err, "failed to handle property")
 			}
 		case pathContextTag:
-			var path []int
-
-			b, err := c.value.Peek()
+			err := el.handleParameterPath(c)
 			if err != nil {
-				return errs.Wrap(err, "failed to read path")
+				return errs.Wrap(err, "failed to handle property")
 			}
-
-			switch b {
-			case universalObjectTag:
-				path, err = c.value.DecodeUniversal()
-				if err != nil {
-					return errs.Wrap(err, "failed to universal")
-				}
-			case intObjectTag:
-				p, err := c.value.DecodeInteger()
-				if err != nil {
-					return errs.Wrap(err, "failed to decode int")
-				}
-
-				path = append(path, p)
-			}
-
-			var strPath []string
-
-			for _, p := range path {
-				strPath = append(strPath, strconv.Itoa(p))
-			}
-
-			el.Path = strings.Join(strPath, ".")
 		default:
 			return errs.New("incorrect parameter tag")
 		}
@@ -206,18 +183,10 @@ func (ec ElementCollection) handleQualifiedNodeTag(contexts []Context) error {
 				return errs.Wrap(err, "failed to handle property")
 			}
 		case pathContextTag:
-			path, err := c.value.DecodeUniversal()
+			err := el.handlePathFromUniversal(c)
 			if err != nil {
-				return errs.Wrap(err, "failed to get path")
+				return errs.Wrap(err, "failed to handle property")
 			}
-
-			var strPath []string
-
-			for _, p := range path {
-				strPath = append(strPath, strconv.Itoa(p))
-			}
-
-			el.Path = strings.Join(strPath, ".")
 		default:
 			return errs.New("incorrect node values")
 		}
@@ -230,7 +199,10 @@ func (ec ElementCollection) handleQualifiedNodeTag(contexts []Context) error {
 
 // handleNodeTag used to decodes context data for node tags.
 func (ec ElementCollection) handleNodeTag(contexts []Context) error {
-	var el Element
+	var (
+		el  Element
+		err error
+	)
 
 	el.ElementType = NodeType
 
@@ -239,24 +211,9 @@ func (ec ElementCollection) handleNodeTag(contexts []Context) error {
 		case childrenContextTag:
 			// currently not implemented
 		case propertiesContextTag:
-			conts, err := c.value.ReadSet()
+			err = el.handleNodeContext(c)
 			if err != nil {
-				return err
-			}
-
-			for _, c := range conts {
-				switch context(uint8(c.tag)) {
-				case context(0):
-					el.Identifier, err = decodeString(c.value.data.Bytes())
-					if err != nil {
-						return err
-					}
-				case context(3):
-					el.IsOnline, err = decodeBool(c.value.data.Bytes())
-					if err != nil {
-						return err
-					}
-				}
+				return errs.New("failed to get properties values from set")
 			}
 		case pathContextTag:
 			path, err := c.value.DecodeInteger()
@@ -286,40 +243,122 @@ func (ec ElementCollection) handleFunction(contexts []Context) error {
 		case childrenContextTag:
 			// currently not implemented
 		case propertiesContextTag:
-			pContexts, err := c.value.ReadSet()
+			err := el.handleFunctionContextSetTag(c)
 			if err != nil {
-				return errs.Wrapf(err, "failed to read set")
-			}
-
-			for _, pc := range pContexts {
-				if context(uint8(c.tag)) == context(0) {
-					el.Identifier, err = decodeString(pc.value.data.Bytes())
-					if err != nil {
-						return errs.Wrapf(err, "failed to decode string")
-					}
-
-					break
-				}
+				return errs.Wrapf(err, "failed to read identifier")
 			}
 		case pathContextTag:
-			path, err := c.value.DecodeUniversal()
+			err := el.handlePathFromUniversal(c)
 			if err != nil {
 				return errs.Wrapf(err, "failed to decode integer")
 			}
-
-			var strPath []string
-
-			for _, p := range path {
-				strPath = append(strPath, strconv.Itoa(p))
-			}
-
-			el.Path = strings.Join(strPath, ".")
 		default:
 			return errs.New("incorrect node values")
 		}
 
 		ec[ElementKey{ID: el.Identifier, Path: el.Path}] = &el
 	}
+
+	return nil
+}
+
+func (el *Element) handleParameterPath(c Context) error {
+	var path []int
+
+	b, err := c.value.Peek()
+	if err != nil {
+		return errs.Wrap(err, "failed to read path")
+	}
+
+	switch b {
+	case universalObjectTag:
+		path, err = c.value.DecodeUniversal()
+		if err != nil {
+			return errs.Wrap(err, "failed to universal")
+		}
+	case intObjectTag:
+		p, err := c.value.DecodeInteger()
+		if err != nil {
+			return errs.Wrap(err, "failed to decode int")
+		}
+
+		path = append(path, p)
+	}
+
+	strPath := make([]string, 0, len(path))
+
+	for _, p := range path {
+		strPath = append(strPath, strconv.Itoa(p))
+	}
+
+	el.Path = strings.Join(strPath, ".")
+
+	return nil
+}
+
+func (el *Element) handleNodeContext(c Context) error {
+	conts, err := c.value.ReadSet()
+	if err != nil {
+		return errs.Wrap(err, "failed to read set")
+	}
+
+	for _, c := range conts {
+		switch context(uint8(c.tag)) {
+		case context(0):
+			id, err := decodeString(c.value.data.Bytes())
+			if err != nil {
+				return errs.Wrap(err, "failed to decode identifier")
+			}
+
+			el.Identifier = id
+		case context(3):
+			isOnline, err := decodeBool(c.value.data.Bytes())
+			if err != nil {
+				return errs.Wrap(err, "failed to decode is online ")
+			}
+
+			el.IsOnline = isOnline
+		}
+	}
+
+	return nil
+}
+
+func (el *Element) handleFunctionContextSetTag(c Context) error {
+	pContexts, err := c.value.ReadSet()
+	if err != nil {
+		return errs.Wrapf(err, "failed to read set")
+	}
+
+	for _, pc := range pContexts {
+		if context(uint8(c.tag)) == context(0) {
+			identifier, err := decodeString(pc.value.data.Bytes())
+			if err != nil {
+				return errs.Wrapf(err, "failed to decode string")
+			}
+
+			el.Identifier = identifier
+
+			break
+		}
+	}
+
+	return nil
+}
+
+func (el *Element) handlePathFromUniversal(c Context) error {
+	path, err := c.value.DecodeUniversal()
+	if err != nil {
+		return errs.Wrapf(err, "failed to decode integer")
+	}
+
+	strPath := make([]string, 0, len(path))
+
+	for _, p := range path {
+		strPath = append(strPath, strconv.Itoa(p))
+	}
+
+	el.Path = strings.Join(strPath, ".")
 
 	return nil
 }
