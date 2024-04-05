@@ -256,9 +256,7 @@ func (p *emberPlugin) handleRequest(
 		return nil, errs.Wrap(err, "failed to handle request")
 	}
 
-	codec := s101.NewCodec()
-
-	glow, err := codec.Decode(resp)
+	glow, err := s101.Decode(resp)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to decode response")
 	}

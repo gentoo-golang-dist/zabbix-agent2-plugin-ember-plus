@@ -57,8 +57,6 @@ const (
 	commandApplicationTag = 2
 	// tag for defining glow element collection tag.
 	elementCollectionTag = 4
-	// // tag for defining glow node tag.
-	// nodeTag = 3
 	// tag for defining glow function tag.
 	functionTag = 20
 	// tag for defining glow set tag.

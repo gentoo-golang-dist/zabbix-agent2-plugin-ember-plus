@@ -14,13 +14,11 @@ func TestDefaultEncoder_Encode(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		e    *S101Codec
 		args args
 		want []uint8
 	}{
 		{
 			"+valid",
-			NewCodec(),
 			args{
 				[]byte{
 					0x60, 0x80, 0x6b, 0x80, 0xa0, 0x80, 0x62, 0x80, 0xa0, 0x03, 0x02, 0x01, 0x20, 0xa1, 0x03, 0x02,
@@ -38,7 +36,7 @@ func TestDefaultEncoder_Encode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.e.Encode(tt.args.message, tt.args.packetType); !reflect.DeepEqual(got, tt.want) {
+			if got := Encode(tt.args.message, tt.args.packetType); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DefaultEncoder.Encode() = %x, want %x", got, tt.want)
 			}
 		})
@@ -51,13 +49,11 @@ func TestDefaultEncoder_getCRC(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		e    *S101Codec
 		args args
 		want []uint8
 	}{
 		{
 			"+valid",
-			NewCodec(),
 			args{
 				[]byte{
 					0x00, 0x0e, 0x00, 1, 0x80, 1, 2, 40, 2, 0x60, 0x80, 0x6b, 0x80, 0xa0, 0x80, 0x62, 0x80, 0xa0, 0x03,
@@ -70,7 +66,6 @@ func TestDefaultEncoder_getCRC(t *testing.T) {
 		},
 		{
 			"+long_byte",
-			NewCodec(),
 			args{
 				[]byte{
 					0x00, 0x0e, 0x00, 0x01, 0xc0, 0x01, 0x02, 0x1e, 0x02, 0x60, 0x82, 0x01, 0x01, 0x6b, 0x82, 0x00,
@@ -123,7 +118,6 @@ func TestDefaultEncoder_getCRC(t *testing.T) {
 		// },
 		{
 			"+emptyPayload",
-			NewCodec(),
 			args{
 				[]byte{
 					0x00, 0x0e, 0x00, 1, 0x60, 1, 2, 40, 2,
@@ -136,7 +130,7 @@ func TestDefaultEncoder_getCRC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.e.getCRC(tt.args.data); !reflect.DeepEqual(got, tt.want) {
+			if got := getCRC(tt.args.data); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DefaultEncoder.getCRC() = %v, want %v", got, tt.want)
 			}
 		})
@@ -149,14 +143,12 @@ func TestDefaultCodec_Decode(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		e       *S101Codec
 		args    args
 		want    []uint8
 		wantErr bool
 	}{
 		{
 			"+valid",
-			NewCodec(),
 			args{
 				[]byte{
 					0x02, 0x00, 0x00, 0x00, 0x45, 0x00, 0x00, 0x6c, 0x34, 0x95, 0x40, 0x00, 0x80, 0x06, 0x00, 0x00,
@@ -178,7 +170,6 @@ func TestDefaultCodec_Decode(t *testing.T) {
 		},
 		{
 			"+fn_req",
-			NewCodec(),
 			args{
 				[]byte{
 					0x02, 0x00, 0x00, 0x00, 0x45, 0x00, 0x01, 0x3c, 0xb7, 0x25, 0x40, 0x00, 0x80, 0x06, 0x00, 0x00,
@@ -226,7 +217,6 @@ func TestDefaultCodec_Decode(t *testing.T) {
 		},
 		{
 			"+big_collection",
-			NewCodec(),
 			args{
 				[]byte{
 					0x02, 0x00, 0x00, 0x00, 0x45, 0x00, 0x02, 0x44, 0x53, 0x38, 0x40, 0x00, 0x80, 0x06, 0x00, 0x00,
@@ -324,7 +314,7 @@ func TestDefaultCodec_Decode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.e.Decode(tt.args.message)
+			got, err := Decode(tt.args.message)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DefaultCodec.Decode() error = %v, wantErr %v", err, tt.wantErr)
 				return

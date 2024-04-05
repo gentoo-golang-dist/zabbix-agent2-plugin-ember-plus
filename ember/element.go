@@ -118,7 +118,7 @@ func GetRootRequest(_ ElementType, _ string) ([]byte, error) {
 		return nil, errs.Wrap(err, "failed to write root command request")
 	}
 
-	return s101.NewCodec().Encode(asn1.GetData(), s101.FirstMultiPacket), nil
+	return s101.Encode(asn1.GetData(), s101.FirstMultiPacket), nil
 }
 
 // GetRequestByType returns S101 packet with an encoded request for element with the provided type and path.
@@ -135,7 +135,7 @@ func GetRequestByType(et ElementType, path string) ([]byte, error) {
 		return nil, errs.Wrap(err, "failed to write request")
 	}
 
-	return s101.NewCodec().Encode(asn1.GetData(), s101.FirstMultiPacket), nil
+	return s101.Encode(asn1.GetData(), s101.FirstMultiPacket), nil
 }
 
 // handleParameter used to decodes context data for parameters.

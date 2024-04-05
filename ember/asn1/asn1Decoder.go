@@ -91,7 +91,7 @@ func (c *Decoder) ReadAllContext() ([]Context, error) {
 			return nil, err
 		}
 
-		// currently bases on ember+ documentation there are 0-17 contexts
+		// currently based on ember+ documentation there are 0-17 contexts
 
 		switch contInt {
 		case ContextByte(0):
@@ -229,15 +229,19 @@ func (c *Decoder) DecodeInteger() (int, error) {
 	return out, nil
 }
 
-// tag types used in decoder.Read.
+// tag types used in ember+ glow protocol.
+
+// ApplicationByte have the same meaning wherever they are seen and used.
 func ApplicationByte(num uint8) uint8 {
 	return applicationOR | num
 }
 
+// ContextByte context-specific tags depends on the location where they are seen.
 func ContextByte(num uint8) uint8 {
 	return contextOR | num
 }
 
+// UniversalByte predefined types, the value is returned unchanged.
 func UniversalByte(num uint8) uint8 {
 	return num
 }
