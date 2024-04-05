@@ -244,6 +244,11 @@ issues:
         - goerr113
         - revive
         - wrapcheck
-
+        - wsl
+        - paralleltest
+        - nlreturn
+        - gosec
+        - lll
+        - dupword
 severity:
   default-severity: error

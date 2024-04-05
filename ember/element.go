@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 
+	"git.zabbix.com/ap/ember-plus/ember/asn1"
+	"git.zabbix.com/ap/ember-plus/ember/s101"
 	"git.zabbix.com/ap/plugin-support/errs"
 )
 
@@ -45,19 +47,19 @@ type (
 	ElementType string
 
 	// valueHandlerFunc functions used to handle different glow value types.
-	valueHandlerFunc func(values []Context) error
+	valueHandlerFunc func(values []asn1.Context) error
 )
 
 // Populate filles in collection with data from the decoder.
 //
 //nolint:gocyclo,cyclop
-func (ec ElementCollection) Populate(data *ASN1Decoder) error {
-	app0Codec, err := data.Read(rootElementCollectionTag, application)
+func (ec ElementCollection) Populate(data *asn1.Decoder) error {
+	app0Codec, err := data.Read(asn1.RootElementCollectionTag, asn1.ApplicationByte)
 	if err != nil {
 		return errs.Wrapf(err, "failed to read element root collection tag")
 	}
 
-	app11Codec, err := app0Codec.Read(rootElementTag, application)
+	app11Codec, err := app0Codec.Read(asn1.RootElementTag, asn1.ApplicationByte)
 	if err != nil {
 		return errs.Wrapf(err, "failed to read element tag")
 	}
@@ -68,28 +70,28 @@ func (ec ElementCollection) Populate(data *ASN1Decoder) error {
 	}
 
 	for _, cont := range cnts {
-		t, err := cont.value.Peek()
+		t, err := cont.Value.Peek()
 		if err != nil {
 			return errs.Wrapf(err, "failed to read context")
 		}
 
-		switch application(t) {
-		case application(qualifiedNodeTag):
-			err = handleApplication(cont, qualifiedNodeTag, ec.handleQualifiedNodeTag)
+		switch asn1.ApplicationByte(t) {
+		case asn1.ApplicationByte(asn1.QualifiedNodeTag):
+			err = handleApplication(cont, asn1.QualifiedNodeTag, ec.handleQualifiedNodeTag)
 			if err != nil {
 				return errs.Wrapf(err, "failed to handle qualified node")
 			}
-		case application(qualifiedParameterTag):
-			err = handleApplication(cont, qualifiedParameterTag, ec.handleParameter)
+		case asn1.ApplicationByte(asn1.QualifiedParameterTag):
+			err = handleApplication(cont, asn1.QualifiedParameterTag, ec.handleParameter)
 			if err != nil {
 				return errs.Wrapf(err, "failed to handle qualified parameter")
 			}
-		case application(nodeTag):
+		case asn1.ApplicationByte(nodeTag):
 			err = handleApplication(cont, nodeTag, ec.handleNodeTag)
 			if err != nil {
 				return errs.Wrapf(err, "failed to handle node tag")
 			}
-		case application(functionTag):
+		case asn1.ApplicationByte(functionTag):
 			err = handleApplication(cont, functionTag, ec.handleFunction)
 			if err != nil {
 				return errs.Wrapf(err, "failed to handle function tag")
@@ -109,41 +111,41 @@ func NewElementConnection() ElementCollection {
 
 // GetRootRequest returns a S101 request packet with an encoded request for root collection.
 func GetRootRequest(_ ElementType, _ string) ([]byte, error) {
-	asn1 := NewASN1Encoder()
+	asn1 := asn1.NewEncoder()
 	err := asn1.WriteRootTreeRequest()
 
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to write root command request")
 	}
 
-	return NewCodec().Encode(asn1.GetData(), FirstMultiPacket), nil
+	return s101.NewCodec().Encode(asn1.GetData(), s101.FirstMultiPacket), nil
 }
 
 // GetRequestByType returns S101 packet with an encoded request for element with the provided type and path.
 func GetRequestByType(et ElementType, path string) ([]byte, error) {
-	asn1 := NewASN1Encoder()
+	asn1 := asn1.NewEncoder()
 
 	parsed, err := parsePath(path)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to parse path")
 	}
 
-	err = asn1.WriteRequest(parsed, et)
+	err = asn1.WriteRequest(parsed, string(et))
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to write request")
 	}
 
-	return NewCodec().Encode(asn1.GetData(), FirstMultiPacket), nil
+	return s101.NewCodec().Encode(asn1.GetData(), s101.FirstMultiPacket), nil
 }
 
 // handleParameter used to decodes context data for parameters.
-func (ec ElementCollection) handleParameter(contexts []Context) error {
+func (ec ElementCollection) handleParameter(contexts []asn1.Context) error {
 	var el Element
 
-	el.ElementType = ParameterType
+	el.ElementType = asn1.ParameterType
 
 	for _, c := range contexts {
-		switch c.tag {
+		switch c.Tag {
 		case childrenContextTag:
 			// currently not implemented
 		case propertiesContextTag:
@@ -167,13 +169,13 @@ func (ec ElementCollection) handleParameter(contexts []Context) error {
 }
 
 // handleQualifiedNodeTag used to decodes context data for qualified node tags.
-func (ec ElementCollection) handleQualifiedNodeTag(contexts []Context) error {
+func (ec ElementCollection) handleQualifiedNodeTag(contexts []asn1.Context) error {
 	var el Element
 
-	el.ElementType = QualifiedNodeType
+	el.ElementType = asn1.QualifiedNodeType
 
 	for _, c := range contexts {
-		switch c.tag {
+		switch c.Tag {
 		case childrenContextTag:
 			// currently not implemented
 		case propertiesContextTag:
@@ -197,16 +199,16 @@ func (ec ElementCollection) handleQualifiedNodeTag(contexts []Context) error {
 }
 
 // handleNodeTag used to decodes context data for node tags.
-func (ec ElementCollection) handleNodeTag(contexts []Context) error {
+func (ec ElementCollection) handleNodeTag(contexts []asn1.Context) error {
 	var (
 		el  Element
 		err error
 	)
 
-	el.ElementType = NodeType
+	el.ElementType = asn1.NodeType
 
 	for _, c := range contexts {
-		switch c.tag {
+		switch c.Tag {
 		case childrenContextTag:
 			// currently not implemented
 		case propertiesContextTag:
@@ -215,7 +217,7 @@ func (ec ElementCollection) handleNodeTag(contexts []Context) error {
 				return errs.New("failed to get properties values from set")
 			}
 		case pathContextTag:
-			path, err := c.value.DecodeInteger()
+			path, err := c.Value.DecodeInteger()
 			if err != nil {
 				return err
 			}
@@ -232,13 +234,13 @@ func (ec ElementCollection) handleNodeTag(contexts []Context) error {
 }
 
 // handleFunction used to decodes context data for functions.
-func (ec ElementCollection) handleFunction(contexts []Context) error {
+func (ec ElementCollection) handleFunction(contexts []asn1.Context) error {
 	var el Element
 
-	el.ElementType = FunctionType
+	el.ElementType = asn1.FunctionType
 
 	for _, c := range contexts {
-		switch c.tag {
+		switch c.Tag {
 		case childrenContextTag:
 			// currently not implemented
 		case propertiesContextTag:
@@ -261,22 +263,22 @@ func (ec ElementCollection) handleFunction(contexts []Context) error {
 	return nil
 }
 
-func (el *Element) handleParameterPath(c Context) error {
+func (el *Element) handleParameterPath(c asn1.Context) error {
 	var path []int
 
-	b, err := c.value.Peek()
+	b, err := c.Value.Peek()
 	if err != nil {
 		return errs.Wrap(err, "failed to read path")
 	}
 
 	switch b {
-	case universalObjectTag:
-		path, err = c.value.DecodeUniversal()
+	case asn1.UniversalObjectTag:
+		path, err = c.Value.DecodeUniversal()
 		if err != nil {
 			return errs.Wrap(err, "failed to universal")
 		}
-	case intObjectTag:
-		p, err := c.value.DecodeInteger()
+	case asn1.IntObjectTag:
+		p, err := c.Value.DecodeInteger()
 		if err != nil {
 			return errs.Wrap(err, "failed to decode int")
 		}
@@ -295,23 +297,23 @@ func (el *Element) handleParameterPath(c Context) error {
 	return nil
 }
 
-func (el *Element) handleNodeContext(c Context) error {
-	conts, err := c.value.ReadSet()
+func (el *Element) handleNodeContext(c asn1.Context) error {
+	conts, err := c.Value.ReadSet()
 	if err != nil {
 		return errs.Wrap(err, "failed to read set")
 	}
 
 	for _, c := range conts {
-		switch context(uint8(c.tag)) {
-		case context(0):
-			id, err := decodeString(c.value.data.Bytes())
+		switch asn1.ContextByte(uint8(c.Tag)) {
+		case asn1.ContextByte(0):
+			id, err := asn1.DecodeString(c.Bytes())
 			if err != nil {
 				return errs.Wrap(err, "failed to decode identifier")
 			}
 
 			el.Identifier = id
-		case context(3):
-			isOnline, err := decodeBool(c.value.data.Bytes())
+		case asn1.ContextByte(3):
+			isOnline, err := asn1.DecodeBool(c.Bytes())
 			if err != nil {
 				return errs.Wrap(err, "failed to decode is online ")
 			}
@@ -323,15 +325,15 @@ func (el *Element) handleNodeContext(c Context) error {
 	return nil
 }
 
-func (el *Element) handleFunctionContextSetTag(c Context) error {
-	pContexts, err := c.value.ReadSet()
+func (el *Element) handleFunctionContextSetTag(c asn1.Context) error {
+	pContexts, err := c.Value.ReadSet()
 	if err != nil {
 		return errs.Wrapf(err, "failed to read set")
 	}
 
 	for _, pc := range pContexts {
-		if context(uint8(c.tag)) == context(0) {
-			identifier, err := decodeString(pc.value.data.Bytes())
+		if asn1.ContextByte(uint8(c.Tag)) == asn1.ContextByte(0) {
+			identifier, err := asn1.DecodeString(pc.Bytes())
 			if err != nil {
 				return errs.Wrapf(err, "failed to decode string")
 			}
@@ -345,8 +347,8 @@ func (el *Element) handleFunctionContextSetTag(c Context) error {
 	return nil
 }
 
-func (el *Element) handlePathFromUniversal(c Context) error {
-	path, err := c.value.DecodeUniversal()
+func (el *Element) handlePathFromUniversal(c asn1.Context) error {
+	path, err := c.Value.DecodeUniversal()
 	if err != nil {
 		return errs.Wrapf(err, "failed to decode integer")
 	}
@@ -363,26 +365,26 @@ func (el *Element) handlePathFromUniversal(c Context) error {
 }
 
 // handlePropertyContext decodes context property tag.
-func (el *Element) handlePropertyContext(node Context) error {
-	conts, err := node.value.ReadSet()
+func (el *Element) handlePropertyContext(node asn1.Context) error {
+	conts, err := node.Value.ReadSet()
 	if err != nil {
 		return err
 	}
 
 	for _, c := range conts {
-		switch context(uint8(c.tag)) {
-		case context(0):
-			el.Identifier, err = decodeString(c.value.data.Bytes())
+		switch asn1.ContextByte(uint8(c.Tag)) {
+		case asn1.ContextByte(0):
+			el.Identifier, err = asn1.DecodeString(c.Bytes())
 			if err != nil {
 				return err
 			}
-		case context(1):
-			el.Description, err = decodeString(c.value.data.Bytes())
+		case asn1.ContextByte(1):
+			el.Description, err = asn1.DecodeString(c.Bytes())
 			if err != nil {
 				return err
 			}
-		case context(7):
-			el.Enumeration, err = decodeString(c.value.data.Bytes())
+		case asn1.ContextByte(7):
+			el.Enumeration, err = asn1.DecodeString(c.Bytes())
 			if err != nil {
 				return err
 			}
@@ -393,8 +395,8 @@ func (el *Element) handlePropertyContext(node Context) error {
 }
 
 // handleApplication decodes application from context based on the value handler function and the application tag.
-func handleApplication(cont Context, tag uint8, valHandler valueHandlerFunc) error {
-	appl, err := cont.value.Read(tag, application)
+func handleApplication(cont asn1.Context, tag uint8, valHandler valueHandlerFunc) error {
+	appl, err := cont.Value.Read(tag, asn1.ApplicationByte)
 	if err != nil {
 		return err
 	}

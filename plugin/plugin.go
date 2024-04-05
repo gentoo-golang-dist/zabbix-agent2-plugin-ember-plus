@@ -6,7 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	ember "git.zabbix.com/ap/ember-plus/emberPlus"
+	"git.zabbix.com/ap/ember-plus/ember"
+	"git.zabbix.com/ap/ember-plus/ember/asn1"
+	"git.zabbix.com/ap/ember-plus/ember/s101"
 	"git.zabbix.com/ap/ember-plus/plugin/conn"
 	"git.zabbix.com/ap/ember-plus/plugin/params"
 	"git.zabbix.com/ap/plugin-support/errs"
@@ -254,7 +256,7 @@ func (p *emberPlugin) handleRequest(
 		return nil, errs.Wrap(err, "failed to handle request")
 	}
 
-	codec := ember.NewCodec()
+	codec := s101.NewCodec()
 
 	glow, err := codec.Decode(resp)
 	if err != nil {
@@ -263,7 +265,7 @@ func (p *emberPlugin) handleRequest(
 
 	el := ember.NewElementConnection()
 
-	err = el.Populate(ember.NewASN1Decoder(glow))
+	err = el.Populate(asn1.NewDecoder(glow))
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to populate glow response")
 	}

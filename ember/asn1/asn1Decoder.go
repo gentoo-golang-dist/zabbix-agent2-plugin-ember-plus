@@ -1,32 +1,13 @@
-package ember
+package asn1
 
 import (
-	"bytes"
-	"encoding/asn1"
-
 	"git.zabbix.com/ap/plugin-support/errs"
 )
-
-// ASN1Decoder decoder for ASN1 glow data.
-type ASN1Decoder struct {
-	data *bytes.Buffer
-}
-
-// Context contains decoder for context and it's tag for easy of use.
-type Context struct {
-	value *ASN1Decoder
-	tag   int
-}
-
-// NewASN1Decoder creates a new ASN1 Decoder.
-func NewASN1Decoder(b []byte) *ASN1Decoder {
-	return &ASN1Decoder{bytes.NewBuffer(b)}
-}
 
 // Read reads the next glow data block of the appropriate type, it checks the glow tag against the provided compare
 // function and if they match it reads the glow data block and returns it as it's own decoded, original decoder might
 // have more data left, THIS DOES NOT READ ALL THE DATA.
-func (c *ASN1Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*ASN1Decoder, error) {
+func (c *Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*Decoder, error) {
 	b, err := c.data.ReadByte()
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to read tag byte")
@@ -52,12 +33,12 @@ func (c *ASN1Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*ASN1D
 		out = append(out, b)
 	}
 
-	return NewASN1Decoder(out), nil
+	return NewDecoder(out), nil
 }
 
-// ReadLength reads next in line data blocks length and returns it as well ass how many bytes the data
+// ReadLength reads next in line data blocks length and returns it as well as how many bytes the data
 // length was written in.
-func (c *ASN1Decoder) ReadLength() (int, int, error) {
+func (c *Decoder) ReadLength() (int, int, error) {
 	var offset int
 
 	lenB, err := c.data.ReadByte()
@@ -96,16 +77,16 @@ func (c *ASN1Decoder) ReadLength() (int, int, error) {
 // ReadAllContext returns all the following contexts as new decoders.
 //
 //nolint:gocyclo,cyclop
-func (c *ASN1Decoder) ReadAllContext() ([]Context, error) {
+func (c *Decoder) ReadAllContext() ([]Context, error) {
 	var out []Context
 
-	for {
+	for c.data.Len() > 0 {
 		contInt, err := c.Peek()
 		if err != nil {
 			return nil, err
 		}
 
-		d, err := c.Read(contInt, context)
+		d, err := c.Read(contInt, ContextByte)
 		if err != nil {
 			return nil, err
 		}
@@ -113,54 +94,52 @@ func (c *ASN1Decoder) ReadAllContext() ([]Context, error) {
 		// currently bases on ember+ documentation there are 0-17 contexts
 
 		switch contInt {
-		case context(0):
-			out = append(out, Context{value: d, tag: 0})
-		case context(1):
-			out = append(out, Context{value: d, tag: 1})
-		case context(2):
-			out = append(out, Context{value: d, tag: 2})
-		case context(3):
-			out = append(out, Context{value: d, tag: 3})
-		case context(4):
-			out = append(out, Context{value: d, tag: 4})
-		case context(5):
-			out = append(out, Context{value: d, tag: 5})
-		case context(6):
-			out = append(out, Context{value: d, tag: 6})
-		case context(7):
-			out = append(out, Context{value: d, tag: 7})
-		case context(8):
-			out = append(out, Context{value: d, tag: 8})
-		case context(9):
-			out = append(out, Context{value: d, tag: 9})
-		case context(10):
-			out = append(out, Context{value: d, tag: 10})
-		case context(11):
-			out = append(out, Context{value: d, tag: 11})
-		case context(12):
-			out = append(out, Context{value: d, tag: 12})
-		case context(13):
-			out = append(out, Context{value: d, tag: 13})
-		case context(14):
-			out = append(out, Context{value: d, tag: 14})
-		case context(15):
-			out = append(out, Context{value: d, tag: 15})
-		case context(16):
-			out = append(out, Context{value: d, tag: 16})
-		case context(17):
-			out = append(out, Context{value: d, tag: 17})
+		case ContextByte(0):
+			out = append(out, Context{Value: d, Tag: 0})
+		case ContextByte(1):
+			out = append(out, Context{Value: d, Tag: 1})
+		case ContextByte(2):
+			out = append(out, Context{Value: d, Tag: 2})
+		case ContextByte(3):
+			out = append(out, Context{Value: d, Tag: 3})
+		case ContextByte(4):
+			out = append(out, Context{Value: d, Tag: 4})
+		case ContextByte(5):
+			out = append(out, Context{Value: d, Tag: 5})
+		case ContextByte(6):
+			out = append(out, Context{Value: d, Tag: 6})
+		case ContextByte(7):
+			out = append(out, Context{Value: d, Tag: 7})
+		case ContextByte(8):
+			out = append(out, Context{Value: d, Tag: 8})
+		case ContextByte(9):
+			out = append(out, Context{Value: d, Tag: 9})
+		case ContextByte(10):
+			out = append(out, Context{Value: d, Tag: 10})
+		case ContextByte(11):
+			out = append(out, Context{Value: d, Tag: 11})
+		case ContextByte(12):
+			out = append(out, Context{Value: d, Tag: 12})
+		case ContextByte(13):
+			out = append(out, Context{Value: d, Tag: 13})
+		case ContextByte(14):
+			out = append(out, Context{Value: d, Tag: 14})
+		case ContextByte(15):
+			out = append(out, Context{Value: d, Tag: 15})
+		case ContextByte(16):
+			out = append(out, Context{Value: d, Tag: 16})
+		case ContextByte(17):
+			out = append(out, Context{Value: d, Tag: 17})
 		default:
-			return nil, errs.New("unknown context")
-		}
-
-		if c.data.Len() == 0 {
-			return out, nil
+			return nil, errs.Errorf("unknown context: %d", contInt)
 		}
 	}
+
+	return out, nil
 }
 
 // Peek returns the next byte, but does not remove it from the buffer.
-func (c *ASN1Decoder) Peek() (byte, error) {
+func (c *Decoder) Peek() (byte, error) {
 	b, err := c.data.ReadByte()
 	if err != nil {
 		return 0, errs.Wrap(err, "failed to read a byte")
@@ -175,8 +154,8 @@ func (c *ASN1Decoder) Peek() (byte, error) {
 }
 
 // ReadSet returns all following contexts contained in a Set.
-func (c *ASN1Decoder) ReadSet() ([]Context, error) {
-	set, err := c.Read(setByte, universal)
+func (c *Decoder) ReadSet() ([]Context, error) {
+	set, err := c.Read(setByte, UniversalByte)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set")
 	}
@@ -191,13 +170,13 @@ func (c *ASN1Decoder) ReadSet() ([]Context, error) {
 
 // DecodeUniversal decoded the following universal data type of glow, currently only used for universal path decoding,
 // witch is an array of integers.
-func (c *ASN1Decoder) DecodeUniversal() ([]int, error) {
+func (c *Decoder) DecodeUniversal() ([]int, error) {
 	b, err := c.data.ReadByte()
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to read tag byte")
 	}
 
-	if b != universalObjectTag {
+	if b != UniversalObjectTag {
 		return nil, errs.New("incorrect universal byte")
 	}
 
@@ -221,7 +200,7 @@ func (c *ASN1Decoder) DecodeUniversal() ([]int, error) {
 }
 
 // DecodeInteger decodes the following integer.
-func (c *ASN1Decoder) DecodeInteger() (int, error) {
+func (c *Decoder) DecodeInteger() (int, error) {
 	t, err := c.data.ReadByte()
 	if err != nil {
 		return 0, errs.Wrap(err, "failed to read tag byte")
@@ -251,38 +230,14 @@ func (c *ASN1Decoder) DecodeInteger() (int, error) {
 }
 
 // tag types used in decoder.Read.
-func application(num uint8) uint8 {
+func ApplicationByte(num uint8) uint8 {
 	return applicationOR | num
 }
 
-func context(num uint8) uint8 {
+func ContextByte(num uint8) uint8 {
 	return contextOR | num
 }
 
-func universal(num uint8) uint8 {
+func UniversalByte(num uint8) uint8 {
 	return num
-}
-
-// wrappers on overlapping asn1 functionality from native go ASN1 package.
-
-func decodeString(in []byte) (string, error) {
-	var out string
-
-	_, err := asn1.Unmarshal(in, &out)
-	if err != nil {
-		return "", errs.Wrap(err, "failed to unmarshal go native asn1 string")
-	}
-
-	return out, nil
-}
-
-func decodeBool(in []byte) (bool, error) {
-	var out bool
-
-	_, err := asn1.Unmarshal(in, &out)
-	if err != nil {
-		return false, errs.Wrap(err, "failed to unmarshal go native asn1 bool")
-	}
-
-	return out, nil
 }

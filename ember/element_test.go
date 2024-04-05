@@ -3,6 +3,8 @@ package ember
 import (
 	"reflect"
 	"testing"
+
+	"git.zabbix.com/ap/ember-plus/ember/asn1"
 )
 
 func Test_parsePath(t *testing.T) {
@@ -48,7 +50,7 @@ func Test_parsePath(t *testing.T) {
 
 func TestElementCollection_handleFunction(t *testing.T) {
 	type args struct {
-		values []Context
+		values []asn1.Context
 	}
 	tests := []struct {
 		name    string

@@ -1,56 +1,50 @@
-package ember
+package asn1
 
 import (
-	"bytes"
 	"encoding/asn1"
 
 	"git.zabbix.com/ap/plugin-support/errs"
 )
 
-// ASN1Encoder encoder ASN1 glow data.
-type ASN1Encoder struct {
-	data *bytes.Buffer
-}
-
 // GetData returns all data contained in the encoder.
-func (c *ASN1Encoder) GetData() []byte {
+func (c *Encoder) GetData() []byte {
 	return c.data.Bytes()
 }
 
 // WriteRequest writes a request into the encoder buffer, for the provided element type, currently supports parameters,
 // qualified parameters, nodes qualified nodes and functions.
-func (c *ASN1Encoder) WriteRequest(path []int, tag ElementType) error {
-	c.openSequence(application(rootElementCollectionTag))
+func (c *Encoder) WriteRequest(path []int, tag string) error {
+	c.openSequence(ApplicationByte(RootElementCollectionTag))
 	defer c.closeSequence()
 
-	c.openSequence(application(rootElementTag))
+	c.openSequence(ApplicationByte(RootElementTag))
 	defer c.closeSequence()
 
-	c.openSequence(context(0))
+	c.openSequence(ContextByte(0))
 	defer c.closeSequence()
 
 	switch tag {
 	case ParameterType, QualifiedParameterType:
-		c.openSequence(application(qualifiedParameterTag))
+		c.openSequence(ApplicationByte(QualifiedParameterTag))
 	case NodeType, QualifiedNodeType:
-		c.openSequence(application(qualifiedNodeTag))
+		c.openSequence(ApplicationByte(QualifiedNodeTag))
 	case FunctionType:
-		c.openSequence(application(functionTag))
+		c.openSequence(ApplicationByte(functionTag))
 	default:
 		return errs.Errorf("unknown application tag %s", tag)
 	}
 
 	defer c.closeSequence()
 
-	c.openSequence(context(0))
+	c.openSequence(ContextByte(0))
 	defer c.closeSequence()
 
 	c.WriteUniversal(path)
 
-	c.openSequence(context(2))
+	c.openSequence(ContextByte(2))
 	defer c.closeSequence()
 
-	c.openSequence(application(elementCollectionTag))
+	c.openSequence(ApplicationByte(elementCollectionTag))
 	defer c.closeSequence()
 
 	err := c.WriteGetDirCommand()
@@ -62,8 +56,8 @@ func (c *ASN1Encoder) WriteRequest(path []int, tag ElementType) error {
 }
 
 // WriteUniversal writes the provided integer into the buffer as an glow encoded universal value.
-func (c *ASN1Encoder) WriteUniversal(path []int) {
-	c.data.WriteByte(universalObjectTag)
+func (c *Encoder) WriteUniversal(path []int) {
+	c.data.WriteByte(UniversalObjectTag)
 	c.data.WriteByte(uint8(len(path)))
 
 	for _, p := range path {
@@ -72,11 +66,11 @@ func (c *ASN1Encoder) WriteUniversal(path []int) {
 }
 
 // WriteRootTreeRequest writes a request for root element collection into the buffer.
-func (c *ASN1Encoder) WriteRootTreeRequest() error {
-	c.openSequence(application(rootElementCollectionTag))
+func (c *Encoder) WriteRootTreeRequest() error {
+	c.openSequence(ApplicationByte(RootElementCollectionTag))
 	defer c.closeSequence()
 
-	c.openSequence(application(rootElementTag))
+	c.openSequence(ApplicationByte(RootElementTag))
 	defer c.closeSequence()
 
 	err := c.WriteGetDirCommand()
@@ -88,11 +82,11 @@ func (c *ASN1Encoder) WriteRootTreeRequest() error {
 }
 
 // WriteGetDirCommand writes a get dir command request into the buffer.
-func (c *ASN1Encoder) WriteGetDirCommand() error {
-	c.openSequence(context(0))
+func (c *Encoder) WriteGetDirCommand() error {
+	c.openSequence(ContextByte(0))
 	defer c.closeSequence()
 
-	c.openSequence(application(commandApplicationTag))
+	c.openSequence(ApplicationByte(commandApplicationTag))
 	defer c.closeSequence()
 
 	err := c.writeInt(emberGetDirCommand, 0)
@@ -108,14 +102,9 @@ func (c *ASN1Encoder) WriteGetDirCommand() error {
 	return nil
 }
 
-// NewASN1Encoder creates a new encoder with an initialized data buffer, but no actual data.
-func NewASN1Encoder() *ASN1Encoder {
-	return &ASN1Encoder{bytes.NewBuffer(nil)}
-}
-
 // writeInt writes integer to the buffer, wraps native go asn1 marshal, but adds context.
-func (c *ASN1Encoder) writeInt(i int, cont uint8) error {
-	c.data.WriteByte(context(cont))
+func (c *Encoder) writeInt(i int, cont uint8) error {
+	c.data.WriteByte(ContextByte(cont))
 
 	b, err := asn1.Marshal(i)
 	if err != nil {
@@ -129,12 +118,12 @@ func (c *ASN1Encoder) writeInt(i int, cont uint8) error {
 }
 
 // openSequence writes provided application byte together with a context byte (0x80) into the buffer.
-func (c *ASN1Encoder) openSequence(appl byte) {
+func (c *Encoder) openSequence(appl byte) {
 	c.data.WriteByte(appl)
 	c.data.WriteByte(contextByte)
 }
 
 // closeSequence writes two '0' bytes into the buffer, used to identify end of a sequence.
-func (c *ASN1Encoder) closeSequence() {
+func (c *Encoder) closeSequence() {
 	c.data.Write([]byte{0, 0})
 }

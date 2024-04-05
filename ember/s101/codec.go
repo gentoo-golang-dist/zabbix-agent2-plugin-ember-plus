@@ -1,8 +1,9 @@
-package ember
+package s101
 
 import (
 	"bytes"
 
+	"git.zabbix.com/ap/ember-plus/ember/asn1"
 	"git.zabbix.com/ap/plugin-support/errs"
 )
 
@@ -59,7 +60,7 @@ func (e *S101Codec) Encode(message []byte, packetType uint8) []uint8 {
 func (e *S101Codec) Decode(message []byte) ([]uint8, error) {
 	s101 := getS101(message)
 
-	d := NewASN1Decoder(s101[S101LenTilGlow+byteSkip:])
+	d := asn1.NewDecoder(s101[S101LenTilGlow+byteSkip:])
 
 	l, offset, err := d.ReadLength()
 	if err != nil {

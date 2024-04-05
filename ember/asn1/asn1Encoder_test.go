@@ -1,4 +1,4 @@
-package ember
+package asn1
 
 import (
 	"bytes"
@@ -10,12 +10,12 @@ import (
 func Test_defaultASN1Encoder_encode(t *testing.T) {
 	tests := []struct {
 		name string
-		c    *ASN1Encoder
+		c    *Encoder
 		want []byte
 	}{
 		{
 			"+valid",
-			NewASN1Encoder(),
+			NewEncoder(),
 			[]byte{
 				0x60, 0x80, 0x6B, 0x80, 0xA0, 0x80, 0x62, 0x80, 0xA0, 0x03, 0x02, 0x01, 0x20, 0xA1, 0x03, 0x02, 0x01,
 				0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -39,17 +39,17 @@ func TestDefaultASN1Encoder_EncodeUniversal(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		c    *ASN1Encoder
+		c    *Encoder
 		args args
-		want *ASN1Encoder
+		want *Encoder
 	}{
 		{
 			"+valid",
-			NewASN1Encoder(),
+			NewEncoder(),
 			args{
 				[]int{1},
 			},
-			&ASN1Encoder{
+			&Encoder{
 				data: bytes.NewBuffer([]byte{
 					0x0D, 0x01, 0x01,
 				}),
@@ -57,11 +57,11 @@ func TestDefaultASN1Encoder_EncodeUniversal(t *testing.T) {
 		},
 		{
 			"+multiple",
-			NewASN1Encoder(),
+			NewEncoder(),
 			args{
 				[]int{1, 2},
 			},
-			&ASN1Encoder{
+			&Encoder{
 				data: bytes.NewBuffer([]byte{
 					0x0D, 0x02, 0x01, 0x02,
 				}),
@@ -86,19 +86,19 @@ func TestDefaultASN1Encoder_writeInt(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		c       *ASN1Encoder
+		c       *Encoder
 		args    args
-		want    *ASN1Encoder
+		want    *Encoder
 		wantErr bool
 	}{
 		{
 			"+valid",
-			NewASN1Encoder(),
+			NewEncoder(),
 			args{
 				1,
 				0xa0,
 			},
-			&ASN1Encoder{
+			&Encoder{
 				data: bytes.NewBuffer([]byte{0xa0, 0x03, 0x02, 0x01, 0x01}),
 			},
 			false,
