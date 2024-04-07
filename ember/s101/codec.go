@@ -129,21 +129,14 @@ func getS101(in []uint8) []uint8 {
 
 // createS101 creates a S101 packet from the provided payload and packet type.
 func createS101(payload []byte, pType uint8) []byte {
-
 	escaped := escapeBytesAboveBOFNE(payload)
+	s101Info := []byte{slot, messageType, commandType, version, pType, dtdType, appBytes, minorVersion, majorVersion}
+	tmp := make([]byte, 0, len(s101Info)+len(payload))
 
-	var s101, tmp []byte
+	tmp = append(tmp, s101Info...)
+	crc := getCRC(append(tmp, payload...))
 
-	s101 = append(
-		s101, slot, messageType, commandType, version, pType, dtdType, appBytes, minorVersion, majorVersion,
-	)
-
-	tmp = append(tmp, s101...)
-	tmp = append(tmp, payload...)
-	crc := getCRC(tmp)
-
-	s101 = append(s101, escaped...)
-
+	s101 := append(s101Info, escaped...)
 	s101 = append(s101, crc...)
 	s101 = append([]byte{bof}, s101...)
 	s101 = append(s101, eof)

@@ -43,7 +43,7 @@ func (c *Decoder) ReadLength() (int, int, error) {
 
 	lenB, err := c.data.ReadByte()
 	if err != nil {
-		return 0, 0, errs.Wrap(err, "failed to read length")
+		return 0, 0, errs.Wrap(err, "failed to read length byte")
 	}
 
 	offset++
@@ -63,7 +63,7 @@ func (c *Decoder) ReadLength() (int, int, error) {
 	for i := 0; i < int(lenB); i++ {
 		val, err := c.data.ReadByte()
 		if err != nil {
-			return 0, 0, errs.Wrap(err, "failed to read length")
+			return 0, 0, errs.Wrap(err, "failed to read additional length bytes")
 		}
 
 		out = out<<8 + int(val)

@@ -9,6 +9,21 @@ import (
 	"git.zabbix.com/ap/plugin-support/errs"
 )
 
+const (
+	// tag for defining glow node tag.
+	nodeTag = 3
+	// tag for defining glow function tag.
+	functionTag = 20
+	// tag for defining glow root element collection encoding command.
+
+	// tag for path value in context.
+	pathContextTag = 0
+	// tag for properties value in context.
+	propertiesContextTag = 1
+	// tag for children value in context.
+	childrenContextTag = 2
+)
+
 var (
 	_ RequestFunction = GetRootRequest
 	_ RequestFunction = GetRequestByType
@@ -17,6 +32,9 @@ var (
 	_ valueHandlerFunc = ElementCollection(nil).handleParameter
 	_ valueHandlerFunc = ElementCollection(nil).handleNodeTag
 	_ valueHandlerFunc = ElementCollection(nil).handleFunction
+
+	notFoundErr       = errs.New("element not found")
+	notImplementedErr = errs.New("not implemented")
 )
 
 // ElementKey used for element identification based on either element id or path.
@@ -28,7 +46,6 @@ type ElementKey struct {
 // Element contains all the values a glow element might contain.
 type (
 	Element struct {
-		//nolint:tagliatelle
 		IsOnline    bool        `json:"is_online,omitempty"`
 		Identifier  string      `json:"identifier,omitempty"`
 		Description string      `json:"description,omitempty"`
@@ -50,7 +67,7 @@ type (
 	valueHandlerFunc func(values []asn1.Context) error
 )
 
-// Populate filles in collection with data from the decoder.
+// Populate fills in collection with data from the decoder.
 //
 //nolint:gocyclo,cyclop
 func (ec ElementCollection) Populate(data *asn1.Decoder) error {
@@ -64,35 +81,35 @@ func (ec ElementCollection) Populate(data *asn1.Decoder) error {
 		return errs.Wrapf(err, "failed to read element tag")
 	}
 
-	cnts, err := app11Codec.ReadAllContext()
+	contexts, err := app11Codec.ReadAllContext()
 	if err != nil {
 		return errs.Wrapf(err, "failed to read all contexts")
 	}
 
-	for _, cont := range cnts {
-		t, err := cont.Value.Peek()
+	for _, c := range contexts {
+		t, err := c.Value.Peek()
 		if err != nil {
 			return errs.Wrapf(err, "failed to read context")
 		}
 
 		switch asn1.ApplicationByte(t) {
 		case asn1.ApplicationByte(asn1.QualifiedNodeTag):
-			err = handleApplication(cont, asn1.QualifiedNodeTag, ec.handleQualifiedNodeTag)
+			err = handleApplication(c, asn1.QualifiedNodeTag, ec.handleQualifiedNodeTag)
 			if err != nil {
 				return errs.Wrapf(err, "failed to handle qualified node")
 			}
 		case asn1.ApplicationByte(asn1.QualifiedParameterTag):
-			err = handleApplication(cont, asn1.QualifiedParameterTag, ec.handleParameter)
+			err = handleApplication(c, asn1.QualifiedParameterTag, ec.handleParameter)
 			if err != nil {
 				return errs.Wrapf(err, "failed to handle qualified parameter")
 			}
 		case asn1.ApplicationByte(nodeTag):
-			err = handleApplication(cont, nodeTag, ec.handleNodeTag)
+			err = handleApplication(c, nodeTag, ec.handleNodeTag)
 			if err != nil {
 				return errs.Wrapf(err, "failed to handle node tag")
 			}
 		case asn1.ApplicationByte(functionTag):
-			err = handleApplication(cont, functionTag, ec.handleFunction)
+			err = handleApplication(c, functionTag, ec.handleFunction)
 			if err != nil {
 				return errs.Wrapf(err, "failed to handle function tag")
 			}
@@ -102,6 +119,38 @@ func (ec ElementCollection) Populate(data *asn1.Decoder) error {
 	}
 
 	return nil
+}
+
+// GetElementByPath returns element from collection with the provided path OID.
+func (ec ElementCollection) GetElementByPath(currentPath string) (*Element, error) {
+	for key, value := range ec {
+		if key.Path == currentPath {
+			return value, nil
+		}
+	}
+
+	return nil, notFoundErr
+}
+
+// GetElementByID returns element from collection with the provided identifier.
+func (ec ElementCollection) GetElementByID(id string) (*Element, error) {
+	for key, value := range ec {
+		if key.ID == id {
+			return value, nil
+		}
+	}
+
+	return nil, notFoundErr
+}
+
+// ToJSONCompatible returns the collection with path(string) in key value instead of a structure for json marshaling.
+func (ec ElementCollection) ToJSONCompatible() map[string]*Element {
+	out := make(map[string]*Element)
+	for k, v := range ec {
+		out[k.Path] = v
+	}
+
+	return out
 }
 
 // NewElementConnection creates a empty element collection.
@@ -147,19 +196,19 @@ func (ec ElementCollection) handleParameter(contexts []asn1.Context) error {
 	for _, c := range contexts {
 		switch c.Tag {
 		case childrenContextTag:
-			// currently not implemented
+			return errs.Wrap(notImplementedErr, "children context not support")
 		case propertiesContextTag:
 			err := el.handlePropertyContext(c)
 			if err != nil {
-				return errs.Wrap(err, "failed to handle property")
+				return errs.Wrap(err, "failed to handle property context")
 			}
 		case pathContextTag:
 			err := el.handleParameterPath(c)
 			if err != nil {
-				return errs.Wrap(err, "failed to handle property")
+				return errs.Wrap(err, "failed to handle path context")
 			}
 		default:
-			return errs.New("incorrect parameter tag")
+			return errs.Errorf("unknown context tag: %d, for %s", c.Tag, asn1.ParameterType)
 		}
 
 		ec[ElementKey{ID: el.Identifier, Path: el.Path}] = &el
@@ -177,19 +226,19 @@ func (ec ElementCollection) handleQualifiedNodeTag(contexts []asn1.Context) erro
 	for _, c := range contexts {
 		switch c.Tag {
 		case childrenContextTag:
-			// currently not implemented
+			return errs.Wrap(notImplementedErr, "children context not support")
 		case propertiesContextTag:
 			err := el.handlePropertyContext(c)
 			if err != nil {
-				return errs.Wrap(err, "failed to handle property")
+				return errs.Wrap(err, "failed to handle property context")
 			}
 		case pathContextTag:
 			err := el.handlePathFromUniversal(c)
 			if err != nil {
-				return errs.Wrap(err, "failed to handle property")
+				return errs.Wrap(err, "failed to handle path context")
 			}
 		default:
-			return errs.New("incorrect node values")
+			return errs.Errorf("unknown context tag: %d, for %s", c.Tag, asn1.QualifiedNodeType)
 		}
 
 		ec[ElementKey{ID: el.Identifier, Path: el.Path}] = &el
@@ -201,8 +250,7 @@ func (ec ElementCollection) handleQualifiedNodeTag(contexts []asn1.Context) erro
 // handleNodeTag used to decodes context data for node tags.
 func (ec ElementCollection) handleNodeTag(contexts []asn1.Context) error {
 	var (
-		el  Element
-		err error
+		el Element
 	)
 
 	el.ElementType = asn1.NodeType
@@ -210,21 +258,21 @@ func (ec ElementCollection) handleNodeTag(contexts []asn1.Context) error {
 	for _, c := range contexts {
 		switch c.Tag {
 		case childrenContextTag:
-			// currently not implemented
+			return errs.Wrap(notImplementedErr, "children context not support")
 		case propertiesContextTag:
-			err = el.handleNodeContext(c)
+			err := el.handleNodeContext(c)
 			if err != nil {
-				return errs.New("failed to get properties values from set")
+				return errs.Wrap(err, "failed to handle property context")
 			}
 		case pathContextTag:
 			path, err := c.Value.DecodeInteger()
 			if err != nil {
-				return err
+				return errs.Wrap(err, "failed to handle path context")
 			}
 
 			el.Path = strconv.Itoa(path)
 		default:
-			return errs.New("incorrect node values")
+			return errs.Errorf("unknown context tag: %d, for %s", c.Tag, asn1.NodeType)
 		}
 
 		ec[ElementKey{ID: el.Identifier, Path: el.Path}] = &el
@@ -242,19 +290,19 @@ func (ec ElementCollection) handleFunction(contexts []asn1.Context) error {
 	for _, c := range contexts {
 		switch c.Tag {
 		case childrenContextTag:
-			// currently not implemented
+			return errs.Wrap(notImplementedErr, "children context not support")
 		case propertiesContextTag:
 			err := el.handleFunctionContextSetTag(c)
 			if err != nil {
-				return errs.Wrapf(err, "failed to read identifier")
+				return errs.Wrap(err, "failed to handle property context")
 			}
 		case pathContextTag:
 			err := el.handlePathFromUniversal(c)
 			if err != nil {
-				return errs.Wrapf(err, "failed to decode integer")
+				return errs.Wrap(err, "failed to handle path context")
 			}
 		default:
-			return errs.New("incorrect node values")
+			return errs.Errorf("unknown context tag: %d, for %s", c.Tag, asn1.FunctionType)
 		}
 
 		ec[ElementKey{ID: el.Identifier, Path: el.Path}] = &el
@@ -275,7 +323,7 @@ func (el *Element) handleParameterPath(c asn1.Context) error {
 	case asn1.UniversalObjectTag:
 		path, err = c.Value.DecodeUniversal()
 		if err != nil {
-			return errs.Wrap(err, "failed to universal")
+			return errs.Wrap(err, "failed to decode universal")
 		}
 	case asn1.IntObjectTag:
 		p, err := c.Value.DecodeInteger()

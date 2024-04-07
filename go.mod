@@ -1,6 +1,6 @@
 module git.zabbix.com/ap/ember-plus
 
-go 1.20
+go 1.21
 
 require (
 	git.zabbix.com/ap/plugin-support v1.2.2-0.20240215085704-b82b3187390b

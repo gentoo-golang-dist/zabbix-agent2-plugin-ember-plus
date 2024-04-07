@@ -18,12 +18,12 @@
 package conn
 
 import (
+	"io"
 	"net"
 	"net/url"
 	"sync"
 	"time"
 
-	"git.zabbix.com/ap/ember-plus/plugin/params"
 	"git.zabbix.com/ap/plugin-support/errs"
 	"git.zabbix.com/ap/plugin-support/log"
 	"git.zabbix.com/ap/plugin-support/uri"
@@ -31,8 +31,8 @@ import (
 
 const interval = 10
 
-// connConfig is a configuration for a connection to the database.
-type connConfig struct {
+// ConnConfig is a configuration for a connection to the database.
+type ConnConfig struct {
 	URI string
 }
 
@@ -40,7 +40,7 @@ type connConfig struct {
 // Allows managing multiple connections.
 type ConnCollection struct {
 	mu          sync.Mutex
-	conns       map[connConfig]*connHandler
+	conns       map[ConnConfig]*connHandler
 	callTimeout int
 	keepAlive   time.Duration
 	logr        log.Logger
@@ -48,24 +48,24 @@ type ConnCollection struct {
 }
 
 type connHandler struct {
-	conn           net.Conn
-	lastAccessTime time.Time
+	conn             net.Conn
+	lastAccessTime   time.Time
+	lastAccessTimeMu sync.Mutex
 }
 
 // Init initializes a pre-allocated connection collection.
 func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
-	c.conns = make(map[connConfig]*connHandler)
+	c.conns = make(map[ConnConfig]*connHandler)
 	c.keepAlive = time.Duration(keepAlive) * time.Second
 	c.callTimeout = callTimeout
 	c.logr = logr
+	c.done = make(chan bool)
 
 	go c.housekeeper(interval * time.Second)
 }
 
 // HandleRequest sends a request and reads response based on the provided connection parameters.
-func (c *ConnCollection) HandleRequest(req []byte, metricParams map[string]string) ([]byte, error) {
-	conf := newConnConfig(metricParams)
-
+func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, error) {
 	ch, err := c.get(time.Duration(c.callTimeout)*time.Second, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
@@ -91,10 +91,7 @@ func (c *ConnCollection) HandleRequest(req []byte, metricParams map[string]strin
 		return nil, errs.Wrap(err, "failed to set read deadline for connection")
 	}
 
-	//nolint:makezero
-	response := make([]byte, 1024)
-
-	_, err = ch.conn.Read(response)
+	response, err := io.ReadAll(ch.conn)
 	if err != nil {
 		cerr := c.close(conf)
 		if cerr != nil {
@@ -123,8 +120,18 @@ func (c *ConnCollection) CloseAll() {
 	}
 }
 
+// NewConnConfig creates connection configuration with provided uri string
+func NewConnConfig(rawUri string) (ConnConfig, error) {
+	parsed, err := uri.New(rawUri, nil)
+	if err != nil {
+		return ConnConfig{}, errs.Wrap(err, "failed to parse uri")
+	}
+
+	return ConnConfig{URI: parsed.Addr()}, nil
+}
+
 // close closes the connection with the provided configuration.
-func (c *ConnCollection) close(conf connConfig) error {
+func (c *ConnCollection) close(conf ConnConfig) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -143,27 +150,24 @@ func (c *ConnCollection) close(conf connConfig) error {
 	return nil
 }
 
-func (c *ConnCollection) get(timeout time.Duration, conf connConfig) (*connHandler, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
+func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandler, error) {
 	c.logr.Debugf("looking for connection for %s", conf.URI)
 
-	ch, ok := c.conns[conf]
-	if ok {
+	ch := c.getConn(conf)
+	if ch != nil {
 		ch.lastAccessTime = time.Now()
 
 		return ch, nil
 	}
 
-	ch, err := newConn(timeout, &conf)
+	ch, err := newConn(timeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create conn")
 	}
 
 	c.conns[conf] = ch
 
-	return ch, nil
+	return c.setConn(conf, ch), nil
 }
 
 // housekeeper repeatedly checks for unused connections and closes them.
@@ -191,7 +195,7 @@ func (c *ConnCollection) closeUnused() {
 	defer c.mu.Unlock()
 
 	for conf, conn := range c.conns {
-		if time.Since(conn.lastAccessTime) > c.keepAlive {
+		if time.Since(conn.getLastAccessTime()) > c.keepAlive {
 			err := conn.conn.Close()
 			if err != nil {
 				c.logr.Errf("failed to close connection: %s", conf.URI)
@@ -203,7 +207,58 @@ func (c *ConnCollection) closeUnused() {
 	}
 }
 
-func newConn(timeout time.Duration, conf *connConfig) (*connHandler, error) {
+// getConn concurrent connections cache getter.
+func (c *ConnCollection) getConn(cc ConnConfig) *connHandler { //nolint:gocritic
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ch, ok := c.conns[cc]
+	if !ok {
+		return nil
+	}
+
+	return ch
+}
+
+// setConn concurrent connections cache setter.
+//
+// Returns the cached connection. If the provider connection is already present
+// in cache, it is closed.
+func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	existingHandler, ok := c.conns[cc]
+	if ok {
+		defer ch.conn.Close() //nolint:errcheck
+
+		c.logr.Debugf("closed redundant connection: %s", cc.URI)
+
+		return existingHandler
+	}
+
+	c.conns[cc] = ch
+
+	return ch
+}
+
+// updateLastAccessTime updates the last time a connection was accessed.
+func (conn *connHandler) updateLastAccessTime() {
+	conn.lastAccessTimeMu.Lock()
+	defer conn.lastAccessTimeMu.Unlock()
+
+	conn.lastAccessTime = time.Now()
+}
+
+// getLastAccessTime returns the last time a connection was accessed.
+func (conn *connHandler) getLastAccessTime() time.Time {
+	conn.lastAccessTimeMu.Lock()
+	defer conn.lastAccessTimeMu.Unlock()
+
+	return conn.lastAccessTime
+}
+
+func newConn(timeout time.Duration, conf ConnConfig) (*connHandler, error) {
 	connURI, err := uri.New(conf.URI, nil)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set URI defaults")
@@ -222,8 +277,4 @@ func newConn(timeout time.Duration, conf *connConfig) (*connHandler, error) {
 	}
 
 	return &connHandler{conn: conn, lastAccessTime: time.Now()}, nil
-}
-
-func newConnConfig(metricParams map[string]string) connConfig {
-	return connConfig{URI: metricParams[params.URI.Name()]}
 }
