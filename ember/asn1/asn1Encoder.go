@@ -104,7 +104,10 @@ func (c *Encoder) WriteGetDirCommand() error {
 
 // writeInt writes integer to the buffer, wraps native go asn1 marshal, but adds context.
 func (c *Encoder) writeInt(i int, cont uint8) error {
-	c.data.WriteByte(ContextByte(cont))
+	err := c.data.WriteByte(ContextByte(cont))
+	if err != nil {
+		return errs.Wrap(err, "failed to write context byte")
+	}
 
 	b, err := asn1.Marshal(i)
 	if err != nil {

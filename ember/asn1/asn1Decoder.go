@@ -1,39 +1,48 @@
 package asn1
 
 import (
+	"bytes"
+	"errors"
+
 	"git.zabbix.com/ap/plugin-support/errs"
 )
 
 // Read reads the next glow data block of the appropriate type, it checks the glow tag against the provided compare
 // function and if they match it reads the glow data block and returns it as it's own decoded, original decoder might
 // have more data left, THIS DOES NOT READ ALL THE DATA.
-func (c *Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*Decoder, error) {
+// If no length byte is found in data returns ALL remaining bytes.
+// Returns True if next element length is unknown
+func (c *Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*Decoder, bool, error) {
 	b, err := c.data.ReadByte()
 	if err != nil {
-		return nil, errs.Wrap(err, "failed to read tag byte")
+		return nil, false, errs.Wrap(err, "failed to read tag byte")
 	}
 
 	if b != compareByte(tag) {
-		return nil, errs.Errorf("is not correct byte: %x got %x", compareByte(tag), b)
+		return nil, false, errs.Errorf("is not correct byte: %x got %x", compareByte(tag), b)
 	}
 
 	lenB, _, err := c.ReadLength()
+
 	if err != nil {
-		return nil, errs.Wrap(err, "failed to read length byte")
-	}
-
-	var out []byte
-
-	for i := 0; i < lenB; i++ {
-		b, err := c.data.ReadByte()
-		if err != nil {
-			return nil, errs.Wrap(err, "failed to read extra length bytes")
+		if !errors.Is(err, noLenByteErr) {
+			return nil, false, errs.Wrap(err, "failed to read length byte")
 		}
 
-		out = append(out, b)
+		out, err := c.readWithOutLength()
+		if err != nil {
+			return nil, false, errs.Wrap(err, "failed to read with provided length")
+		}
+
+		return NewDecoder(out), true, nil
 	}
 
-	return NewDecoder(out), nil
+	out, err := c.readWithLength(lenB)
+	if err != nil {
+		return nil, false, errs.Wrap(err, "failed to read with provided length")
+	}
+
+	return NewDecoder(out), false, nil
 }
 
 // ReadLength reads next in line data blocks length and returns it as well as how many bytes the data
@@ -43,7 +52,7 @@ func (c *Decoder) ReadLength() (int, int, error) {
 
 	lenB, err := c.data.ReadByte()
 	if err != nil {
-		return 0, 0, errs.Wrap(err, "failed to read length byte")
+		return 0, 0, errs.Wrap(err, "incorrect length byte")
 	}
 
 	offset++
@@ -54,6 +63,10 @@ func (c *Decoder) ReadLength() (int, int, error) {
 
 	lenB &= lenByte
 
+	if lenB == 0 {
+		return 0, offset, noLenByteErr
+	}
+
 	if lenB > maxLengthBytes {
 		return 0, 0, errs.New("length higher than 4")
 	}
@@ -63,7 +76,7 @@ func (c *Decoder) ReadLength() (int, int, error) {
 	for i := 0; i < int(lenB); i++ {
 		val, err := c.data.ReadByte()
 		if err != nil {
-			return 0, 0, errs.Wrap(err, "failed to read additional length bytes")
+			return 0, 0, errs.Wrap(err, "incorrect additional length bytes")
 		}
 
 		out = out<<8 + int(val)
@@ -74,68 +87,35 @@ func (c *Decoder) ReadLength() (int, int, error) {
 	return out, offset, nil
 }
 
-// ReadAllContext returns all the following contexts as new decoders.
-//
-//nolint:gocyclo,cyclop
-func (c *Decoder) ReadAllContext() ([]Context, error) {
-	var out []Context
+// AtEnd checks if decoder is currently at the end of element and moves the reader over it, if at end.
+func (c *Decoder) ReadEnd() (bool, error) {
+	if c.data.Len() == 0 {
+		return true, nil
+	}
 
-	for c.data.Len() > 0 {
-		contInt, err := c.Peek()
-		if err != nil {
-			return nil, err
+	if c.data.Len() < 2 {
+		return false, errs.New("not enough bytes")
+	}
+
+	tmp := bytes.NewBuffer(c.Bytes())
+	for i, b := range tmp.Bytes() {
+		if b != closingByte {
+			return false, nil
 		}
 
-		d, err := c.Read(contInt, ContextByte)
-		if err != nil {
-			return nil, err
-		}
-
-		// currently based on ember+ documentation there are 0-17 contexts
-
-		switch contInt {
-		case ContextByte(0):
-			out = append(out, Context{Value: d, Tag: 0})
-		case ContextByte(1):
-			out = append(out, Context{Value: d, Tag: 1})
-		case ContextByte(2):
-			out = append(out, Context{Value: d, Tag: 2})
-		case ContextByte(3):
-			out = append(out, Context{Value: d, Tag: 3})
-		case ContextByte(4):
-			out = append(out, Context{Value: d, Tag: 4})
-		case ContextByte(5):
-			out = append(out, Context{Value: d, Tag: 5})
-		case ContextByte(6):
-			out = append(out, Context{Value: d, Tag: 6})
-		case ContextByte(7):
-			out = append(out, Context{Value: d, Tag: 7})
-		case ContextByte(8):
-			out = append(out, Context{Value: d, Tag: 8})
-		case ContextByte(9):
-			out = append(out, Context{Value: d, Tag: 9})
-		case ContextByte(10):
-			out = append(out, Context{Value: d, Tag: 10})
-		case ContextByte(11):
-			out = append(out, Context{Value: d, Tag: 11})
-		case ContextByte(12):
-			out = append(out, Context{Value: d, Tag: 12})
-		case ContextByte(13):
-			out = append(out, Context{Value: d, Tag: 13})
-		case ContextByte(14):
-			out = append(out, Context{Value: d, Tag: 14})
-		case ContextByte(15):
-			out = append(out, Context{Value: d, Tag: 15})
-		case ContextByte(16):
-			out = append(out, Context{Value: d, Tag: 16})
-		case ContextByte(17):
-			out = append(out, Context{Value: d, Tag: 17})
-		default:
-			return nil, errs.Errorf("unknown context: %d", contInt)
+		if i+1 == closingOffset {
+			break
 		}
 	}
 
-	return out, nil
+	for i := 0; i < closingOffset; i++ {
+		_, err := c.data.ReadByte()
+		if err != nil {
+			return false, errs.Wrapf(err, "failed to read end bytes")
+		}
+	}
+
+	return true, nil
 }
 
 // Peek returns the next byte, but does not remove it from the buffer.
@@ -151,21 +131,6 @@ func (c *Decoder) Peek() (byte, error) {
 	}
 
 	return b, nil
-}
-
-// ReadSet returns all following contexts contained in a Set.
-func (c *Decoder) ReadSet() ([]Context, error) {
-	set, err := c.Read(setByte, UniversalByte)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to set")
-	}
-
-	conts, err := set.ReadAllContext()
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to contexts")
-	}
-
-	return conts, nil
 }
 
 // DecodeUniversal decoded the following universal data type of glow, currently only used for universal path decoding,
@@ -229,19 +194,36 @@ func (c *Decoder) DecodeInteger() (int, error) {
 	return out, nil
 }
 
-// tag types used in ember+ glow protocol.
-
-// ApplicationByte have the same meaning wherever they are seen and used.
-func ApplicationByte(num uint8) uint8 {
-	return applicationOR | num
+func (c *Decoder) ReadByte() (byte, error) {
+	return c.data.ReadByte()
 }
 
-// ContextByte context-specific tags depends on the location where they are seen.
-func ContextByte(num uint8) uint8 {
-	return contextOR | num
+func (c *Decoder) readWithOutLength() ([]byte, error) {
+	var out []byte
+
+	for c.data.Len() > 0 {
+		b, err := c.data.ReadByte()
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to read byte")
+		}
+
+		out = append(out, b)
+	}
+
+	return out, nil
 }
 
-// UniversalByte predefined types, the value is returned unchanged.
-func UniversalByte(num uint8) uint8 {
-	return num
+func (c *Decoder) readWithLength(len int) ([]byte, error) {
+	var out []byte
+
+	for i := 0; i < len; i++ {
+		b, err := c.data.ReadByte()
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to read extra bytes")
+		}
+
+		out = append(out, b)
+	}
+
+	return out, nil
 }
