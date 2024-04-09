@@ -130,7 +130,7 @@ func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any
 
 	path := metricParams[params.Path.Name()]
 	if path == "" {
-		return rootCollection, nil
+		return rootCollection.ToJSONCompatible(), nil
 	}
 
 	pathPart, byID, err := parsePathString(path)
@@ -181,7 +181,7 @@ func (p *emberPlugin) getCollectionByPath(
 
 		el, err := collection.GetElementByPath(fullPath)
 		if err != nil {
-			return nil, errs.Errorf("failed to retrieve element with path %s", fullPath)
+			return nil, errs.Wrapf(err, "failed to retrieve element with path %s", fullPath)
 		}
 
 		collection, err = p.handleRequest(fullPath, el.ElementType, connConf, ember.GetRequestByType)
@@ -201,7 +201,8 @@ func (p *emberPlugin) getCollectionByID(
 	for _, id := range ids {
 		el, err := collection.GetElementByID(id)
 		if err != nil {
-			return nil, errs.Errorf(
+			return nil, errs.Wrapf(
+				err,
 				"failed to retrieve element with id %s, path to element '%s'", id, fullPath,
 			)
 		}

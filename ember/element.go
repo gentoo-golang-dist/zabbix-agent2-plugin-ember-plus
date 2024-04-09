@@ -1,7 +1,6 @@
 package ember
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -105,7 +104,7 @@ func (ec ElementCollection) Populate(data *asn1.Decoder) error {
 			return errs.Wrap(err, "failed to decode current sequence end")
 		}
 
-		end, err := decoder.ReadEnd() // all  element end
+		end, err := app11Codec.ReadEnd() // all  element end
 		if err != nil {
 			return errs.Wrap(err, "failed to decode element sequence end")
 		}
@@ -170,7 +169,6 @@ func (el *Element) handleApplication(decoder *asn1.Decoder) (*asn1.Decoder, erro
 				return nil, errs.Wrapf(err, "failed to read path")
 			}
 		case asn1.ContextByte(asn1.ContextTagOne):
-			fmt.Printf("%x", decoder.Bytes())
 			decoder, err = decoderWrapper(decoder, el.handleContent)
 			if err != nil {
 				return nil, errs.Wrapf(err, "failed to read content")
@@ -284,7 +282,6 @@ func (el *Element) handleContext(decoder *asn1.Decoder) ([]*asn1.Decoder, error)
 	if err != nil {
 		return nil, errs.Wrapf(err, "failed to node read context")
 	}
-	fmt.Printf("\ndecoder:%x\n", decoder.Bytes())
 
 	context, _, err := decoder.Read(t, asn1.ContextByte)
 	if err != nil {
@@ -298,7 +295,6 @@ func (el *Element) handleContext(decoder *asn1.Decoder) ([]*asn1.Decoder, error)
 			return nil, errs.Wrap(err, "failed to decode parameter context")
 		}
 	case asn1.NodeType, asn1.QualifiedNodeType:
-		fmt.Printf("b:%x\n", context.Bytes())
 		err = el.handleNodeContext(context, t)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode node context")
@@ -309,8 +305,6 @@ func (el *Element) handleContext(decoder *asn1.Decoder) ([]*asn1.Decoder, error)
 			return nil, errs.Wrap(err, "failed to decode function context")
 		}
 	}
-
-	fmt.Printf("%v", el)
 
 	return []*asn1.Decoder{decoder, context}, nil
 }

@@ -18,7 +18,6 @@
 package conn
 
 import (
-	"io"
 	"net"
 	"net/url"
 	"sync"
@@ -91,7 +90,10 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, err
 		return nil, errs.Wrap(err, "failed to set read deadline for connection")
 	}
 
-	response, err := io.ReadAll(ch.conn)
+	//nolint:makezero // value taken from ember+ documentation
+	response := make([]byte, 1290)
+
+	_, err = ch.conn.Read(response)
 	if err != nil {
 		cerr := c.close(conf)
 		if cerr != nil {
@@ -155,17 +157,19 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 
 	ch := c.getConn(conf)
 	if ch != nil {
+		c.logr.Debugf("connection found for %s", conf.URI)
+
 		ch.lastAccessTime = time.Now()
 
 		return ch, nil
 	}
 
+	c.logr.Debugf("creating new connection for %s", conf.URI)
+
 	ch, err := newConn(timeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create conn")
 	}
-
-	c.conns[conf] = ch
 
 	return c.setConn(conf, ch), nil
 }
