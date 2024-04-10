@@ -99,7 +99,6 @@ func TestElementCollection_Populate(t *testing.T) {
 				}: &Element{
 					Path:        "1.1.2.4.3",
 					ElementType: asn1.QualifiedNodeType,
-					Qualified:   true,
 					Children: []*Element{
 						{
 							Path:        "1",
@@ -201,7 +200,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "AudioFilters",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.5",
@@ -211,7 +209,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "Connections",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.1",
@@ -221,7 +218,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "Environments",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.2",
@@ -231,7 +227,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "Function",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.6",
@@ -241,7 +236,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "SinkSourceMatrix",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.11",
@@ -251,7 +245,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "GPIO",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.15",
@@ -261,7 +254,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "License",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.9",
@@ -271,7 +263,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "Logical",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.4",
@@ -281,7 +272,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "Sinks",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.3",
@@ -291,7 +281,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "Sources",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.8",
@@ -301,7 +290,6 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "Streaming",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 				ElementKey{
 					Path: "1.0",
@@ -311,9 +299,69 @@ func TestElementCollection_Populate(t *testing.T) {
 					ElementType: asn1.QualifiedNodeType,
 					Identifier:  "identity",
 					IsOnline:    true,
-					Qualified:   true,
 				},
 			},
+			false,
+		},
+		{
+			"+function",
+			ElementCollection{},
+			args{
+				asn1.NewDecoder(
+					[]byte{
+						0x60, 0x82, 0x01, 0x01, 0x6B, 0x82, 0x00, 0xFD, 0xA0, 0x23, 0x69, 0x21, 0xA0, 0x05, 0x0D, 0x03,
+						0x01, 0x02, 0x01, 0xA1, 0x18, 0x31, 0x16, 0xA0, 0x06, 0x0C, 0x04, 0x43, 0x61, 0x6C, 0x6C, 0xAD,
+						0x03, 0x02, 0x01, 0x03, 0xA5, 0x03, 0x02, 0x01, 0x03, 0xA2, 0x02, 0x0C, 0x00, 0xA0, 0x82, 0x00,
+						0x81, 0x69, 0x7F, 0xA0, 0x05, 0x0D, 0x03, 0x01, 0x02, 0x02, 0xA1, 0x76, 0x31, 0x74, 0xA0, 0x08,
+						0x0C, 0x06, 0x52, 0x65, 0x74, 0x75, 0x72, 0x6E, 0xAD, 0x03, 0x02, 0x01, 0x03, 0xA5, 0x03, 0x02,
+						0x01, 0x03, 0xA2, 0x5E, 0x0C, 0x5C, 0x5B, 0x7B, 0x22, 0x66, 0x6E, 0x22, 0x3A, 0x22, 0x63, 0x6F,
+						0x6E, 0x6E, 0x65, 0x63, 0x74, 0x74, 0x6F, 0x67, 0x75, 0x69, 0x22, 0x2C, 0x22, 0x66, 0x6E, 0x49,
+						0x44, 0x22, 0x3A, 0x22, 0x34, 0x35, 0x30, 0x34, 0x22, 0x2C, 0x22, 0x66, 0x6E, 0x52, 0x65, 0x74,
+						0x54, 0x79, 0x70, 0x65, 0x22, 0x3A, 0x22, 0x4A, 0x53, 0x4F, 0x4E, 0x22, 0x2C, 0x22, 0x66, 0x6E,
+						0x52, 0x65, 0x74, 0x56, 0x61, 0x6C, 0x75, 0x65, 0x22, 0x3A, 0x5B, 0x22, 0x73, 0x74, 0x61, 0x74,
+						0x65, 0x22, 0x3A, 0x22, 0x63, 0x6F, 0x6E, 0x6E, 0x65, 0x63, 0x74, 0x69, 0x6E, 0x67, 0x22, 0x5D,
+						0x7D, 0x5D, 0xA0, 0x51, 0x74, 0x4F, 0xA0, 0x05, 0x0D, 0x03, 0x01, 0x02, 0x03, 0xA1, 0x46, 0x31,
+						0x44, 0xA0, 0x0E, 0x0C, 0x0C, 0x43, 0x61, 0x6C, 0x6C, 0x46, 0x72, 0x6F, 0x6D, 0x4A, 0x53, 0x4F,
+						0x4E, 0xA2, 0x17, 0x30, 0x15, 0xA0, 0x13, 0x75, 0x11, 0xA0, 0x03, 0x02, 0x01, 0x03, 0xA1, 0x0A,
+						0x0C, 0x08, 0x70, 0x61, 0x72, 0x73, 0x4A, 0x53, 0x4F, 0x4E, 0xA3, 0x19, 0x30, 0x17, 0xA0, 0x15,
+						0x75, 0x13, 0xA0, 0x03, 0x02, 0x01, 0x03, 0xA1, 0x0C, 0x0C, 0x0A, 0x72, 0x65, 0x73, 0x75, 0x6C,
+						0x74, 0x4A, 0x53, 0x4F, 0x4E,
+					},
+				),
+			},
+			ElementCollection{
+				ElementKey{
+					Path: "1.2.1",
+					ID:   "Call",
+				}: &Element{
+					Path:        "1.2.1",
+					ElementType: asn1.QualifiedParameterType,
+					Identifier:  "Call",
+					Value:       "",
+					Access:      3,
+					ValueType:   3,
+				},
+				ElementKey{
+					Path: "1.2.2",
+					ID:   "Return",
+				}: &Element{
+					Path:        "1.2.2",
+					ElementType: asn1.QualifiedParameterType,
+					Identifier:  "Return",
+					Value: string(
+						`[{"fn":"connecttogui","fnID":"4504","fnRetType":"JSON","fnRetValue":["state":"connecting"]}]`,
+					),
+					Access:    3,
+					ValueType: 3,
+				},
+				ElementKey{
+					Path: "1.2.3",
+					ID:   "CallFromJSON",
+				}: &Element{
+					Path:        "1.2.3",
+					ElementType: asn1.FunctionType,
+					Identifier:  "CallFromJSON",
+				}},
 			false,
 		},
 	}
@@ -330,8 +378,8 @@ func TestElementCollection_Populate(t *testing.T) {
 				t.Fatalf("ElementCollection.Populate() =expected len %d, go %d", len(tt.want), len(tt.ec))
 			}
 
-			for k, v := range tt.want {
-				if diff := cmp.Diff(tt.ec[k], v); diff != "" {
+			for k, v := range tt.ec {
+				if diff := cmp.Diff(tt.want[k], v); diff != "" {
 					t.Fatalf("ElementCollection.Populate() = %s", diff)
 				}
 			}
@@ -1010,15 +1058,11 @@ func TestElement_handleContext(t *testing.T) {
 func TestElement_handlePath(t *testing.T) {
 	t.Parallel()
 
-	type fields struct {
-		Qualified bool
-	}
 	type args struct {
 		decoder *asn1.Decoder
 	}
 	tests := []struct {
 		name         string
-		fields       fields
 		args         args
 		wantDecoders []*asn1.Decoder
 		wantPath     string
@@ -1026,7 +1070,6 @@ func TestElement_handlePath(t *testing.T) {
 	}{
 		{
 			"integer",
-			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0xA0, 0x03, 0x02, 0x01, 0x01},
@@ -1041,9 +1084,6 @@ func TestElement_handlePath(t *testing.T) {
 		},
 		{
 			"qualified",
-			fields{
-				Qualified: true,
-			},
 			args{
 				asn1.NewDecoder(
 					[]byte{0xA0, 0x07, 0x0D, 0x05, 0x01, 0x01, 0x02, 0x04, 0x03},
@@ -1058,9 +1098,6 @@ func TestElement_handlePath(t *testing.T) {
 		},
 		{
 			"qualifiedLeftover",
-			fields{
-				Qualified: true,
-			},
 			args{
 				asn1.NewDecoder(
 					[]byte{
@@ -1082,9 +1119,7 @@ func TestElement_handlePath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			el := &Element{
-				Qualified: tt.fields.Qualified,
-			}
+			el := &Element{}
 			got, err := el.handlePath(tt.args.decoder)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.handlePath() error = %v, wantErr %v", err, tt.wantErr)

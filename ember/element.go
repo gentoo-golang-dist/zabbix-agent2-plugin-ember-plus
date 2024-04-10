@@ -71,8 +71,6 @@ type (
 		Factor      int    `json:"factor,omitempty"`
 		Default     any    `json:"default,omitempty"`
 		ValueType   int    `json:"type,omitempty"`
-
-		Qualified bool `json:"-"`
 	}
 
 	// ElementCollection contains one level of elements and their Ids as key.
@@ -363,7 +361,7 @@ func (el *Element) handlePath(decoder *asn1.Decoder) ([]*asn1.Decoder, error) {
 		return nil, errs.Wrap(err, "failed to context")
 	}
 
-	path, err := el.getPath(contextDec)
+	path, err := getPath(contextDec)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get path")
 	}
@@ -382,9 +380,16 @@ func (el *Element) handlePath(decoder *asn1.Decoder) ([]*asn1.Decoder, error) {
 	return []*asn1.Decoder{decoder, contextDec}, nil
 }
 
-func (el *Element) getPath(decoder *asn1.Decoder) (string, error) {
-	if el.Qualified {
-		path, err := handlePathFromUniversal(decoder)
+func getPath(decoder *asn1.Decoder) (string, error) {
+	tag, err := decoder.Peek()
+	if err != nil {
+		return "", errs.Wrap(err, "failed to peek path byte")
+	}
+
+	if tag == asn1.UniversalObjectTag {
+		var path string
+
+		path, err = handlePathFromUniversal(decoder)
 		if err != nil {
 			return "", errs.Wrap(err, "failed to read path from universal")
 		}
@@ -417,10 +422,8 @@ func getElement(d *asn1.Decoder) (*Element, *asn1.Decoder, error) {
 	switch asn1.ApplicationByte(t) {
 	case asn1.ApplicationByte(asn1.QualifiedNodeTag):
 		el.ElementType = asn1.QualifiedNodeType
-		el.Qualified = true
 	case asn1.ApplicationByte(asn1.QualifiedParameterTag):
 		el.ElementType = asn1.QualifiedParameterType
-		el.Qualified = true
 	case asn1.ApplicationByte(nodeTag):
 		el.ElementType = asn1.NodeType
 	case asn1.ApplicationByte(parameterTag):
