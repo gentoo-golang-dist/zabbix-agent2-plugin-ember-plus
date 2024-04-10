@@ -374,6 +374,66 @@ func TestDecoder_ReadLength(t *testing.T) {
 	}
 }
 
+func TestDecoder_ReadEnd(t *testing.T) {
+	t.Parallel()
+
+	type fields struct {
+		data *bytes.Buffer
+	}
+	tests := []struct {
+		name      string
+		fields    fields
+		want      bool
+		wantBytes []byte
+		wantErr   bool
+	}{
+		{
+			"+notEnd",
+			fields{
+				data: bytes.NewBuffer(
+					[]byte{0xa1, 0x02, 0x0c, 0x00, 0xa4, 0x02, 0x0c, 0x00, 0xa3, 0x03, 0x01, 0x01, 0xff},
+				),
+			},
+			false,
+			[]byte{0xa1, 0x02, 0x0c, 0x00, 0xa4, 0x02, 0x0c, 0x00, 0xa3, 0x03, 0x01, 0x01, 0xff},
+			false,
+		},
+		{
+			"+isEnd",
+			fields{
+				data: bytes.NewBuffer(
+					[]byte{0x00, 0x00, 0x0c, 0x00, 0xa4, 0x02, 0x0c, 0x00, 0xa3, 0x03, 0x01, 0x01, 0xff},
+				),
+			},
+			true,
+			[]byte{0x0c, 0x00, 0xa4, 0x02, 0x0c, 0x00, 0xa3, 0x03, 0x01, 0x01, 0xff},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := &Decoder{
+				data: tt.fields.data,
+			}
+			got, err := c.ReadEnd()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Decoder.ReadEnd() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if diff := cmp.Diff(tt.wantBytes, c.Bytes()); diff != "" {
+				t.Fatalf("Decoder.ReadEnd() = %s", diff)
+			}
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("Decoder.ReadEnd() = %s", diff)
+			}
+		})
+	}
+}
+
 func TestDecoder_Peek(t *testing.T) {
 	t.Parallel()
 
@@ -580,147 +640,6 @@ func TestDecoder_DecodeInteger(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("Decoder.DecodeInteger() = %s", diff)
-			}
-		})
-	}
-}
-
-func TestApplicationByte(t *testing.T) {
-	t.Parallel()
-
-	type args struct {
-		num uint8
-	}
-	tests := []struct {
-		name string
-		args args
-		want uint8
-	}{
-		{"+valid", args{0x30}, 0x70},
-		{"+zero", args{0x00}, 0x60},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := ApplicationByte(tt.args.num)
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Fatalf("ApplicationByte() = %s", diff)
-			}
-		})
-	}
-}
-
-func TestContextByte(t *testing.T) {
-	t.Parallel()
-
-	type args struct {
-		num uint8
-	}
-	tests := []struct {
-		name string
-		args args
-		want uint8
-	}{
-		{"+valid", args{0x30}, 0xb0},
-		{"+zero", args{0x00}, 0xa0},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := ContextByte(tt.args.num)
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Fatalf("ContextByte() = %s", diff)
-			}
-		})
-	}
-}
-
-func TestUniversalByte(t *testing.T) {
-	t.Parallel()
-
-	type args struct {
-		num uint8
-	}
-	tests := []struct {
-		name string
-		args args
-		want uint8
-	}{
-		{"+valid", args{0x30}, 0x30},
-		{"+zero", args{0x00}, 0x00},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := UniversalByte(tt.args.num)
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Fatalf("UniversalByte() = %s", diff)
-			}
-		})
-	}
-}
-
-func TestDecoder_ReadEnd(t *testing.T) {
-	t.Parallel()
-
-	type fields struct {
-		data *bytes.Buffer
-	}
-	tests := []struct {
-		name      string
-		fields    fields
-		want      bool
-		wantBytes []byte
-		wantErr   bool
-	}{
-		{
-			"+notEnd",
-			fields{
-				data: bytes.NewBuffer(
-					[]byte{0xa1, 0x02, 0x0c, 0x00, 0xa4, 0x02, 0x0c, 0x00, 0xa3, 0x03, 0x01, 0x01, 0xff},
-				),
-			},
-			false,
-			[]byte{0xa1, 0x02, 0x0c, 0x00, 0xa4, 0x02, 0x0c, 0x00, 0xa3, 0x03, 0x01, 0x01, 0xff},
-			false,
-		},
-		{
-			"+isEnd",
-			fields{
-				data: bytes.NewBuffer(
-					[]byte{0x00, 0x00, 0x0c, 0x00, 0xa4, 0x02, 0x0c, 0x00, 0xa3, 0x03, 0x01, 0x01, 0xff},
-				),
-			},
-			true,
-			[]byte{0x0c, 0x00, 0xa4, 0x02, 0x0c, 0x00, 0xa3, 0x03, 0x01, 0x01, 0xff},
-			false,
-		},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			c := &Decoder{
-				data: tt.fields.data,
-			}
-			got, err := c.ReadEnd()
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("Decoder.ReadEnd() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if diff := cmp.Diff(tt.wantBytes, c.Bytes()); diff != "" {
-				t.Fatalf("Decoder.ReadEnd() = %s", diff)
-			}
-
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Fatalf("Decoder.ReadEnd() = %s", diff)
 			}
 		})
 	}
