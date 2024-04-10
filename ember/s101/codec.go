@@ -19,8 +19,6 @@ func Encode(message []byte, packetType uint8) []uint8 {
 }
 
 // Decode removes all the S101 addons from the packet returning only glow data, currently does not check CRC.
-
-// TODO Fix read no len byte unit test
 func Decode(message []byte) ([]uint8, error) {
 	s101 := getS101(message)
 	if len(s101) < s101LenTilGlow+byteSkip+1 {
@@ -69,6 +67,7 @@ func Decode(message []byte) ([]uint8, error) {
 // getS101 reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.
 func getS101(in []uint8) []uint8 {
 	var start, end int
+
 	var sFound, eFound bool
 
 	for i, b := range in {
@@ -103,7 +102,9 @@ func createS101(payload []byte, pType uint8) []byte {
 	tmp = append(tmp, s101Info...)
 	crc := getCRC(append(tmp, payload...))
 
-	s101 := append(s101Info, escaped...)
+	s101 := make([]byte, 0, len(s101Info)+len(escaped)+len(crc)+2)
+	s101 = append(s101, s101Info...)
+	s101 = append(s101, escaped...)
 	s101 = append(s101, crc...)
 	s101 = append([]byte{bof}, s101...)
 	s101 = append(s101, eof)

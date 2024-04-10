@@ -769,17 +769,17 @@ func TestGetElement(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, got1, err := GetElement(tt.args.d)
+			got, got1, err := getElement(tt.args.d)
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("GetElement() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("getElement() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if diff := cmp.Diff(tt.wantElement, got); diff != "" {
-				t.Fatalf("GetElement() got = %s", diff)
+				t.Fatalf("getElement() got = %s", diff)
 			}
 
 			if diff := cmp.Diff(tt.wantDecoder.Bytes(), got1.Bytes()); diff != "" {
-				t.Fatalf("GetElement() got1 = %s", diff)
+				t.Fatalf("getElement() got1 = %s", diff)
 			}
 		})
 	}
@@ -789,15 +789,7 @@ func TestElement_setChild(t *testing.T) {
 	t.Parallel()
 
 	type fields struct {
-		Path        string
-		ElementType ElementType
-		IsOnline    bool
-		IsRoot      bool
-		Identifier  string
-		Description string
-		Enumeration string
-		Children    []*Element
-		Qualified   bool
+		Children []*Element
 	}
 	type args struct {
 		childrenDecoder *asn1.Decoder
@@ -891,15 +883,7 @@ func TestElement_setChild(t *testing.T) {
 			t.Parallel()
 
 			el := &Element{
-				Path:        tt.fields.Path,
-				ElementType: tt.fields.ElementType,
-				IsOnline:    tt.fields.IsOnline,
-				IsRoot:      tt.fields.IsRoot,
-				Identifier:  tt.fields.Identifier,
-				Description: tt.fields.Description,
-				Enumeration: tt.fields.Enumeration,
-				Children:    tt.fields.Children,
-				Qualified:   tt.fields.Qualified,
+				Children: tt.fields.Children,
 			}
 			got, err := el.setChild(tt.args.childrenDecoder)
 			if (err != nil) != tt.wantErr {
@@ -926,6 +910,7 @@ func TestElement_setChild(t *testing.T) {
 	}
 }
 
+//nolint:maintidx
 func TestElementCollection_Populate(t *testing.T) {
 	t.Parallel()
 

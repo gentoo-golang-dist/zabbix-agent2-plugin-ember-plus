@@ -122,9 +122,9 @@ func (c *ConnCollection) CloseAll() {
 	}
 }
 
-// NewConnConfig creates connection configuration with provided uri string
-func NewConnConfig(rawUri string) (ConnConfig, error) {
-	parsed, err := uri.New(rawUri, nil)
+// NewConnConfig creates connection configuration with provided uri string.
+func NewConnConfig(rawURI string) (ConnConfig, error) {
+	parsed, err := uri.New(rawURI, nil)
 	if err != nil {
 		return ConnConfig{}, errs.Wrap(err, "failed to parse uri")
 	}
@@ -159,7 +159,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 	if ch != nil {
 		c.logr.Debugf("connection found for %s", conf.URI)
 
-		ch.lastAccessTime = time.Now()
+		ch.updateLastAccessTime()
 
 		return ch, nil
 	}
@@ -212,7 +212,7 @@ func (c *ConnCollection) closeUnused() {
 }
 
 // getConn concurrent connections cache getter.
-func (c *ConnCollection) getConn(cc ConnConfig) *connHandler { //nolint:gocritic
+func (c *ConnCollection) getConn(cc ConnConfig) *connHandler {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

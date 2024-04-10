@@ -1,8 +1,9 @@
 package plugin
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func Test_parsePathString(t *testing.T) {
@@ -11,13 +12,12 @@ func Test_parsePathString(t *testing.T) {
 	type args struct {
 		path string
 	}
-
 	tests := []struct {
-		name     string
-		args     args
-		want     []string
-		wantBool bool
-		wantErr  bool
+		name    string
+		args    args
+		want    []string
+		want1   bool
+		wantErr bool
 	}{
 		{
 			"+valid",
@@ -55,11 +55,11 @@ func Test_parsePathString(t *testing.T) {
 			false,
 		},
 		{
-			"+empty",
+			"-empty",
 			args{},
 			nil,
 			false,
-			false,
+			true,
 		},
 		{
 			"-emptyField",
@@ -105,22 +105,21 @@ func Test_parsePathString(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			got, got1, err := parsePathString(tt.args.path)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parsePathString() error = %v, wantErr %v", err, tt.wantErr)
-
-				return
+				t.Fatalf("parsePathString() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parsePathString() got response = %v, want %v", got, tt.want)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("parsePathString() got = %s", diff)
 			}
 
-			if got1 != tt.wantBool {
-				t.Errorf("parsePathString() got identifies = %v, want %v", got1, tt.wantBool)
+			if diff := cmp.Diff(tt.want1, got1); diff != "" {
+				t.Fatalf("parsePathString() got1 = %s", diff)
 			}
 		})
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+//nolint:maintidx
 func TestDecoder_Read(t *testing.T) {
 	t.Parallel()
 
