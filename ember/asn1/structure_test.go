@@ -1,3 +1,20 @@
+/*
+** Zabbix
+** Copyright 2001-2024 Zabbix SIA
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+**/
+
 package asn1
 
 import (
@@ -5,52 +22,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 )
-
-// func TestDecodeAny(t *testing.T) {
-// 	t.Parallel()
-
-// 	type args struct {
-// 		in []byte
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		args    args
-// 		want    any
-// 		wantErr bool
-// 	}{
-// 		// {
-// 		// 	"+valid",
-// 		// 	args{
-// 		// 		[]byte{0x01, 0x01, 0xff},
-// 		// 	},
-// 		// 	true,
-// 		// 	false,
-// 		// },
-// 		{
-// 			"+valid",
-// 			args{
-// 				[]byte{0x0C, 0x04, 0x52, 0x75, 0x62, 0x79},
-// 			},
-// 			"Ruby",
-// 			false,
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		tt := tt
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			t.Parallel()
-
-// 			got, err := DecodeAny(tt.args.in)
-// 			if (err != nil) != tt.wantErr {
-// 				t.Fatalf("DecodeAny() error = %v, wantErr %v", err, tt.wantErr)
-// 			}
-
-// 			if diff := cmp.Diff(tt.want, got); diff != "" {
-// 				t.Fatalf("DecodeAny() = %s", diff)
-// 			}
-// 		})
-// 	}
-// }
 
 func TestDecodeAny(t *testing.T) {
 	t.Parallel()

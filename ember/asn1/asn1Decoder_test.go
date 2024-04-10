@@ -1,3 +1,20 @@
+/*
+** Zabbix
+** Copyright 2001-2024 Zabbix SIA
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+**/
+
 package asn1
 
 import (
@@ -410,275 +427,163 @@ func TestDecoder_Peek(t *testing.T) {
 	}
 }
 
-// func TestDecoder_DecodeUniversal(t *testing.T) {
-// 	t.Parallel()
+func TestDecoder_DecodeUniversal(t *testing.T) {
+	t.Parallel()
 
-// 	type fields struct {
-// 		data *bytes.Buffer
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		fields  fields
-// 		want    []int
-// 		wantErr bool
-// 	}{
-// 		{
-// 			"+valid",
-// 			fields{
-// 				bytes.NewBuffer(
-// 					[]byte{
-// 						UniversalObjectTag, 0x02, 0x01, 0x00,
-// 					},
-// 				),
-// 			},
-// 			[]int{1, 0},
-// 			false,
-// 		},
-// 		{
-// 			"-emptyBuffer",
-// 			fields{
-// 				bytes.NewBuffer([]byte{}),
-// 			},
-// 			nil,
-// 			true,
-// 		},
-// 		{
-// 			"-invalidByteCount",
-// 			fields{
-// 				bytes.NewBuffer([]byte{UniversalObjectTag}),
-// 			},
-// 			nil,
-// 			true,
-// 		},
-// 		{
-// 			"-invalidLenByteCount",
-// 			fields{
-// 				bytes.NewBuffer([]byte{UniversalObjectTag, 0x02}),
-// 			},
-// 			nil,
-// 			true,
-// 		},
-// 		{
-// 			"-incorrectTag",
-// 			fields{
-// 				bytes.NewBuffer([]byte{0x01, 0x02, 0x01, 0x00}),
-// 			},
-// 			nil,
-// 			true,
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		tt := tt
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			t.Parallel()
+	type fields struct {
+		data *bytes.Buffer
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    []int
+		wantErr bool
+	}{
+		{
+			"+valid",
+			fields{
+				bytes.NewBuffer(
+					[]byte{
+						UniversalObjectTag, 0x02, 0x01, 0x00,
+					},
+				),
+			},
+			[]int{1, 0},
+			false,
+		},
+		{
+			"-emptyBuffer",
+			fields{
+				bytes.NewBuffer([]byte{}),
+			},
+			nil,
+			true,
+		},
+		{
+			"-invalidByteCount",
+			fields{
+				bytes.NewBuffer([]byte{UniversalObjectTag}),
+			},
+			nil,
+			true,
+		},
+		{
+			"-invalidLenByteCount",
+			fields{
+				bytes.NewBuffer([]byte{UniversalObjectTag, 0x02}),
+			},
+			nil,
+			true,
+		},
+		{
+			"-incorrectTag",
+			fields{
+				bytes.NewBuffer([]byte{0x01, 0x02, 0x01, 0x00}),
+			},
+			nil,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-// 			c := &Decoder{
-// 				data: tt.fields.data,
-// 			}
-// 			got, err := c.DecodeUniversal()
-// 			if (err != nil) != tt.wantErr {
-// 				t.Fatalf("Decoder.DecodeUniversal() error = %v, wantErr %v", err, tt.wantErr)
-// 			}
+			c := &Decoder{
+				data: tt.fields.data,
+			}
+			got, err := c.DecodeUniversal()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Decoder.DecodeUniversal() error = %v, wantErr %v", err, tt.wantErr)
+			}
 
-// 			if diff := cmp.Diff(tt.want, got); diff != "" {
-// 				t.Fatalf("Decoder.DecodeUniversal() = %s", diff)
-// 			}
-// 		})
-// 	}
-// }
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("Decoder.DecodeUniversal() = %s", diff)
+			}
+		})
+	}
+}
 
-// func TestDecoder_DecodeInteger(t *testing.T) {
-// 	t.Parallel()
+func TestDecoder_DecodeInteger(t *testing.T) {
+	t.Parallel()
 
-// 	type fields struct {
-// 		data *bytes.Buffer
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		fields  fields
-// 		want    int
-// 		wantErr bool
-// 	}{
-// 		{
-// 			"+valid",
-// 			fields{
-// 				bytes.NewBuffer([]byte{0x02, 0x01, 0x01}),
-// 			},
-// 			1,
-// 			false,
-// 		},
-// 		{
-// 			"+twoByteInt",
-// 			fields{
-// 				bytes.NewBuffer([]byte{0x02, 0x02, 0x00, 0xFF}),
-// 			},
-// 			255,
-// 			false,
-// 		},
-// 		{
-// 			"-noLength",
-// 			fields{
-// 				bytes.NewBuffer([]byte{0x02}),
-// 			},
-// 			0,
-// 			true,
-// 		},
-// 		{
-// 			"-noAdditionalLength",
-// 			fields{
-// 				bytes.NewBuffer([]byte{0x02, 0x02}),
-// 			},
-// 			0,
-// 			true,
-// 		},
-// 		{
-// 			"-notIntTag",
-// 			fields{
-// 				bytes.NewBuffer([]byte{0x00}),
-// 			},
-// 			0,
-// 			true,
-// 		},
-// 		{
-// 			"-empty",
-// 			fields{
-// 				bytes.NewBuffer([]byte{}),
-// 			},
-// 			0,
-// 			true,
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		tt := tt
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			t.Parallel()
+	type fields struct {
+		data *bytes.Buffer
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    int
+		wantErr bool
+	}{
+		{
+			"+valid",
+			fields{
+				bytes.NewBuffer([]byte{0x02, 0x01, 0x01}),
+			},
+			1,
+			false,
+		},
+		{
+			"+twoByteInt",
+			fields{
+				bytes.NewBuffer([]byte{0x02, 0x02, 0x00, 0xFF}),
+			},
+			255,
+			false,
+		},
+		{
+			"-noLength",
+			fields{
+				bytes.NewBuffer([]byte{0x02}),
+			},
+			0,
+			true,
+		},
+		{
+			"-noAdditionalLength",
+			fields{
+				bytes.NewBuffer([]byte{0x02, 0x02}),
+			},
+			0,
+			true,
+		},
+		{
+			"-notIntTag",
+			fields{
+				bytes.NewBuffer([]byte{0x00}),
+			},
+			0,
+			true,
+		},
+		{
+			"-empty",
+			fields{
+				bytes.NewBuffer([]byte{}),
+			},
+			0,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-// 			c := &Decoder{
-// 				data: tt.fields.data,
-// 			}
-// 			got, err := c.DecodeInteger()
-// 			if (err != nil) != tt.wantErr {
-// 				t.Fatalf("Decoder.DecodeInteger() error = %v, wantErr %v", err, tt.wantErr)
-// 			}
+			c := &Decoder{
+				data: tt.fields.data,
+			}
+			got, err := c.DecodeInteger()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Decoder.DecodeInteger() error = %v, wantErr %v", err, tt.wantErr)
+			}
 
-// 			if diff := cmp.Diff(tt.want, got); diff != "" {
-// 				t.Fatalf("Decoder.DecodeInteger() = %s", diff)
-// 			}
-// 		})
-// 	}
-// }
-
-// func Test_decodeString(t *testing.T) {
-// 	t.Parallel()
-
-// 	type args struct {
-// 		in []byte
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		args    args
-// 		want    string
-// 		wantErr bool
-// 	}{
-// 		{
-// 			"+valid",
-// 			args{
-// 				[]byte{0x0C, 0x04, 0x52, 0x75, 0x62, 0x79},
-// 			},
-// 			"Ruby",
-// 			false,
-// 		},
-// 		{
-// 			"-incorrectByteSequence",
-// 			args{
-// 				[]byte{0x75, 0x62, 0x79},
-// 			},
-// 			"",
-// 			true,
-// 		},
-// 		{
-// 			"-empty",
-// 			args{[]byte{}},
-// 			"",
-// 			true,
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		tt := tt
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			t.Parallel()
-
-// 			got, err := DecodeString(tt.args.in)
-// 			if (err != nil) != tt.wantErr {
-// 				t.Fatalf("decodeString() error = %v, wantErr %v", err, tt.wantErr)
-// 			}
-
-// 			if diff := cmp.Diff(tt.want, got); diff != "" {
-// 				t.Fatalf("decodeString() = %s", diff)
-// 			}
-// 		})
-// 	}
-// }
-
-// func Test_decodeBool(t *testing.T) {
-// 	t.Parallel()
-
-// 	type args struct {
-// 		in []byte
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		args    args
-// 		want    bool
-// 		wantErr bool
-// 	}{
-// 		{
-// 			"+valid",
-// 			args{
-// 				[]byte{0x01, 0x01, 0xff},
-// 			},
-// 			true,
-// 			false,
-// 		},
-// 		{
-// 			"+validFalse",
-// 			args{
-// 				[]byte{0x01, 0x01, 0x00},
-// 			},
-// 			false,
-// 			false,
-// 		},
-// 		{
-// 			"-incorrect",
-// 			args{
-// 				[]byte{0x01, 0x01, 0x01},
-// 			},
-// 			false,
-// 			true,
-// 		},
-// 		{
-// 			"-empty",
-// 			args{[]byte{}},
-// 			false,
-// 			true,
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		tt := tt
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			t.Parallel()
-
-// 			got, err := DecodeBool(tt.args.in)
-// 			if (err != nil) != tt.wantErr {
-// 				t.Fatalf("decodeBool() error = %v, wantErr %v", err, tt.wantErr)
-// 			}
-
-// 			if diff := cmp.Diff(tt.want, got); diff != "" {
-// 				t.Fatalf("decodeBool() = %s", diff)
-// 			}
-// 		})
-// 	}
-// }
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("Decoder.DecodeInteger() = %s", diff)
+			}
+		})
+	}
+}
 
 func TestApplicationByte(t *testing.T) {
 	t.Parallel()
