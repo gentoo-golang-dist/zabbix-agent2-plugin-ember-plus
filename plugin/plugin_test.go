@@ -30,11 +30,11 @@ func Test_parsePathString(t *testing.T) {
 		path string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    []string
-		want1   bool
-		wantErr bool
+		name     string
+		args     args
+		wantPath []string
+		wantIsID bool
+		wantErr  bool
 	}{
 		{
 			"+valid",
@@ -126,16 +126,16 @@ func Test_parsePathString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, got1, err := parsePathString(tt.args.path)
+			got, isId, err := parsePathString(tt.args.path)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("parsePathString() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			if diff := cmp.Diff(tt.want, got); diff != "" {
+			if diff := cmp.Diff(tt.wantPath, got); diff != "" {
 				t.Fatalf("parsePathString() got = %s", diff)
 			}
 
-			if diff := cmp.Diff(tt.want1, got1); diff != "" {
+			if diff := cmp.Diff(tt.wantIsID, isId); diff != "" {
 				t.Fatalf("parsePathString() got1 = %s", diff)
 			}
 		})

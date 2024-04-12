@@ -18,8 +18,8 @@
 package asn1
 
 import (
-	"bytes"
 	"errors"
+	"io"
 
 	"git.zabbix.com/ap/plugin-support/errs"
 )
@@ -40,9 +40,8 @@ func (c *Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*Decoder, 
 	}
 
 	lenB, _, err := c.ReadLength()
-
 	if err != nil {
-		if !errors.Is(err, noLenByteErr) {
+		if !errors.Is(err, ErrNoLenByte) {
 			return nil, false, errs.Wrap(err, "failed to read length byte")
 		}
 
@@ -67,14 +66,13 @@ func (c *Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*Decoder, 
 // ReadLength reads next in line data blocks length and returns it as well as how many bytes the data
 // length was written in.
 func (c *Decoder) ReadLength() (int, int, error) {
-	var offset int
 
 	lenB, err := c.data.ReadByte()
 	if err != nil {
 		return 0, 0, errs.Wrap(err, "incorrect length byte")
 	}
 
-	offset++
+	offset := 1
 
 	if lenB&contextByte != contextByte {
 		return int(lenB), offset, nil
@@ -83,7 +81,7 @@ func (c *Decoder) ReadLength() (int, int, error) {
 	lenB &= lenByte
 
 	if lenB == 0 {
-		return 0, offset, noLenByteErr
+		return 0, offset, ErrNoLenByte
 	}
 
 	if lenB > maxLengthBytes {
@@ -116,15 +114,9 @@ func (c *Decoder) ReadEnd() (bool, error) {
 		return false, errs.New("not enough bytes")
 	}
 
-	tmp := bytes.NewBuffer(c.Bytes())
-	for i, b := range tmp.Bytes() {
-		if b != closingByte {
-			return false, nil
-		}
-
-		if i+1 == closingOffset {
-			break
-		}
+	b := c.data.Bytes()
+	if b[0] != closingByte || b[1] != closingByte {
+		return false, nil
 	}
 
 	for i := 0; i < closingOffset; i++ {
@@ -224,30 +216,26 @@ func (c *Decoder) ReadByte() (byte, error) {
 }
 
 func (c *Decoder) readWithOutLength() ([]byte, error) {
-	var out []byte
-
-	for c.data.Len() > 0 {
-		b, err := c.data.ReadByte()
-		if err != nil {
-			return nil, errs.Wrap(err, "failed to read byte")
-		}
-
-		out = append(out, b)
+	out, err := io.ReadAll(c.data)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to read all data")
 	}
 
 	return out, nil
 }
 
 func (c *Decoder) readWithLength(length int) ([]byte, error) {
-	var out []byte
+	out := make([]byte, length)
 
-	for i := 0; i < length; i++ {
-		b, err := c.data.ReadByte()
-		if err != nil {
-			return nil, errs.Wrap(err, "failed to read extra bytes")
-		}
+	n, err := c.data.Read(out)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to read bytes with set length")
+	}
 
-		out = append(out, b)
+	if n != length {
+		return nil, errs.Errorf(
+			"failed to read bytes with set length, length %d does not match actual read length %d", length, n,
+		)
 	}
 
 	return out, nil

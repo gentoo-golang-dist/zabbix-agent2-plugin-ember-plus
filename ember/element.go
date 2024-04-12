@@ -42,7 +42,7 @@ var (
 	_ decoderHandlerFunc = (*Element)(nil).setChild
 
 	//nolint:gochecknoglobals
-	notFoundErr = errs.New("element not found")
+	ErrElementNotFound = errs.New("element not found")
 )
 
 // ElementKey used for element identification based on either element id or path.
@@ -52,39 +52,33 @@ type ElementKey struct {
 }
 
 // Element contains all the values a glow element might contain.
-type (
-	Element struct {
-		Path        string      `json:"path"`
-		ElementType ElementType `json:"element_type"`
-		Identifier  string      `json:"identifier,omitempty"`
-		Description string      `json:"description,omitempty"`
-		Children    []*Element  `json:"children,omitempty"`
+type Element struct {
+	Path        string      `json:"path"`
+	ElementType ElementType `json:"element_type"`
+	Identifier  string      `json:"identifier,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Children    []*Element  `json:"children,omitempty"`
+	IsOnline    bool        `json:"is_online,omitempty"`
+	IsRoot      bool        `json:"is_root,omitempty"`
+	Maximum     any         `json:"maximum,omitempty"`
+	Minimum     any         `json:"minimum,omitempty"`
+	Value       any         `json:"value,omitempty"`
+	Access      int         `json:"access,omitempty"`
+	Format      string      `json:"format,omitempty"`
+	Enumeration string      `json:"enumeration,omitempty"`
+	Factor      int         `json:"factor,omitempty"`
+	Default     any         `json:"default,omitempty"`
+	ValueType   int         `json:"type,omitempty"`
+}
 
-		IsOnline    bool   `json:"is_online,omitempty"`
-		IsRoot      bool   `json:"is_root,omitempty"`
-		Maximum     any    `json:"maximum,omitempty"`
-		Minimum     any    `json:"minimum,omitempty"`
-		Value       any    `json:"value,omitempty"`
-		Access      int    `json:"access,omitempty"`
-		Format      string `json:"format,omitempty"`
-		Enumeration string `json:"enumeration,omitempty"`
-		Factor      int    `json:"factor,omitempty"`
-		Default     any    `json:"default,omitempty"`
-		ValueType   int    `json:"type,omitempty"`
-	}
+// ElementCollection contains one level of elements and their Ids as key.
+type ElementCollection map[ElementKey]*Element
 
-	// ElementCollection contains one level of elements and their Ids as key.
-	ElementCollection map[ElementKey]*Element
+// ElementType wrapper for string to define available element types.
+type ElementType string
 
-	// RequestFunction request type for data retrieval.
-	RequestFunction func(t ElementType, path string) ([]byte, error)
-
-	// ElementType wrapper for string to define available element types.
-	ElementType string
-
-	// decoderHandlerFunc functions used for wrapped to handle decoders with leftover data.
-	decoderHandlerFunc func(values *asn1.Decoder) ([]*asn1.Decoder, error)
-)
+// decoderHandlerFunc functions used for wrapped to handle decoders with leftover data.
+type decoderHandlerFunc func(values *asn1.Decoder) ([]*asn1.Decoder, error)
 
 // Populate fills in collection with data from the decoder.
 func (ec ElementCollection) Populate(data *asn1.Decoder) error {
@@ -131,6 +125,11 @@ func (ec ElementCollection) Populate(data *asn1.Decoder) error {
 		}
 	}
 
+	_, err = app0Codec.ReadEnd() // end of the whole element
+	if err != nil {
+		return errs.Wrap(err, "failed to read sequence end of application 0 (the whole payload)")
+	}
+
 	return nil
 }
 
@@ -142,7 +141,7 @@ func (ec ElementCollection) GetElementByPath(currentPath string) (*Element, erro
 		}
 	}
 
-	return nil, notFoundErr
+	return nil, ErrElementNotFound
 }
 
 // GetElementByID returns element from collection with the provided identifier.
@@ -153,7 +152,7 @@ func (ec ElementCollection) GetElementByID(id string) (*Element, error) {
 		}
 	}
 
-	return nil, notFoundErr
+	return nil, ErrElementNotFound
 }
 
 // ToJSONCompatible returns the collection with path(string) in key value instead of a structure for json marshaling.
@@ -172,7 +171,7 @@ func NewElementConnection() ElementCollection {
 }
 
 // GetRootRequest returns a S101 request packet with an encoded request for root collection.
-func GetRootRequest(_ ElementType, _ string) ([]byte, error) {
+func GetRootRequest() ([]byte, error) {
 	encoder := asn1.NewEncoder()
 
 	err := encoder.WriteRootTreeRequest()
@@ -208,22 +207,29 @@ func (el *Element) handleApplication(decoder *asn1.Decoder) (*asn1.Decoder, erro
 			return nil, errs.Wrapf(err, "failed to peek context")
 		}
 
+		var decoders []*asn1.Decoder
+
 		switch asn1.ContextByte(t) {
 		case asn1.ContextByte(asn1.ContextZeroTag):
-			decoder, err = decoderWrapper(decoder, el.handlePath)
+			decoders, err = el.handlePath(decoder)
 			if err != nil {
 				return nil, errs.Wrapf(err, "failed to read path")
 			}
 		case asn1.ContextByte(asn1.ContextTagOne):
-			decoder, err = decoderWrapper(decoder, el.handleContent)
+			decoders, err = el.handleContent(decoder)
 			if err != nil {
 				return nil, errs.Wrapf(err, "failed to read content")
 			}
 		case asn1.ContextByte(asn1.ContextTagTwo):
-			decoder, err = decoderWrapper(decoder, el.handleChildren)
+			decoders, err = el.handleChildren(decoder)
 			if err != nil {
 				return nil, errs.Wrapf(err, "failed to read children")
 			}
+		}
+
+		decoder, err = findWithData(decoders)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to find the decoder to continue reading")
 		}
 
 		atEnd, err := decoder.ReadEnd()
@@ -249,9 +255,16 @@ func (el *Element) handleChildren(decoder *asn1.Decoder) ([]*asn1.Decoder, error
 	}
 
 	for {
-		childDec, err = decoderWrapper(childDec, el.setChild)
+		var decoders []*asn1.Decoder
+
+		decoders, err = el.setChild(childDec)
 		if err != nil {
-			return nil, errs.Wrapf(err, "failed to get child")
+			return nil, errs.Wrapf(err, "failed to set child element")
+		}
+
+		childDec, err = findWithData(decoders)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to find the decoder to continue reading")
 		}
 
 		_, err := childDec.ReadEnd() // current child context end
@@ -305,9 +318,16 @@ func (el *Element) handleContent(decoder *asn1.Decoder) ([]*asn1.Decoder, error)
 	}
 
 	for {
-		set, err = decoderWrapper(set, el.handleContext)
+		var decoders []*asn1.Decoder
+
+		decoders, err = el.handleContext(set)
 		if err != nil {
-			return nil, errs.Wrap(err, "failed to read set element")
+			return nil, errs.Wrapf(err, "failed to set child element")
+		}
+
+		set, err = findWithData(decoders)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to find the decoder to continue reading")
 		}
 
 		end, err := set.ReadEnd()
@@ -737,13 +757,9 @@ func (el *Element) setDefaultElementValue() {
 	}
 }
 
-func decoderWrapper(decoder *asn1.Decoder, handler decoderHandlerFunc) (*asn1.Decoder, error) {
-	decoders, err := handler(decoder)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to execute handler")
-	}
-
+func findWithData(decoders []*asn1.Decoder) (*asn1.Decoder, error) {
 	var out *asn1.Decoder
+
 	for _, d := range decoders {
 		if out != nil && d.Len() > 0 {
 			return nil, errs.New("after value handling both new and original decoders have data left")

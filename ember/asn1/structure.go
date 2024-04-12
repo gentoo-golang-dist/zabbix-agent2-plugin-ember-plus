@@ -95,7 +95,7 @@ const (
 )
 
 //nolint:gochecknoglobals
-var noLenByteErr = errs.New("can not determine length")
+var ErrNoLenByte = errs.New("can not determine length")
 
 // Decoder decoder for ASN1 glow data.
 type Decoder struct {

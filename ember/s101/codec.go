@@ -120,10 +120,10 @@ func createS101(payload []byte, pType uint8) []byte {
 	crc := getCRC(append(tmp, payload...))
 
 	s101 := make([]byte, 0, len(s101Info)+len(escaped)+len(crc)+2)
+	s101 = append(s101, bof)
 	s101 = append(s101, s101Info...)
 	s101 = append(s101, escaped...)
 	s101 = append(s101, crc...)
-	s101 = append([]byte{bof}, s101...)
 	s101 = append(s101, eof)
 
 	return s101

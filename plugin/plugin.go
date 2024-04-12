@@ -47,6 +47,8 @@ var (
 	_ plugin.Exporter     = (*emberPlugin)(nil)
 	_ plugin.Runner       = (*emberPlugin)(nil)
 	_ handlerFunc         = (*emberPlugin)(nil).GetEmber
+
+	ErrInvalidPath = errs.New("invalid path")
 )
 
 // HandlerFunc describes the signature all metric handler functions must have.
@@ -140,7 +142,12 @@ func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any
 		return nil, errs.Wrap(err, "failed to create connection config")
 	}
 
-	rootCollection, err := p.handleRequest("", "", connConf, ember.GetRootRequest)
+	req, err := ember.GetRootRequest()
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to get root collection request")
+	}
+
+	rootCollection, err := p.handleRequest(connConf, req)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to retrieve root collection")
 	}
@@ -150,16 +157,16 @@ func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any
 		return rootCollection.ToJSONCompatible(), nil
 	}
 
-	pathPart, byID, err := parsePathString(path)
+	pathParts, byID, err := parsePathString(path)
 	if err != nil {
 		return nil, errs.Wrapf(err, "failed to parse input path '%s'", path)
 	}
 
 	if byID {
-		return p.getCollectionByID(rootCollection, connConf, pathPart)
+		return p.getCollectionByID(rootCollection, connConf, pathParts)
 	}
 
-	return p.getCollectionByPath(rootCollection, connConf, pathPart)
+	return p.getCollectionByPath(rootCollection, connConf, pathParts)
 }
 
 func (p *emberPlugin) registerMetrics() error {
@@ -201,7 +208,12 @@ func (p *emberPlugin) getCollectionByPath(
 			return nil, errs.Wrapf(err, "failed to retrieve element with path %s", fullPath)
 		}
 
-		collection, err = p.handleRequest(fullPath, el.ElementType, connConf, ember.GetRequestByType)
+		req, err := ember.GetRequestByType(el.ElementType, fullPath)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to get request by element type")
+		}
+
+		collection, err = p.handleRequest(connConf, req)
 		if err != nil {
 			return nil, errs.Wrapf(err, "failed to retrieve element collection with path %s", fullPath)
 		}
@@ -213,36 +225,30 @@ func (p *emberPlugin) getCollectionByPath(
 func (p *emberPlugin) getCollectionByID(
 	collection ember.ElementCollection, connConf conn.ConnConfig, ids []string,
 ) (map[string]*ember.Element, error) {
-	var fullPath string
-
 	for _, id := range ids {
 		el, err := collection.GetElementByID(id)
 		if err != nil {
 			return nil, errs.Wrapf(
 				err,
-				"failed to retrieve element with id %s, path to element '%s'", id, fullPath,
+				"failed to retrieve element with id %s, path to element '%s'", id, el.Path,
 			)
 		}
 
-		fullPath = el.Path
-
-		collection, err = p.handleRequest(fullPath, el.ElementType, connConf, ember.GetRequestByType)
+		req, err := ember.GetRequestByType(el.ElementType, el.Path)
 		if err != nil {
-			return nil, errs.Wrapf(err, "failed to retrieve element collection with path '%s'", fullPath)
+			return nil, errs.Wrap(err, "failed to get request")
+		}
+
+		collection, err = p.handleRequest(connConf, req)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to retrieve element collection with path '%s'", el.Path)
 		}
 	}
 
 	return collection.ToJSONCompatible(), nil
 }
 
-func (p *emberPlugin) handleRequest(
-	path string, elType ember.ElementType, connConf conn.ConnConfig, reqFunc ember.RequestFunction,
-) (ember.ElementCollection, error) {
-	req, err := reqFunc(elType, path)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to get request")
-	}
-
+func (p *emberPlugin) handleRequest(connConf conn.ConnConfig, req []byte) (ember.ElementCollection, error) {
 	resp, err := p.conns.HandleRequest(req, connConf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to handle request")
@@ -307,11 +313,19 @@ func parsePathString(path string) ([]string, bool, error) {
 		}
 
 		if idPath {
-			return nil, false, errs.New("path parts can not be a mix of OID and Identifier")
+			return nil, false, errs.Wrapf(
+				ErrInvalidPath,
+				"path %q parts can not be a mix of OID and Identifier",
+				path,
+			)
 		}
 
 		if oidPart < 0 {
-			return nil, false, errs.New("path oid parts can not be negative")
+			return nil, false, errs.Wrapf(
+				ErrInvalidPath,
+				"path %q OID parts can not be negative",
+				path,
+			)
 		}
 	}
 
