@@ -154,7 +154,7 @@ func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any
 
 	path := metricParams[params.Path.Name()]
 	if path == "" {
-		return rootCollection.ToJSONCompatible(), nil
+		return rootCollection, nil
 	}
 
 	pathParts, byID, err := parsePathString(path)
@@ -197,7 +197,7 @@ func (p *emberPlugin) registerMetrics() error {
 
 func (p *emberPlugin) getCollectionByPath(
 	collection ember.ElementCollection, connConf conn.ConnConfig, pathPart []string,
-) (map[string]*ember.Element, error) {
+) (ember.ElementCollection, error) {
 	var fullPath string
 
 	for _, part := range pathPart {
@@ -219,12 +219,12 @@ func (p *emberPlugin) getCollectionByPath(
 		}
 	}
 
-	return collection.ToJSONCompatible(), nil
+	return collection, nil
 }
 
 func (p *emberPlugin) getCollectionByID(
 	collection ember.ElementCollection, connConf conn.ConnConfig, ids []string,
-) (map[string]*ember.Element, error) {
+) (ember.ElementCollection, error) {
 	for _, id := range ids {
 		el, err := collection.GetElementByID(id)
 		if err != nil {
@@ -245,7 +245,7 @@ func (p *emberPlugin) getCollectionByID(
 		}
 	}
 
-	return collection.ToJSONCompatible(), nil
+	return collection, nil
 }
 
 func (p *emberPlugin) handleRequest(connConf conn.ConnConfig, req []byte) (ember.ElementCollection, error) {

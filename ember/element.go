@@ -18,6 +18,7 @@
 package ember
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -36,11 +37,6 @@ const (
 )
 
 var (
-	_ decoderHandlerFunc = (*Element)(nil).handlePath
-	_ decoderHandlerFunc = (*Element)(nil).handleContent
-	_ decoderHandlerFunc = (*Element)(nil).handleChildren
-	_ decoderHandlerFunc = (*Element)(nil).setChild
-
 	//nolint:gochecknoglobals
 	ErrElementNotFound = errs.New("element not found")
 )
@@ -52,21 +48,38 @@ type ElementKey struct {
 }
 
 // Element contains all the values a glow element might contain.
-type Element struct {
+type Node struct {
 	Path        string      `json:"path"`
 	ElementType ElementType `json:"element_type"`
+	Children    []*Element  `json:"children"`
+	Identifier  string      `json:"identifier"`
+	Description string      `json:"description"`
+	IsOnline    bool        `json:"is_online"`
+	IsRoot      bool        `json:"is_root"`
+}
+
+type Function struct {
+	Path        string      `json:"path"`
+	ElementType ElementType `json:"element_type"`
+	Children    []*Element  `json:"children"`
+	Identifier  string      `json:"identifier"`
+	Description string      `json:"description"`
+}
+
+type Parameter struct {
+	Path        string      `json:"path"`
+	ElementType ElementType `json:"element_type"`
+	Children    []*Element  `json:"children,omitempty"`
 	Identifier  string      `json:"identifier,omitempty"`
 	Description string      `json:"description,omitempty"`
-	Children    []*Element  `json:"children,omitempty"`
-	IsOnline    bool        `json:"is_online,omitempty"`
-	IsRoot      bool        `json:"is_root,omitempty"`
-	Maximum     any         `json:"maximum,omitempty"`
-	Minimum     any         `json:"minimum,omitempty"`
 	Value       any         `json:"value,omitempty"`
+	Minimum     any         `json:"minimum,omitempty"`
+	Maximum     any         `json:"maximum,omitempty"`
 	Access      int         `json:"access,omitempty"`
 	Format      string      `json:"format,omitempty"`
 	Enumeration string      `json:"enumeration,omitempty"`
 	Factor      int         `json:"factor,omitempty"`
+	IsOnline    bool        `json:"is_online,omitempty"`
 	Default     any         `json:"default,omitempty"`
 	ValueType   int         `json:"type,omitempty"`
 }
@@ -77,8 +90,25 @@ type ElementCollection map[ElementKey]*Element
 // ElementType wrapper for string to define available element types.
 type ElementType string
 
-// decoderHandlerFunc functions used for wrapped to handle decoders with leftover data.
-type decoderHandlerFunc func(values *asn1.Decoder) ([]*asn1.Decoder, error)
+// Element contains all the values a glow element might contain.
+type Element struct {
+	Path        string
+	ElementType ElementType
+	Identifier  string
+	Description string
+	Children    []*Element
+	IsOnline    bool
+	IsRoot      bool
+	Maximum     any
+	Minimum     any
+	Value       any
+	Access      int
+	Format      string
+	Enumeration string
+	Factor      int
+	Default     any
+	ValueType   int
+}
 
 // Populate fills in collection with data from the decoder.
 func (ec ElementCollection) Populate(data *asn1.Decoder) error {
@@ -155,14 +185,56 @@ func (ec ElementCollection) GetElementByID(id string) (*Element, error) {
 	return nil, ErrElementNotFound
 }
 
-// ToJSONCompatible returns the collection with path(string) in key value instead of a structure for json marshaling.
-func (ec ElementCollection) ToJSONCompatible() map[string]*Element {
-	out := make(map[string]*Element)
+// MarshalJSON returns the collection with path(string) in key value instead of a structure for json marshaling.
+func (ec ElementCollection) MarshalJSON() ([]byte, error) {
+	out := make(map[string]any)
+
 	for k, v := range ec {
-		out[k.Path] = v
+		switch v.ElementType {
+		case asn1.NodeType, asn1.QualifiedNodeType:
+			out[k.Path] = Node{
+				Path:        v.Path,
+				ElementType: v.ElementType,
+				Identifier:  v.Identifier,
+				Description: v.Description,
+				Children:    v.Children,
+				IsOnline:    v.IsOnline,
+				IsRoot:      v.IsRoot,
+			}
+		case asn1.ParameterType, asn1.QualifiedParameterType:
+			out[k.Path] = Parameter{
+				Path:        v.Path,
+				ElementType: v.ElementType,
+				Children:    v.Children,
+				Identifier:  v.Identifier,
+				Description: v.Description,
+				Value:       v.Value,
+				Minimum:     v.Minimum,
+				Maximum:     v.Maximum,
+				Access:      v.Access,
+				Format:      v.Format,
+				Enumeration: v.Enumeration,
+				Factor:      v.Factor,
+				IsOnline:    v.IsOnline,
+				Default:     v.Default,
+				ValueType:   v.ValueType,
+			}
+		case asn1.FunctionType:
+			out[k.Path] = Function{
+				Path:        v.Path,
+				ElementType: v.ElementType,
+				Identifier:  v.Identifier,
+				Description: v.Description,
+			}
+		}
 	}
 
-	return out
+	bytes, err := json.Marshal(out)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed native marshal")
+	}
+
+	return bytes, nil
 }
 
 // NewElementConnection creates a empty element collection.
@@ -320,7 +392,7 @@ func (el *Element) handleContent(decoder *asn1.Decoder) ([]*asn1.Decoder, error)
 	for {
 		var decoders []*asn1.Decoder
 
-		decoders, err = el.handleContext(set)
+		decoders, err = el.handleContentContext(set)
 		if err != nil {
 			return nil, errs.Wrapf(err, "failed to set child element")
 		}
@@ -343,7 +415,7 @@ func (el *Element) handleContent(decoder *asn1.Decoder) ([]*asn1.Decoder, error)
 	return []*asn1.Decoder{decoder, content, set}, nil
 }
 
-func (el *Element) handleContext(decoder *asn1.Decoder) ([]*asn1.Decoder, error) {
+func (el *Element) handleContentContext(decoder *asn1.Decoder) ([]*asn1.Decoder, error) {
 	t, err := decoder.Peek()
 	if err != nil {
 		return nil, errs.Wrapf(err, "failed to node read context")
@@ -544,7 +616,7 @@ func (el *Element) handleNodeContext(context *asn1.Decoder, tag byte) error {
 			return errs.Wrap(err, "failed to decode is root ")
 		}
 
-		el.IsOnline = root
+		el.IsRoot = root
 	case asn1.ContextByte(3):
 		var online bool
 

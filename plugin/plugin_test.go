@@ -20,8 +20,66 @@ package plugin
 import (
 	"testing"
 
+	"git.zabbix.com/ap/ember-plus/ember"
 	"github.com/google/go-cmp/cmp"
 )
+
+func Test_withJSONResponse(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		handler handlerFunc
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			"+valid",
+			args{
+				func(metricParams map[string]string, extraParams ...string) (any, error) {
+					coll := ember.ElementCollection{
+						ember.ElementKey{
+							ID:   "ID",
+							Path: "1.2.3",
+						}: &ember.Element{
+							Path:        "1.2.3",
+							ElementType: "node",
+							IsOnline:    true,
+							IsRoot:      false,
+							Maximum:     1,
+							ValueType:   2,
+						},
+					}
+
+					return coll, nil
+				},
+			},
+			`{"1.2.3":` + `{"path":"1.2.3","element_type":"node","children":null,"identifier":"","description":"",` +
+				`"is_online":true,"is_root":false}}`,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := withJSONResponse(tt.args.handler)
+
+			got, err := handler(nil)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("withJSONResponse() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("withJSONResponse() = %s", diff)
+			}
+		})
+	}
+}
 
 func Test_parsePathString(t *testing.T) {
 	t.Parallel()

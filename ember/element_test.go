@@ -958,7 +958,7 @@ func TestElement_handleContent(t *testing.T) {
 	}
 }
 
-func TestElement_handleContext(t *testing.T) {
+func TestElement_handleContentContext(t *testing.T) {
 	t.Parallel()
 
 	type fields struct {
@@ -1030,18 +1030,18 @@ func TestElement_handleContext(t *testing.T) {
 			el := &Element{
 				ElementType: tt.fields.ElementType,
 			}
-			got, err := el.handleContext(tt.args.decoder)
+			got, err := el.handleContentContext(tt.args.decoder)
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("Element.handleContext() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("Element.handleContentContext() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if diff := cmp.Diff(tt.wantElement, el); diff != "" {
-				t.Fatalf("Decoder.handleContext() = %s", diff)
+				t.Fatalf("Decoder.handleContentContext() = %s", diff)
 			}
 
 			if len(tt.wantDecoder) != len(got) {
 				t.Fatalf(
-					"Decoder.handleContext() = incorrect got %d and expected slice len %d",
+					"Decoder.handleContentContext() = incorrect got %d and expected slice len %d",
 					len(got), len(tt.wantDecoder),
 				)
 			}
