@@ -224,7 +224,8 @@ func (c *Decoder) readWithOutLength() ([]byte, error) {
 }
 
 func (c *Decoder) readWithLength(length int) ([]byte, error) {
-	var out []byte
+	//nolint:makezero
+	out := make([]byte, length)
 
 	n, err := c.data.Read(out)
 	if err != nil {
