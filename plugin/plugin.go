@@ -48,6 +48,7 @@ var (
 	_ plugin.Runner       = (*emberPlugin)(nil)
 	_ handlerFunc         = (*emberPlugin)(nil).GetEmber
 
+	// ErrInvalidPath error when incorrect path is provided.
 	ErrInvalidPath = errs.New("invalid path")
 )
 

@@ -30,6 +30,7 @@ func TestEncode(t *testing.T) {
 		message    []byte
 		packetType uint8
 	}
+
 	tests := []struct {
 		name string
 		args args
@@ -67,6 +68,7 @@ func TestEncode(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,6 +88,7 @@ func TestDecode(t *testing.T) {
 	type args struct {
 		message []byte
 	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -258,6 +261,7 @@ func TestDecode(t *testing.T) {
 			true,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -281,6 +285,7 @@ func Test_getS101(t *testing.T) {
 	type args struct {
 		in []uint8
 	}
+
 	tests := []struct {
 		name string
 		args args
@@ -312,6 +317,7 @@ func Test_getS101(t *testing.T) {
 			[]byte{},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -332,6 +338,7 @@ func Test_createS101(t *testing.T) {
 		payload []byte
 		pType   uint8
 	}
+
 	tests := []struct {
 		name string
 		args args
@@ -368,6 +375,7 @@ func Test_createS101(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -387,6 +395,7 @@ func Test_escapeBytesAboveBOFNE(t *testing.T) {
 	type args struct {
 		message []byte
 	}
+
 	tests := []struct {
 		name string
 		args args
@@ -429,6 +438,7 @@ func Test_escapeBytesAboveBOFNE(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -448,6 +458,7 @@ func Test_getCRC(t *testing.T) {
 	type args struct {
 		data []byte
 	}
+
 	tests := []struct {
 		name string
 		args args
@@ -515,6 +526,7 @@ func Test_getCRC(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -534,6 +546,7 @@ func Test_parseCRC(t *testing.T) {
 	type args struct {
 		in []uint8
 	}
+
 	tests := []struct {
 		name string
 		args args
@@ -555,6 +568,7 @@ func Test_parseCRC(t *testing.T) {
 			[]byte{0x00, 0x01, 0xfd, 0xdf, 0x03, 0xfd, 0xdf, 0x04},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -575,6 +589,7 @@ func Test_computeCRCByte(t *testing.T) {
 		crc uint16
 		b   uint8
 	}
+
 	tests := []struct {
 		name string
 		args args
@@ -591,6 +606,7 @@ func Test_computeCRCByte(t *testing.T) {
 			0,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {

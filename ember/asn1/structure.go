@@ -94,7 +94,7 @@ const (
 	closingByte = 0x00
 )
 
-//nolint:gochecknoglobals
+// ErrNoLenByte  error when length of bytes can not be determined.
 var ErrNoLenByte = errs.New("can not determine length")
 
 // Decoder decoder for ASN1 glow data.
@@ -105,6 +105,11 @@ type Decoder struct {
 // Encoder encoder ASN1 glow data.
 type Encoder struct {
 	data *bytes.Buffer
+}
+
+// NewDecoder creates a new ASN1 Decoder.
+func NewDecoder(b []byte) *Decoder {
+	return &Decoder{bytes.NewBuffer(b)}
 }
 
 // Bytes wrapper to containing decoders data bytes.
@@ -123,11 +128,6 @@ func (c *Decoder) Len() int {
 	}
 
 	return c.data.Len()
-}
-
-// NewDecoder creates a new ASN1 Decoder.
-func NewDecoder(b []byte) *Decoder {
-	return &Decoder{bytes.NewBuffer(b)}
 }
 
 // NewEncoder creates a new encoder with an initialized data buffer, but no actual data.

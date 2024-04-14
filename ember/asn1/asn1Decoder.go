@@ -66,7 +66,6 @@ func (c *Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*Decoder, 
 // ReadLength reads next in line data blocks length and returns it as well as how many bytes the data
 // length was written in.
 func (c *Decoder) ReadLength() (int, int, error) {
-
 	lenB, err := c.data.ReadByte()
 	if err != nil {
 		return 0, 0, errs.Wrap(err, "incorrect length byte")
@@ -225,7 +224,7 @@ func (c *Decoder) readWithOutLength() ([]byte, error) {
 }
 
 func (c *Decoder) readWithLength(length int) ([]byte, error) {
-	out := make([]byte, length)
+	var out []byte
 
 	n, err := c.data.Read(out)
 	if err != nil {

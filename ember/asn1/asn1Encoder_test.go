@@ -30,6 +30,7 @@ func TestEncoder_GetData(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -41,6 +42,7 @@ func TestEncoder_GetData(t *testing.T) {
 			[]byte{0x00, 0x01, 0x02},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -63,10 +65,12 @@ func TestEncoder_WriteRequest(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	type args struct {
 		path []int
 		tag  string
 	}
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -162,6 +166,7 @@ func TestEncoder_WriteRequest(t *testing.T) {
 			true,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,9 +192,11 @@ func TestEncoder_WriteUniversal(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	type args struct {
 		path []int
 	}
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -227,6 +234,7 @@ func TestEncoder_WriteUniversal(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -250,6 +258,7 @@ func TestEncoder_WriteRootTreeRequest(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -275,6 +284,7 @@ func TestEncoder_WriteRootTreeRequest(t *testing.T) {
 			false,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -300,6 +310,7 @@ func TestEncoder_WriteGetDirCommand(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -325,6 +336,7 @@ func TestEncoder_WriteGetDirCommand(t *testing.T) {
 			false,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -350,10 +362,12 @@ func TestEncoder_writeInt(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	type args struct {
 		i    int
 		cont uint8
 	}
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -382,6 +396,7 @@ func TestEncoder_writeInt(t *testing.T) {
 			false,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -407,9 +422,11 @@ func TestEncoder_openSequence(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	type args struct {
 		appl byte
 	}
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -429,6 +446,7 @@ func TestEncoder_openSequence(t *testing.T) {
 			[]byte{0x00, 0xa4, 0x80},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -452,6 +470,7 @@ func TestEncoder_closeSequence(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -468,6 +487,7 @@ func TestEncoder_closeSequence(t *testing.T) {
 			[]byte{0x00, 0x00, 0x00},
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {

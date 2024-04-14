@@ -30,6 +30,7 @@ func Test_withJSONResponse(t *testing.T) {
 	type args struct {
 		handler handlerFunc
 	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -64,6 +65,7 @@ func Test_withJSONResponse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -87,6 +89,7 @@ func Test_parsePathString(t *testing.T) {
 	type args struct {
 		path string
 	}
+
 	tests := []struct {
 		name     string
 		args     args
@@ -181,6 +184,7 @@ func Test_parsePathString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 

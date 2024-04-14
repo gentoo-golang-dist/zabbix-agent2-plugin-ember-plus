@@ -31,10 +31,12 @@ func TestDecoder_Read(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	type args struct {
 		tag         uint8
 		compareByte func(num uint8) uint8
 	}
+
 	tests := []struct {
 		name        string
 		fields      fields
@@ -213,6 +215,14 @@ func TestDecoder_Read(t *testing.T) {
 			false,
 		},
 		{
+			"+noDataAfterLenBytesNoLenDefined",
+			fields{bytes.NewBuffer([]byte{0x60, 0x80})},
+			args{RootElementCollectionTag, ApplicationByte},
+			NewDecoder([]byte{}),
+			true,
+			false,
+		},
+		{
 			"-incorrectCompareByte",
 			fields{bytes.NewBuffer([]byte{0x80})},
 			args{RootElementCollectionTag, ApplicationByte},
@@ -253,6 +263,7 @@ func TestDecoder_Read(t *testing.T) {
 			true,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -272,6 +283,7 @@ func TestDecoder_Read(t *testing.T) {
 
 			if (got == nil) || (tt.wantDecoder == nil) {
 				t.Fatalf("Decoder.Read() got = %v, want = %v", got, tt.wantDecoder)
+
 				return
 			}
 
@@ -281,6 +293,7 @@ func TestDecoder_Read(t *testing.T) {
 
 			if got1 != tt.wantLen {
 				t.Fatalf("Decoder.Read() got = %v, want = %v", got, tt.wantLen)
+
 				return
 			}
 		})
@@ -293,6 +306,7 @@ func TestDecoder_ReadLength(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	tests := []struct {
 		name       string
 		fields     fields
@@ -380,6 +394,7 @@ func TestDecoder_ReadEnd(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	tests := []struct {
 		name      string
 		fields    fields
@@ -409,7 +424,39 @@ func TestDecoder_ReadEnd(t *testing.T) {
 			[]byte{0x0c, 0x00, 0xa4, 0x02, 0x0c, 0x00, 0xa3, 0x03, 0x01, 0x01, 0xff},
 			false,
 		},
+		{
+			"+isOnlyEnd",
+			fields{
+				data: bytes.NewBuffer(
+					[]byte{0x00, 0x00},
+				),
+			},
+			true,
+			[]byte{},
+			false,
+		},
+		{
+			"+empty",
+			fields{
+				data: bytes.NewBuffer(nil),
+			},
+			true,
+			nil,
+			false,
+		},
+		{
+			"-notEnoughLen",
+			fields{
+				data: bytes.NewBuffer(
+					[]byte{0x00},
+				),
+			},
+			false,
+			[]byte{0x00},
+			true,
+		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -440,6 +487,7 @@ func TestDecoder_Peek(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -467,6 +515,7 @@ func TestDecoder_Peek(t *testing.T) {
 			true,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -493,6 +542,7 @@ func TestDecoder_DecodeUniversal(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -544,6 +594,7 @@ func TestDecoder_DecodeUniversal(t *testing.T) {
 			true,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -570,6 +621,7 @@ func TestDecoder_DecodeInteger(t *testing.T) {
 	type fields struct {
 		data *bytes.Buffer
 	}
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -625,6 +677,7 @@ func TestDecoder_DecodeInteger(t *testing.T) {
 			true,
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -640,6 +693,179 @@ func TestDecoder_DecodeInteger(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("Decoder.DecodeInteger() = %s", diff)
+			}
+		})
+	}
+}
+
+func TestDecoder_ReadByte(t *testing.T) {
+	t.Parallel()
+
+	type fields struct {
+		data *bytes.Buffer
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		want    byte
+		wantErr bool
+	}{
+		{
+			"+valid",
+			fields{
+				bytes.NewBuffer([]byte{0x01}),
+			},
+			0x01,
+			false,
+		},
+		{
+			"+multiple",
+			fields{
+				bytes.NewBuffer([]byte{0x01, 0x02, 0x03, 0x04}),
+			},
+			0x01,
+			false,
+		},
+		{
+			"-empty",
+			fields{
+				bytes.NewBuffer([]byte{}),
+			},
+			0,
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := &Decoder{
+				data: tt.fields.data,
+			}
+			got, err := c.ReadByte()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Decoder.ReadByte() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("Decoder.ReadByte() = %s", diff)
+			}
+		})
+	}
+}
+
+func TestDecoder_readWithOutLength(t *testing.T) {
+	t.Parallel()
+
+	type fields struct {
+		data *bytes.Buffer
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		want    []byte
+		wantErr bool
+	}{
+		{
+			"+valid",
+			fields{
+				bytes.NewBuffer([]byte{1, 2, 3}),
+			},
+			[]byte{1, 2, 3},
+			false,
+		},
+		{
+			"+empty",
+			fields{
+				bytes.NewBuffer([]byte{}),
+			},
+			[]byte{},
+			false,
+		},
+		// as far as I know there is no way for io.ReadAll to return an error, it invokes Bytes buffer read, witch only
+		// returns EOF and ReadAll does not return error in case of EOF.
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := &Decoder{
+				data: tt.fields.data,
+			}
+			got, err := c.readWithOutLength()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Decoder.readWithOutLength() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("Decoder.readWithOutLength() = %s", diff)
+			}
+		})
+	}
+}
+
+func TestDecoder_readWithLength(t *testing.T) {
+	t.Parallel()
+
+	type fields struct {
+		data *bytes.Buffer
+	}
+
+	type args struct {
+		length int
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			"+valid",
+			fields{bytes.NewBuffer([]byte{1, 2, 3})},
+			args{3},
+			[]byte{1, 2, 3},
+			false,
+		},
+		{
+			"-missMatchLength",
+			fields{bytes.NewBuffer([]byte{1, 2, 3, 4})},
+			args{5},
+			nil,
+			true,
+		},
+		{
+			"-empty",
+			fields{bytes.NewBuffer(nil)},
+			args{5},
+			nil,
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := &Decoder{
+				data: tt.fields.data,
+			}
+			got, err := c.readWithLength(tt.args.length)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Decoder.readWithLength() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("Decoder.readWithLength() = %s", diff)
 			}
 		})
 	}
