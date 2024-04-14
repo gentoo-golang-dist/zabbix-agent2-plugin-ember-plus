@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"git.zabbix.com/ap/ember-plus/ember"
+	"git.zabbix.com/ap/plugin-support/errs"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -34,7 +35,7 @@ func Test_withJSONResponse(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    any
 		wantErr bool
 	}{
 		{
@@ -62,6 +63,36 @@ func Test_withJSONResponse(t *testing.T) {
 				`"is_online":true,"is_root":false}}`,
 			false,
 		},
+		{
+			"-handlerErr",
+			args{
+				func(metricParams map[string]string, extraParams ...string) (any, error) {
+					return nil, errs.New("failed")
+				},
+			},
+			nil,
+			true,
+		},
+		{
+			"-marshalErr",
+			args{
+				func(metricParams map[string]string, extraParams ...string) (any, error) {
+					coll := ember.ElementCollection{
+						ember.ElementKey{
+							ID:   "ID",
+							Path: "1.2.3",
+						}: &ember.Element{
+							Path:        "1.2.3",
+							ElementType: "foobar",
+						},
+					}
+
+					return coll, nil
+				},
+			},
+			nil,
+			true,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -78,6 +109,66 @@ func Test_withJSONResponse(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("withJSONResponse() = %s", diff)
+			}
+		})
+	}
+}
+
+func Test_pathJoin(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		currentPath string
+		pathPart    string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			"+valid",
+			args{
+				"foo",
+				"bar",
+			},
+			"foo.bar",
+		},
+		{
+			"+multiple",
+			args{
+				"foo.bar",
+				"bar",
+			},
+			"foo.bar.bar",
+		},
+		{
+			"+emptyCurrent",
+			args{
+				"",
+				"bar",
+			},
+			"bar",
+		},
+		{
+			"+emptyAdditional",
+			args{
+				"bar",
+				"",
+			},
+			"bar.",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := pathJoin(tt.args.currentPath, tt.args.pathPart)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("pathJoin() = %s", diff)
 			}
 		})
 	}
