@@ -276,7 +276,7 @@ func withJSONResponse(handler handlerFunc) handlerFunc {
 	) (any, error) {
 		res, err := handler(metricParams, extraParams...)
 		if err != nil {
-			return nil, errs.Wrap(err, "failed to execute handler")
+			return nil, errs.Wrap(err, "handler failed")
 		}
 
 		jsonRes, err := json.Marshal(res)
