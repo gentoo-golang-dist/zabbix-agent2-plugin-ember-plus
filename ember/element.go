@@ -37,8 +37,8 @@ const (
 // ErrElementNotFound error when element is not found.
 var ErrElementNotFound = errs.New("element not found")
 
-// Node hold information about node and qualified node parameter fields.
-type Node struct {
+// node hold information about node and qualified node parameter fields.
+type node struct {
 	Path        string      `json:"path"`
 	ElementType ElementType `json:"element_type"`
 	Children    []*Element  `json:"children"`
@@ -48,8 +48,8 @@ type Node struct {
 	IsRoot      bool        `json:"is_root"`
 }
 
-// Function hold information about function parameter fields.
-type Function struct {
+// function hold information about function parameter fields.
+type function struct {
 	Path        string      `json:"path"`
 	ElementType ElementType `json:"element_type"`
 	Children    []*Element  `json:"children"`
@@ -57,8 +57,8 @@ type Function struct {
 	Description string      `json:"description"`
 }
 
-// Parameter hold information about parameter and qualified parameter fields.
-type Parameter struct {
+// parameter hold information about parameter and qualified parameter fields.
+type parameter struct {
 	Path        string      `json:"path"`
 	ElementType ElementType `json:"element_type"`
 	Children    []*Element  `json:"children,omitempty"`

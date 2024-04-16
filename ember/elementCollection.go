@@ -131,7 +131,7 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 	for k, v := range ec {
 		switch v.ElementType {
 		case asn1.NodeType, asn1.QualifiedNodeType:
-			out[k.Path] = Node{
+			out[k.Path] = node{
 				Path:        v.Path,
 				ElementType: v.ElementType,
 				Identifier:  v.Identifier,
@@ -141,7 +141,7 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 				IsRoot:      v.IsRoot,
 			}
 		case asn1.ParameterType, asn1.QualifiedParameterType:
-			out[k.Path] = Parameter{
+			out[k.Path] = parameter{
 				Path:        v.Path,
 				ElementType: v.ElementType,
 				Children:    v.Children,
@@ -159,7 +159,7 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 				ValueType:   v.ValueType,
 			}
 		case asn1.FunctionType:
-			out[k.Path] = Function{
+			out[k.Path] = function{
 				Path:        v.Path,
 				ElementType: v.ElementType,
 				Identifier:  v.Identifier,

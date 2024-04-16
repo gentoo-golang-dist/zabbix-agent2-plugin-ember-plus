@@ -71,23 +71,24 @@ func (c *Decoder) ReadLength() (int, int, error) {
 		return 0, 0, errs.Wrap(err, "incorrect length byte")
 	}
 
-	offset := 1
-
 	if lenB&contextByte != contextByte {
-		return int(lenB), offset, nil
+		return int(lenB), 1, nil
 	}
 
 	lenB &= lenByte
 
 	if lenB == 0 {
-		return 0, offset, ErrNoLenByte
+		return 0, 1, ErrNoLenByte
 	}
 
 	if lenB > maxLengthBytes {
 		return 0, 0, errs.New("length higher than 4")
 	}
 
-	var out int
+	var (
+		out    int
+		offset = 1
+	)
 
 	for i := 0; i < int(lenB); i++ {
 		val, err := c.data.ReadByte()
