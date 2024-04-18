@@ -101,6 +101,7 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/go,macos,linux,windows
 
 # go build binary
-zabbix-ember-plus-plugin
-ember-plus
+*.exe.syso
+
+# vscode specific
 .vscode
