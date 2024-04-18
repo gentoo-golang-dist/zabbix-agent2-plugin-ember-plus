@@ -25,7 +25,7 @@ const (
 	lastMultiPacket = 0x40
 	// BOF S101 packet opening byte.
 	bof = 0xfe
-	// Slot S101 packet Slot byte byte.
+	// Slot S101 packet Slot byte.
 	slot = 0x00
 	// messageType S101 byte defines our required message type.
 	messageType = 0x0e

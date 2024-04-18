@@ -24,7 +24,7 @@ import (
 //nolint:gochecknoglobals // global constants.
 var (
 
-	// URI is a metric param tha specifies database connection URI.
+	// URI is a metric param that specifies database connection URI.
 	URI = metric.NewConnParam(
 		"URI", "URL connection string to connect to the database.",
 	).
