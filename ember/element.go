@@ -1,0 +1,748 @@
+/*
+** Zabbix
+** Copyright 2001-2024 Zabbix SIA
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+**/
+
+package ember
+
+import (
+	"strconv"
+	"strings"
+
+	"git.zabbix.com/ap/ember-plus/ember/asn1"
+	"git.zabbix.com/ap/plugin-support/errs"
+)
+
+const (
+	// tag for defining glow node tag.
+	nodeTag = 3
+	// tag for defining glow function tag.
+	functionTag = 20
+	// parameterTag glow  parameter tag.
+	parameterTag = 1
+)
+
+// ErrElementNotFound error when element is not found.
+var ErrElementNotFound = errs.New("element not found")
+
+// node hold information about node and qualified node parameter fields.
+type node struct {
+	Path        string      `json:"path"`
+	ElementType ElementType `json:"element_type"`
+	Children    []*Element  `json:"children"`
+	Identifier  string      `json:"identifier"`
+	Description string      `json:"description"`
+	IsOnline    bool        `json:"is_online"`
+	IsRoot      bool        `json:"is_root"`
+}
+
+// function hold information about function parameter fields.
+type function struct {
+	Path        string      `json:"path"`
+	ElementType ElementType `json:"element_type"`
+	Children    []*Element  `json:"children"`
+	Identifier  string      `json:"identifier"`
+	Description string      `json:"description"`
+}
+
+// parameter hold information about parameter and qualified parameter fields.
+type parameter struct {
+	Path        string      `json:"path"`
+	ElementType ElementType `json:"element_type"`
+	Children    []*Element  `json:"children,omitempty"`
+	Identifier  string      `json:"identifier,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Value       any         `json:"value,omitempty"`
+	Minimum     any         `json:"minimum,omitempty"`
+	Maximum     any         `json:"maximum,omitempty"`
+	Access      int         `json:"access,omitempty"`
+	Format      string      `json:"format,omitempty"`
+	Enumeration string      `json:"enumeration,omitempty"`
+	Factor      int         `json:"factor,omitempty"`
+	IsOnline    bool        `json:"is_online,omitempty"`
+	Default     any         `json:"default,omitempty"`
+	ValueType   int         `json:"type,omitempty"`
+}
+
+// ElementType wrapper for string to define available element types.
+type ElementType string
+
+// Element contains all the values a glow element might contain.
+type Element struct {
+	Path        string
+	ElementType ElementType
+	Identifier  string
+	Description string
+	Children    []*Element
+	IsOnline    bool
+	IsRoot      bool
+	Maximum     any
+	Minimum     any
+	Value       any
+	Access      int
+	Format      string
+	Enumeration string
+	Factor      int
+	Default     any
+	ValueType   int
+}
+
+//nolint:gocyclo,cyclop
+func (el *Element) handleApplication(decoder *asn1.Decoder) (*asn1.Decoder, error) {
+	for {
+		t, err := decoder.Peek()
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to peek context")
+		}
+
+		var decoders []*asn1.Decoder
+
+		switch asn1.ContextByte(t) {
+		case asn1.ContextByte(asn1.ContextZeroTag):
+			decoders, err = el.handlePath(decoder)
+			if err != nil {
+				return nil, errs.Wrapf(err, "failed to read path")
+			}
+		case asn1.ContextByte(asn1.ContextTagOne):
+			decoders, err = el.handleContent(decoder)
+			if err != nil {
+				return nil, errs.Wrapf(err, "failed to read content")
+			}
+		case asn1.ContextByte(asn1.ContextTagTwo):
+			decoders, err = el.handleChildren(decoder)
+			if err != nil {
+				return nil, errs.Wrapf(err, "failed to read children")
+			}
+		}
+
+		decoder, err = findWithData(decoders)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to find the decoder to continue reading")
+		}
+
+		atEnd, err := decoder.ReadEnd()
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to read end bytes")
+		}
+
+		if atEnd {
+			return decoder, nil
+		}
+	}
+}
+
+func (el *Element) handleChildren(decoder *asn1.Decoder) ([]*asn1.Decoder, error) {
+	anyDec, _, err := decoder.Read(asn1.ContextByte(asn1.ContextTagTwo), asn1.ContextByte)
+	if err != nil {
+		return nil, errs.Wrapf(err, "failed to read child context")
+	}
+
+	childDec, _, err := anyDec.Read(asn1.ApplicationByte(asn1.ElementCollectionTag), asn1.ApplicationByte)
+	if err != nil {
+		return nil, errs.Wrapf(err, "failed to get children elements")
+	}
+
+	for {
+		var decoders []*asn1.Decoder
+
+		decoders, err = el.setChild(childDec)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to set child element")
+		}
+
+		childDec, err = findWithData(decoders)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to find the decoder to continue reading")
+		}
+
+		_, err := childDec.ReadEnd() // current child context end
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to decode child context end")
+		}
+
+		_, err = childDec.ReadEnd() // current child elements end
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to decode current child sequence end")
+		}
+
+		end, err := childDec.ReadEnd() // all child element end
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to decode child element sequence end")
+		}
+
+		if end {
+			break
+		}
+	}
+
+	return []*asn1.Decoder{decoder, anyDec, childDec}, nil
+}
+
+func (el *Element) setChild(childrenDecoder *asn1.Decoder) ([]*asn1.Decoder, error) {
+	allChild, _, err := childrenDecoder.Read(asn1.ContextByte(asn1.ContextZeroTag), asn1.ContextByte)
+	if err != nil {
+		return nil, errs.Wrapf(err, "failed to read next child element")
+	}
+
+	child, tmp, err := getElement(allChild)
+	if err != nil {
+		return nil, errs.Wrapf(err, "failed to decode next child element")
+	}
+
+	el.Children = append(el.Children, child)
+
+	return []*asn1.Decoder{childrenDecoder, allChild, tmp}, nil
+}
+
+func (el *Element) handleContent(decoder *asn1.Decoder) ([]*asn1.Decoder, error) {
+	content, _, err := decoder.Read(asn1.ContextByte(asn1.ContextTagOne), asn1.ContextByte)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to read context")
+	}
+
+	set, _, err := content.Read(asn1.SetTag, asn1.UniversalByte)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to read set")
+	}
+
+	for {
+		var decoders []*asn1.Decoder
+
+		decoders, err = el.handleContentContext(set)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to handle content")
+		}
+
+		set, err = findWithData(decoders)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to find the decoder to continue reading")
+		}
+
+		end, err := set.ReadEnd()
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to read sequence end")
+		}
+
+		if end {
+			break
+		}
+	}
+
+	return []*asn1.Decoder{decoder, content, set}, nil
+}
+
+func (el *Element) handleContentContext(decoder *asn1.Decoder) ([]*asn1.Decoder, error) {
+	t, err := decoder.Peek()
+	if err != nil {
+		return nil, errs.Wrapf(err, "failed to peek context byte")
+	}
+
+	context, _, err := decoder.Read(t, asn1.ContextByte)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to read context")
+	}
+
+	switch el.ElementType {
+	case asn1.QualifiedParameterType, asn1.ParameterType:
+		context, err = el.handleParameterContext(context, t)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode parameter context")
+		}
+	case asn1.NodeType, asn1.QualifiedNodeType:
+		context, err = el.handleNodeContext(context, t)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode node context")
+		}
+	case asn1.FunctionType:
+		context, err = el.handleFunctionContext(context, t)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode function context")
+		}
+	}
+
+	return []*asn1.Decoder{decoder, context}, nil
+}
+
+func (el *Element) handlePath(decoder *asn1.Decoder) ([]*asn1.Decoder, error) {
+	contextDec, _, err := decoder.Read(asn1.ContextZeroTag, asn1.ContextByte)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to context")
+	}
+
+	path, err := getPath(contextDec)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to get path")
+	}
+
+	el.Path = path
+
+	atEnd, err := contextDec.ReadEnd()
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to read end bytes")
+	}
+
+	if !atEnd {
+		return nil, errs.New("not at sequence")
+	}
+
+	return []*asn1.Decoder{decoder, contextDec}, nil
+}
+
+func getPath(decoder *asn1.Decoder) (string, error) {
+	tag, err := decoder.Peek()
+	if err != nil {
+		return "", errs.Wrap(err, "failed to peek path byte")
+	}
+
+	if tag == asn1.UniversalObjectTag {
+		var path string
+
+		path, err = handlePathFromUniversal(decoder)
+		if err != nil {
+			return "", errs.Wrap(err, "failed to read path from universal")
+		}
+
+		return path, nil
+	}
+
+	p, err := decoder.DecodeInteger()
+	if err != nil {
+		return "", errs.Wrap(err, "failed to handle path context")
+	}
+
+	return strconv.Itoa(p), nil
+}
+
+// getElement reads next full element from the decoder and returns leftover decoder.
+func getElement(d *asn1.Decoder) (*Element, *asn1.Decoder, error) {
+	t, err := d.Peek()
+	if err != nil {
+		return nil, nil, errs.Wrapf(err, "failed to read context")
+	}
+
+	el := &Element{}
+
+	decoder, _, err := d.Read(t, asn1.ApplicationByte)
+	if err != nil {
+		return nil, nil, errs.Wrapf(err, "failed to read element application")
+	}
+
+	switch asn1.ApplicationByte(t) {
+	case asn1.ApplicationByte(asn1.QualifiedNodeTag):
+		el.ElementType = asn1.QualifiedNodeType
+	case asn1.ApplicationByte(asn1.QualifiedParameterTag):
+		el.ElementType = asn1.QualifiedParameterType
+	case asn1.ApplicationByte(nodeTag):
+		el.ElementType = asn1.NodeType
+	case asn1.ApplicationByte(parameterTag):
+		el.ElementType = asn1.ParameterType
+	case asn1.ApplicationByte(functionTag):
+		el.ElementType = asn1.FunctionType
+	default:
+		return nil, nil, errs.Errorf("unknown type: %x", t)
+	}
+
+	decoder, err = el.handleApplication(decoder)
+	if err != nil {
+		return nil, nil, errs.Wrapf(err, "failed to handle application with type %x", asn1.ApplicationByte(t))
+	}
+
+	return el, decoder, nil
+}
+
+//nolint:gocyclo,cyclop
+func (el *Element) handleFunctionContext(context *asn1.Decoder, tag byte) (*asn1.Decoder, error) {
+	var (
+		n   int
+		err error
+	)
+
+	switch asn1.ContextByte(tag) {
+	case asn1.ContextByte(0):
+		var id string
+
+		n, err = asn1.DecodeAny(context.Bytes(), &id)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode identifier")
+		}
+
+		el.Identifier = id
+	case asn1.ContextByte(1):
+		var desc string
+
+		n, err = asn1.DecodeAny(context.Bytes(), &desc)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode description")
+		}
+
+		el.Description = desc
+	case asn1.ContextByte(2):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(2))
+		}
+	case asn1.ContextByte(3):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(3))
+		}
+	}
+
+	for i := 0; i < n; i++ {
+		_, err := context.ReadByte()
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to read over used bytes")
+		}
+	}
+
+	return context, nil
+}
+
+//nolint:gocyclo,cyclop
+func (el *Element) handleNodeContext(context *asn1.Decoder, tag byte) (*asn1.Decoder, error) {
+	var (
+		n   int
+		err error
+	)
+
+	switch asn1.ContextByte(tag) {
+	case asn1.ContextByte(0):
+		var id string
+
+		n, err = asn1.DecodeAny(context.Bytes(), &id)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode identifier")
+		}
+
+		el.Identifier = id
+	case asn1.ContextByte(1):
+		var desc string
+
+		n, err = asn1.DecodeAny(context.Bytes(), &desc)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode description")
+		}
+
+		el.Description = desc
+	case asn1.ContextByte(2):
+		var root bool
+
+		n, err = asn1.DecodeAny(context.Bytes(), &root)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode is root ")
+		}
+
+		el.IsRoot = root
+	case asn1.ContextByte(3):
+		var online bool
+
+		n, err = asn1.DecodeAny(context.Bytes(), &online)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode is online ")
+		}
+
+		el.IsOnline = online
+	case asn1.ContextByte(4):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(4))
+		}
+	case asn1.ContextByte(5):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(5))
+		}
+	}
+
+	for i := 0; i < n; i++ {
+		_, err := context.ReadByte()
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to read over used bytes")
+		}
+	}
+
+	return context, nil
+}
+
+// handlePropertyContext decodes context property tag.
+//
+//nolint:gocognit,gocyclo,cyclop
+func (el *Element) handleParameterContext(context *asn1.Decoder, tag byte) (*asn1.Decoder, error) {
+	var (
+		n   int
+		err error
+	)
+
+	switch asn1.ContextByte(tag) {
+	case asn1.ContextByte(0):
+		var id string
+
+		n, err = asn1.DecodeAny(context.Bytes(), &id)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode identifier")
+		}
+
+		el.Identifier = id
+	case asn1.ContextByte(1):
+		var desc string
+
+		n, err = asn1.DecodeAny(context.Bytes(), &desc)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode description")
+		}
+
+		el.Description = desc
+	case asn1.ContextByte(2):
+		var value any
+
+		n, err = asn1.DecodeAny(context.Bytes(), &value)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode parameter value")
+		}
+
+		el.Value = value
+	case asn1.ContextByte(3):
+		var min any
+
+		n, err = asn1.DecodeAny(context.Bytes(), &min)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode is min")
+		}
+
+		el.Minimum = min
+	case asn1.ContextByte(4):
+		var max any
+
+		n, err = asn1.DecodeAny(context.Bytes(), &max)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode is max")
+		}
+
+		el.Maximum = max
+	case asn1.ContextByte(5):
+		var access int
+
+		access, err = context.DecodeInteger()
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode is access")
+		}
+
+		el.Access = access
+	case asn1.ContextByte(6):
+		var format string
+
+		n, err = asn1.DecodeAny(context.Bytes(), &format)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode is format")
+		}
+
+		el.Format = format
+	case asn1.ContextByte(7):
+		var enum string
+
+		n, err = asn1.DecodeAny(context.Bytes(), &enum)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode enumeration")
+		}
+
+		el.Enumeration = enum
+	case asn1.ContextByte(8):
+		var factor int
+
+		factor, err = context.DecodeInteger()
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode is factor")
+		}
+
+		el.Factor = factor
+	case asn1.ContextByte(9):
+		var online bool
+
+		n, err = asn1.DecodeAny(context.Bytes(), &online)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode is online")
+		}
+
+		el.IsOnline = online
+	case asn1.ContextByte(10):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(10))
+		}
+	case asn1.ContextByte(11):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(11))
+		}
+	case asn1.ContextByte(12):
+		var def any
+
+		n, err = asn1.DecodeAny(context.Bytes(), &def)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode default value")
+		}
+
+		el.Default = def
+	case asn1.ContextByte(13):
+		var valType int
+
+		valType, err = context.DecodeInteger()
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to decode default value")
+		}
+
+		el.ValueType = valType
+
+	case asn1.ContextByte(14):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(14))
+		}
+	case asn1.ContextByte(15):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(15))
+		}
+	case asn1.ContextByte(16):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(16))
+		}
+	case asn1.ContextByte(17):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(17))
+		}
+	case asn1.ContextByte(18):
+		context, err = readOverElement(context)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to skip element at %x", asn1.ContextByte(18))
+		}
+	}
+
+	el.setDefaultElementValue()
+
+	for i := 0; i < n; i++ {
+		_, err := context.ReadByte()
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to read over used bytes")
+		}
+	}
+
+	return context, nil
+}
+
+func (el *Element) setDefaultElementValue() {
+	if el.Value == nil {
+		switch el.ValueType {
+		case 1, 2:
+			el.Value = 0
+		case 3:
+			el.Value = ""
+		case 4:
+			el.Value = false
+		}
+	}
+}
+
+func findWithData(decoders []*asn1.Decoder) (*asn1.Decoder, error) {
+	var out *asn1.Decoder
+	for _, d := range decoders {
+		if out != nil && d.Len() > 0 {
+			return nil, errs.New("after value handling both new and original decoders have data left")
+		}
+
+		if d.Len() > 0 {
+			out = d
+
+			continue
+		}
+	}
+
+	if out != nil {
+		return out, nil
+	}
+
+	return asn1.NewDecoder([]byte{}), nil
+}
+
+func handlePathFromUniversal(dec *asn1.Decoder) (string, error) {
+	path, err := dec.DecodeUniversal()
+	if err != nil {
+		return "", errs.Wrapf(err, "failed to decode integer")
+	}
+
+	strPath := make([]string, 0, len(path))
+
+	for _, p := range path {
+		strPath = append(strPath, strconv.Itoa(p))
+	}
+
+	return strings.Join(strPath, "."), nil
+}
+
+// readOverElement skips next element in decoder.
+func readOverElement(decoder *asn1.Decoder) (*asn1.Decoder, error) {
+	tag, err := decoder.Peek()
+	if err != nil {
+		return nil, errs.Wrapf(err, "failed to peek next element tag")
+	}
+
+	newDec, allDataInNew, err := decoder.Read(tag, asn1.UniversalByte)
+	if err != nil {
+		return nil, errs.Wrapf(err, "failed to read next element")
+	}
+
+	if !allDataInNew {
+		return decoder, nil
+	}
+
+	for {
+		_, err := newDec.ReadByte()
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to read next element bytes")
+		}
+
+		end, err := newDec.ReadEnd()
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to read next element end")
+		}
+
+		if end {
+			return newDec, nil
+		}
+	}
+}
+
+// parsePath returns string oid path as integer array.
+func parsePath(path string) ([]int, error) {
+	if path == "" {
+		return nil, nil
+	}
+
+	paths := strings.Split(path, ".")
+	out := make([]int, 0, len(paths))
+
+	for _, p := range paths {
+		i, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to parse path component")
+		}
+
+		out = append(out, i)
+	}
+
+	return out, nil
+}
