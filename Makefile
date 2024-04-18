@@ -71,6 +71,7 @@ DISTFILES = \
 	README.md
 
 DIST_SUBDIRS = \
+	ember \
 	plugin \
 	windres \
 	vendor
