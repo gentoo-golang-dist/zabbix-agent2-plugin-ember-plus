@@ -1,0 +1,149 @@
+/*
+** Zabbix
+** Copyright 2001-2024 Zabbix SIA
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+**/
+
+package asn1
+
+import (
+	"encoding/asn1"
+
+	"git.zabbix.com/ap/plugin-support/errs"
+)
+
+// GetData returns all data contained in the encoder.
+func (c *Encoder) GetData() []byte {
+	return c.data.Bytes()
+}
+
+// WriteRequest writes a request into the encoder buffer, for the provided element type, currently supports parameters,
+// qualified parameters, nodes qualified nodes and functions.
+func (c *Encoder) WriteRequest(path []int, tag string) error {
+	c.openSequence(ApplicationByte(RootElementCollectionTag))
+	defer c.closeSequence()
+
+	c.openSequence(ApplicationByte(RootElementTag))
+	defer c.closeSequence()
+
+	c.openSequence(ContextByte(0))
+	defer c.closeSequence()
+
+	switch tag {
+	case ParameterType, QualifiedParameterType:
+		c.openSequence(ApplicationByte(QualifiedParameterTag))
+	case NodeType, QualifiedNodeType:
+		c.openSequence(ApplicationByte(QualifiedNodeTag))
+	case FunctionType:
+		c.openSequence(ApplicationByte(functionTag))
+	default:
+		return errs.Errorf("unknown application tag %s", tag)
+	}
+
+	defer c.closeSequence()
+
+	c.openSequence(ContextByte(0))
+	defer c.closeSequence()
+
+	c.WriteUniversal(path)
+
+	c.openSequence(ContextByte(2))
+	defer c.closeSequence()
+
+	c.openSequence(ApplicationByte(elementCollectionTag))
+	defer c.closeSequence()
+
+	err := c.WriteGetDirCommand()
+	if err != nil {
+		return errs.Wrap(err, "failed to writer dir command")
+	}
+
+	return nil
+}
+
+// WriteUniversal writes the provided integer into the buffer as an glow encoded universal value.
+func (c *Encoder) WriteUniversal(path []int) {
+	c.data.WriteByte(UniversalObjectTag)
+	c.data.WriteByte(uint8(len(path)))
+
+	for _, p := range path {
+		c.data.WriteByte(uint8(p))
+	}
+}
+
+// WriteRootTreeRequest writes a request for root element collection into the buffer.
+func (c *Encoder) WriteRootTreeRequest() error {
+	c.openSequence(ApplicationByte(RootElementCollectionTag))
+	defer c.closeSequence()
+
+	c.openSequence(ApplicationByte(RootElementTag))
+	defer c.closeSequence()
+
+	err := c.WriteGetDirCommand()
+	if err != nil {
+		return errs.Wrap(err, "failed to write command request")
+	}
+
+	return nil
+}
+
+// WriteGetDirCommand writes a get dir command request into the buffer.
+func (c *Encoder) WriteGetDirCommand() error {
+	c.openSequence(ContextByte(0))
+	defer c.closeSequence()
+
+	c.openSequence(ApplicationByte(commandApplicationTag))
+	defer c.closeSequence()
+
+	err := c.writeInt(emberGetDirCommand, 0)
+	if err != nil {
+		return errs.Wrap(err, "failed dir write int")
+	}
+
+	err = c.writeInt(dirFieldMaskAll, 1)
+	if err != nil {
+		return errs.Wrap(err, "failed to write dir field mask int")
+	}
+
+	return nil
+}
+
+// writeInt writes integer to the buffer, wraps native go asn1 marshal, but adds context.
+func (c *Encoder) writeInt(i int, cont uint8) error {
+	err := c.data.WriteByte(ContextByte(cont))
+	if err != nil {
+		return errs.Wrap(err, "failed to write context byte")
+	}
+
+	b, err := asn1.Marshal(i)
+	if err != nil {
+		return errs.Wrap(err, "failed native go int asn1 marshal")
+	}
+
+	c.data.WriteByte(uint8(len(b)))
+	c.data.Write(b)
+
+	return nil
+}
+
+// openSequence writes provided application byte together with a context byte (0x80) into the buffer.
+func (c *Encoder) openSequence(appl byte) {
+	c.data.WriteByte(appl)
+	c.data.WriteByte(contextByte)
+}
+
+// closeSequence writes two '0' bytes into the buffer, used to identify end of a sequence.
+func (c *Encoder) closeSequence() {
+	c.data.Write([]byte{0, 0})
+}
