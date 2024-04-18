@@ -16,6 +16,11 @@ It can monitor multiple ember+ devices simultaneously, remote or local.
 The plugin will work on all operating systems and architectures that the Go
 programming language and Zabbix agent 2 supports.
 
+## Installation
+
+Plugin can be compiled using `go build`. However on unix based systems it suggested to use `make` and on Windows based
+systems it is suggested to use `mingw32-make`, but it requires `windres.exe`
+
 ## Setup
 
 Set `Plugins.EmberPlus.System.Path` setting in Zabbix agent 2 configuration file
