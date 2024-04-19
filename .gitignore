@@ -102,6 +102,8 @@ $RECYCLE.BIN/
 
 # go build binary
 *.exe.syso
+zabbix-agent2-plugin-ember-plus
+ember-plus
 
 # vscode specific
 .vscode
