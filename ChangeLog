@@ -1,0 +1,6 @@
+Changes for 7.0.0rc1
+
+New features:
+[ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
+
+--------------------------------------------------------------------------------
