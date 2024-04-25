@@ -22,7 +22,7 @@ package s101
 import (
 	"bytes"
 
-	"git.zabbix.com/ap/ember-plus/ember/asn1"
+	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/sdk/errs"
 )
 

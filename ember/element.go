@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.zabbix.com/ap/ember-plus/ember/asn1"
+	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/sdk/errs"
 )
 
