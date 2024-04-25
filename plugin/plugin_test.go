@@ -22,8 +22,8 @@ package plugin
 import (
 	"testing"
 
-	"git.zabbix.com/ap/ember-plus/ember"
 	"github.com/google/go-cmp/cmp"
+	"golang.zabbix.com/plugin/ember-plus/ember"
 	"golang.zabbix.com/sdk/errs"
 )
 
