@@ -3,8 +3,8 @@ module git.zabbix.com/ap/ember-plus
 go 1.21
 
 require (
-	git.zabbix.com/ap/plugin-support v1.2.2-0.20240412083626-386e8facc213
 	github.com/google/go-cmp v0.6.0
+	golang.zabbix.com/sdk v1.2.2-0.20240425093730-51f7a0d58ef0
 )
 
 require (

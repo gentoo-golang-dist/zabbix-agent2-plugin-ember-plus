@@ -30,11 +30,11 @@ import (
 	"git.zabbix.com/ap/ember-plus/ember/s101"
 	"git.zabbix.com/ap/ember-plus/plugin/conn"
 	"git.zabbix.com/ap/ember-plus/plugin/params"
-	"git.zabbix.com/ap/plugin-support/errs"
-	"git.zabbix.com/ap/plugin-support/metric"
-	"git.zabbix.com/ap/plugin-support/plugin"
-	"git.zabbix.com/ap/plugin-support/plugin/container"
-	"git.zabbix.com/ap/plugin-support/zbxerr"
+	"golang.zabbix.com/sdk/errs"
+	"golang.zabbix.com/sdk/metric"
+	"golang.zabbix.com/sdk/plugin"
+	"golang.zabbix.com/sdk/plugin/container"
+	"golang.zabbix.com/sdk/zbxerr"
 )
 
 const (
