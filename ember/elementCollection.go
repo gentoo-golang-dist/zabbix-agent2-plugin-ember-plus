@@ -24,7 +24,7 @@ import (
 
 	"git.zabbix.com/ap/ember-plus/ember/asn1"
 	"git.zabbix.com/ap/ember-plus/ember/s101"
-	"git.zabbix.com/ap/plugin-support/errs"
+	"golang.zabbix.com/sdk/errs"
 )
 
 // ElementKey used for element identification based on either element id or path.

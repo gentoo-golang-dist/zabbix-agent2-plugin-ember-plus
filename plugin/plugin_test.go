@@ -23,8 +23,8 @@ import (
 	"testing"
 
 	"git.zabbix.com/ap/ember-plus/ember"
-	"git.zabbix.com/ap/plugin-support/errs"
 	"github.com/google/go-cmp/cmp"
+	"golang.zabbix.com/sdk/errs"
 )
 
 func Test_withJSONResponse(t *testing.T) {

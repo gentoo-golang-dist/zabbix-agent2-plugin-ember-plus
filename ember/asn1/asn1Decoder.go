@@ -23,7 +23,7 @@ import (
 	"errors"
 	"io"
 
-	"git.zabbix.com/ap/plugin-support/errs"
+	"golang.zabbix.com/sdk/errs"
 )
 
 // Read reads the next glow data block of the appropriate type, it checks the glow tag against the provided compare
