@@ -25,8 +25,8 @@ import (
 	"os"
 
 	"git.zabbix.com/ap/ember-plus/plugin"
-	"git.zabbix.com/ap/plugin-support/plugin/flag"
-	"git.zabbix.com/ap/plugin-support/zbxerr"
+	"golang.zabbix.com/sdk/plugin/flag"
+	"golang.zabbix.com/sdk/zbxerr"
 )
 
 const copyrightMessage = //

@@ -23,7 +23,7 @@ import (
 	"bytes"
 	"encoding/asn1"
 
-	"git.zabbix.com/ap/plugin-support/errs"
+	"golang.zabbix.com/sdk/errs"
 )
 
 const (
