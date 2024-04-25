@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"git.zabbix.com/ap/ember-plus/ember/asn1"
-	"git.zabbix.com/ap/plugin-support/errs"
+	"golang.zabbix.com/sdk/errs"
 )
 
 const (

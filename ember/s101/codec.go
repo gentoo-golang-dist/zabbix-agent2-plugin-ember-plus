@@ -23,7 +23,7 @@ import (
 	"bytes"
 
 	"git.zabbix.com/ap/ember-plus/ember/asn1"
-	"git.zabbix.com/ap/plugin-support/errs"
+	"golang.zabbix.com/sdk/errs"
 )
 
 // Encode creates a 101 packet from the message adding all the required S101 bytes based on the S101 protocol, if

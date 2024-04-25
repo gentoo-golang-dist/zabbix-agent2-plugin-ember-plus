@@ -22,7 +22,7 @@ package asn1
 import (
 	"encoding/asn1"
 
-	"git.zabbix.com/ap/plugin-support/errs"
+	"golang.zabbix.com/sdk/errs"
 )
 
 // GetData returns all data contained in the encoder.
