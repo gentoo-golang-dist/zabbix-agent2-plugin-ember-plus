@@ -1,4 +1,4 @@
-module git.zabbix.com/ap/ember-plus
+module golang.zabbix.com/plugin/ember-plus
 
 go 1.21
 

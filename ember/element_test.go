@@ -22,8 +22,8 @@ package ember
 import (
 	"testing"
 
-	"git.zabbix.com/ap/ember-plus/ember/asn1"
 	"github.com/google/go-cmp/cmp"
+	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 )
 
 //nolint:maintidx

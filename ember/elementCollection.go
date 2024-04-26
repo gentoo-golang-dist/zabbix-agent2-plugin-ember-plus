@@ -22,8 +22,8 @@ package ember
 import (
 	"encoding/json"
 
-	"git.zabbix.com/ap/ember-plus/ember/asn1"
-	"git.zabbix.com/ap/ember-plus/ember/s101"
+	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
+	"golang.zabbix.com/plugin/ember-plus/ember/s101"
 	"golang.zabbix.com/sdk/errs"
 )
 
