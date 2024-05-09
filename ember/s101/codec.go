@@ -22,7 +22,6 @@ package s101
 import (
 	"bytes"
 
-	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/sdk/errs"
 )
 
@@ -40,16 +39,12 @@ func Encode(message []byte, packetType uint8) []uint8 {
 // Decode removes all the S101 addons from the packet returning only glow data, currently does not check CRC.
 func Decode(message []byte) ([]uint8, error) {
 	s101 := getS101(message)
-	if len(s101) < s101LenTilGlow+byteSkip+1 {
+	if len(s101) < s101LenTilGlow+s101LenAfterGlow {
 		return nil, errs.Errorf("malformed s101 packet, malformed s101 data: %x", s101)
 	}
 
-	d := asn1.NewDecoder(s101[s101LenTilGlow+byteSkip:])
-
-	l, offset, err := d.ReadLength()
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to get glow length")
-	}
+	// remove checksum and end of frame byte, this check is done here as not to XOR a checksum byte
+	s101 = s101[:len(s101)-s101LenAfterGlow]
 
 	var ceFound bool
 
@@ -74,13 +69,7 @@ func Decode(message []byte) ([]uint8, error) {
 		out = append(out, b)
 	}
 
-	// needs CRC check
-
-	if len(out)+1 < s101LenTilGlow || len(out)+1 < s101LenTilGlow+offset+l+byteSkip {
-		return nil, errs.Errorf("failed to get glow data, malformed payload %x", out)
-	}
-
-	return out[s101LenTilGlow : s101LenTilGlow+offset+l+byteSkip], nil
+	return out[s101LenTilGlow:], nil
 }
 
 // getS101 reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.

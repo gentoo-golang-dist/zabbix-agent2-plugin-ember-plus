@@ -92,10 +92,7 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, err
 		return nil, errs.Wrap(err, "failed to set read deadline for connection")
 	}
 
-	//nolint:makezero // value taken from ember+ documentation
-	response := make([]byte, 1290)
-
-	_, err = ch.conn.Read(response)
+	out, err := ch.read()
 	if err != nil {
 		cerr := c.close(conf)
 		if cerr != nil {
@@ -105,7 +102,7 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, err
 		return nil, errs.Wrap(err, "failed to read from connection")
 	}
 
-	return response, nil
+	return out, nil
 }
 
 // CloseAll closes all connections in the collection.
@@ -246,6 +243,18 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 	c.conns[cc] = ch
 
 	return ch
+}
+
+func (ch *connHandler) read() ([]byte, error) {
+	//nolint:makezero // value taken from ember+ documentation
+	response := make([]byte, 1290)
+
+	n, err := ch.conn.Read(response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response[:n], nil
 }
 
 // updateLastAccessTime updates the last time a connection was accessed.

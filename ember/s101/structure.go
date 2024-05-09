@@ -56,10 +56,10 @@ const (
 
 	// s101LenTilGlow is offset for how many S101 bytes it takes to get till Glow payload.
 	s101LenTilGlow = 10
+	// s101LenAfterGlow is offset for how many S101 bytes follow Glow payload till EOF.
+	s101LenAfterGlow = 3
 	// checkSumSecondDeviation is byte used in CRC calculations based on ember+ documentation.
 	checkSumSecondDeviation = 8
-	// byteSkip used to indicate when byte is required to be skipped in different ways.
-	byteSkip = 1
 )
 
 //nolint:gochecknoglobals
