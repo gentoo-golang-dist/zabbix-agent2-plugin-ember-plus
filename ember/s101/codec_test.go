@@ -84,6 +84,7 @@ func TestEncode(t *testing.T) {
 	}
 }
 
+//nolint:maintidx
 func TestDecode(t *testing.T) {
 	t.Parallel()
 

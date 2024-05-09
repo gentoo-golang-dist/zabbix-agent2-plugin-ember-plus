@@ -26,6 +26,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+//nolint:paralleltest
 func Test_connHandler_read(t *testing.T) {
 	server, client := net.Pipe()
 
@@ -110,8 +111,7 @@ func Test_connHandler_read(t *testing.T) {
 
 			got, err := ch.read()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("connHandler.read() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("connHandler.read() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if diff := cmp.Diff(tt.want, got); diff != "" {
@@ -120,6 +120,8 @@ func Test_connHandler_read(t *testing.T) {
 		})
 	}
 
+	//nolint:gosec
 	server.Close()
+	//nolint:gosec
 	client.Close()
 }

@@ -99,7 +99,7 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, err
 			c.logr.Errf("read connection clean-up failed, err: %w", cerr)
 		}
 
-		return nil, errs.Wrap(err, "failed to read from connection")
+		return nil, errs.Wrap(err, "failed to read from handler")
 	}
 
 	return out, nil
@@ -251,26 +251,26 @@ func (ch *connHandler) read() ([]byte, error) {
 
 	n, err := ch.conn.Read(response)
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "failed to read from connection")
 	}
 
 	return response[:n], nil
 }
 
 // updateLastAccessTime updates the last time a connection was accessed.
-func (conn *connHandler) updateLastAccessTime() {
-	conn.lastAccessTimeMu.Lock()
-	defer conn.lastAccessTimeMu.Unlock()
+func (ch *connHandler) updateLastAccessTime() {
+	ch.lastAccessTimeMu.Lock()
+	defer ch.lastAccessTimeMu.Unlock()
 
-	conn.lastAccessTime = time.Now()
+	ch.lastAccessTime = time.Now()
 }
 
 // getLastAccessTime returns the last time a connection was accessed.
-func (conn *connHandler) getLastAccessTime() time.Time {
-	conn.lastAccessTimeMu.Lock()
-	defer conn.lastAccessTimeMu.Unlock()
+func (ch *connHandler) getLastAccessTime() time.Time {
+	ch.lastAccessTimeMu.Lock()
+	defer ch.lastAccessTimeMu.Unlock()
 
-	return conn.lastAccessTime
+	return ch.lastAccessTime
 }
 
 func newConn(timeout time.Duration, conf ConnConfig) (*connHandler, error) {
