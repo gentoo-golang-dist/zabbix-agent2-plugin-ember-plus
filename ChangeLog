@@ -4,4 +4,6 @@ New features:
 [ZBXNEXT-9168] replaced the software license with AGPL-3.0-only (Sasha)
 [ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
 
+Bug fixes:
+
 --------------------------------------------------------------------------------
