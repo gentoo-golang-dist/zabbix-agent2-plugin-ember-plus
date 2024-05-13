@@ -21,6 +21,7 @@ package ember
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/plugin/ember-plus/ember/s101"
@@ -106,9 +107,16 @@ func (ec ElementCollection) Populate(data *asn1.Decoder) error {
 
 // GetElementByPath returns element from collection with the provided path OID.
 func (ec ElementCollection) GetElementByPath(currentPath string) (*Element, error) {
-	for key, value := range ec {
+	for key, el := range ec {
 		if key.Path == currentPath {
-			return value, nil
+			return el, nil
+		}
+
+		for _, ch := range el.Children {
+			childPath := fmt.Sprintf("%s.%s", key.Path, ch.Path)
+			if childPath == currentPath {
+				return ch, nil
+			}
 		}
 	}
 

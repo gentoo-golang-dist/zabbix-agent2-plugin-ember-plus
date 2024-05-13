@@ -22,9 +22,13 @@ package s101
 const (
 	// FirstMultiPacket is byte to identify a multilayer packet in S101.
 	FirstMultiPacket = 0x80
-
+	// BodyMultiPacket is byte to identify a packet in a multilayer packet message in S101.
+	BodyMultiPacket = 0x00
 	// LastMultiPacket is byte to identify end of a multilayer packet in S101.
-	lastMultiPacket = 0x40
+	LastMultiPacket = 0x40
+	// SinglePacket is byte to identify a single packet message in S101.
+	SinglePacket = 0xC0
+
 	// BOF S101 packet opening byte.
 	bof = 0xfe
 	// Slot S101 packet Slot byte.

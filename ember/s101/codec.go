@@ -30,7 +30,7 @@ import (
 func Encode(message []byte, packetType uint8) []uint8 {
 	out := createS101(message, packetType)
 	if packetType == FirstMultiPacket {
-		out = append(out, createS101([]byte{}, lastMultiPacket)...)
+		out = append(out, createS101([]byte{}, LastMultiPacket)...)
 	}
 
 	return out
@@ -70,6 +70,14 @@ func Decode(message []byte) ([]uint8, error) {
 	}
 
 	return out[s101LenTilGlow:], nil
+}
+
+func GetPacketType(message []byte) (byte, error) {
+	if len(message) < 5 {
+		return 0, errs.New("invalid s101 packet")
+	}
+
+	return message[4], nil
 }
 
 // getS101 reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.

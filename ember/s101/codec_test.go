@@ -384,7 +384,7 @@ func Test_createS101(t *testing.T) {
 			"+emptyPayload",
 			args{
 				[]byte{},
-				lastMultiPacket,
+				LastMultiPacket,
 			},
 			[]byte{
 				0xfe, 0x00, 0x0e, 0x00, 0x01, 0x40, 0x01, 0x02,

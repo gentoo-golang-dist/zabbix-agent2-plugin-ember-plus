@@ -84,9 +84,11 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
 
-	var expect = true
+	var expectOn = true
+	var expectOff = false
 	// turns on response expectation in the listener
-	ch.expectResponse = &expect
+	ch.expectResponse = &expectOn
+	defer func() { ch.expectResponse = &expectOff }()
 
 	err = ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
 	if err != nil {
@@ -289,14 +291,44 @@ func (ch *connHandler) read() ([]byte, error) {
 	// }
 
 	//nolint:makezero // value taken from ember+ documentation
-	response := make([]byte, 1290)
 
-	n, err := ch.conn.Read(response)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to read from connection")
+	var out []byte
+	var multi bool
+
+read:
+	for {
+		response := make([]byte, 1290)
+		n, err := ch.conn.Read(response)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to read from connection")
+		}
+
+		pType, err := s101.GetPacketType(response)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to read packet type")
+		}
+
+		switch pType {
+		case s101.FirstMultiPacket, s101.BodyMultiPacket:
+			out = append(out, response[:n]...)
+			multi = true
+
+			continue
+		case s101.LastMultiPacket:
+			out = append(out, response[:n]...)
+			break read
+		default:
+			if multi {
+				ch.logr.Errf("dropping message in the middle of a multi packet read %x", response[:n])
+				continue
+			}
+
+			out = response[:n]
+			break read
+		}
 	}
 
-	return response[:n], nil
+	return out, nil
 }
 
 // updateLastAccessTime updates the last time a connection was accessed.
@@ -339,6 +371,8 @@ main:
 		glow, err := s101.Decode(data)
 		if err != nil {
 			ch.logr.Debugf("failed to decode response: %s", err.Error())
+
+			continue
 		}
 
 		el := ember.NewElementConnection()
@@ -346,6 +380,8 @@ main:
 		err = el.Populate(asn1.NewDecoder(glow))
 		if err != nil {
 			ch.logr.Debugf("failed to populate glow response: %s", err.Error())
+
+			continue
 		}
 
 		if len(el) == 0 {
@@ -354,6 +390,8 @@ main:
 		}
 
 		var gotPath []string
+
+		ch.logr.Tracef("collection, %+v", el)
 
 		for k := range el {
 			// we care only about the path from the first element as it's a control value and every other element
@@ -364,9 +402,8 @@ main:
 		}
 
 		splitExpectedPath, expectedLength := parseExpectedLength(path)
-
 		// gotPath has to be one path element longer
-		if len(gotPath) != expectedLength {
+		if len(gotPath) != expectedLength && len(gotPath) != expectedLength+1 {
 			ch.logr.Tracef(
 				"path %s length %d does not match the expected path %s length %d",
 				gotPath, len(gotPath), splitExpectedPath, expectedLength,
@@ -394,7 +431,7 @@ func parseExpectedLength(path string) ([]string, int) {
 
 	splitExpectedPath := strings.Split(path, ".")
 
-	return splitExpectedPath, len(splitExpectedPath) + 1
+	return splitExpectedPath, len(splitExpectedPath)
 }
 
 func sendUnsubscribe() {}
