@@ -22,9 +22,13 @@ package conn
 import (
 	"net"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
+	"golang.zabbix.com/plugin/ember-plus/ember"
+	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
+	"golang.zabbix.com/plugin/ember-plus/ember/s101"
 	"golang.zabbix.com/sdk/errs"
 	"golang.zabbix.com/sdk/log"
 	"golang.zabbix.com/sdk/uri"
@@ -53,6 +57,10 @@ type connHandler struct {
 	conn             net.Conn
 	lastAccessTime   time.Time
 	lastAccessTimeMu sync.Mutex
+	logr             log.Logger
+	expectResponse   *bool
+	response         chan ember.ElementCollection
+	expectedPath     chan string
 }
 
 // Init initializes a pre-allocated connection collection.
@@ -67,7 +75,7 @@ func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
 }
 
 // HandleRequest sends a request and reads response based on the provided connection parameters.
-func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, error) {
+func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string) (ember.ElementCollection, error) {
 	ch, err := c.get(time.Duration(c.callTimeout)*time.Second, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
@@ -75,6 +83,10 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, err
 
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
+
+	var expect = true
+	// turns on response expectation in the listener
+	ch.expectResponse = &expect
 
 	err = ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
 	if err != nil {
@@ -91,22 +103,19 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, err
 		return nil, errs.Wrap(err, "failed to write to connection")
 	}
 
-	err = ch.conn.SetReadDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to set read deadline for connection")
+	select {
+	case ch.expectedPath <- path:
+		c.logr.Tracef("wrote path %s for request", path)
+	case <-time.After((time.Duration(c.callTimeout) * time.Second) / 2):
+		return nil, errs.Errorf("failed to send path %s for requested response", path)
 	}
 
-	out, err := ch.read()
-	if err != nil {
-		cerr := c.close(conf)
-		if cerr != nil {
-			c.logr.Errf("read connection clean-up failed, err: %w", cerr)
-		}
-
-		return nil, errs.Wrap(err, "failed to read from handler")
+	select {
+	case el := <-ch.response:
+		return el, nil
+	case <-time.After((time.Duration(c.callTimeout) * time.Second) / 2):
+		return nil, errs.New("element not found")
 	}
-
-	return out, nil
 }
 
 func (c *ConnCollection) Write(req []byte, conf ConnConfig) error {
@@ -193,7 +202,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 
 	c.logr.Debugf("creating new connection for %s", conf.URI)
 
-	ch, err := newConn(timeout, conf)
+	ch, err := newConn(timeout, conf, c.logr)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create conn")
 	}
@@ -274,6 +283,11 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 }
 
 func (ch *connHandler) read() ([]byte, error) {
+	// err := ch.conn.SetReadDeadline(time.Now().Add(timeout))
+	// if err != nil {
+	// 	return nil, errs.Wrap(err, "failed to set read deadline for connection")
+	// }
+
 	//nolint:makezero // value taken from ember+ documentation
 	response := make([]byte, 1290)
 
@@ -301,7 +315,91 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 	return ch.lastAccessTime
 }
 
-func newConn(timeout time.Duration, conf ConnConfig) (*connHandler, error) {
+func (ch *connHandler) reader() {
+main:
+	for {
+		data, err := ch.read()
+		if err != nil {
+			ch.logr.Debugf("failed to read from handler: %s", err.Error())
+
+			return
+		}
+
+		if ch.expectResponse == nil || !*ch.expectResponse {
+			sendUnsubscribe()
+			ch.logr.Tracef("got spam data, skipping and sent unsubscribe request")
+
+			continue
+		}
+
+		path := <-ch.expectedPath
+
+		ch.logr.Tracef("got path for request %s", path)
+
+		glow, err := s101.Decode(data)
+		if err != nil {
+			ch.logr.Debugf("failed to decode response: %s", err.Error())
+		}
+
+		el := ember.NewElementConnection()
+
+		err = el.Populate(asn1.NewDecoder(glow))
+		if err != nil {
+			ch.logr.Debugf("failed to populate glow response: %s", err.Error())
+		}
+
+		if len(el) == 0 {
+			ch.logr.Tracef("empty collection, skipping")
+			continue
+		}
+
+		var gotPath []string
+
+		for k := range el {
+			// we care only about the path from the first element as it's a control value and every other element
+			// should have the same path prefix
+			gotPath = strings.Split(k.Path, ".")
+			ch.logr.Tracef("path from first element %s", gotPath)
+			break
+		}
+
+		splitExpectedPath, expectedLength := parseExpectedLength(path)
+
+		// gotPath has to be one path element longer
+		if len(gotPath) != expectedLength {
+			ch.logr.Tracef(
+				"path %s length %d does not match the expected path %s length %d",
+				gotPath, len(gotPath), splitExpectedPath, expectedLength,
+			)
+			continue
+		}
+
+		for i, v := range splitExpectedPath {
+			if gotPath[i] != v {
+				ch.logr.Tracef("path %s does not match the expected %s", gotPath, splitExpectedPath)
+				continue main
+			}
+		}
+
+		ch.logr.Tracef("found expected response with path %s", path)
+
+		ch.response <- el
+	}
+}
+
+func parseExpectedLength(path string) ([]string, int) {
+	if path == "" {
+		return nil, 1
+	}
+
+	splitExpectedPath := strings.Split(path, ".")
+
+	return splitExpectedPath, len(splitExpectedPath) + 1
+}
+
+func sendUnsubscribe() {}
+
+func newConn(timeout time.Duration, conf ConnConfig, logger log.Logger) (*connHandler, error) {
 	connURI, err := uri.New(conf.URI, nil)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set URI defaults")
@@ -319,5 +417,17 @@ func newConn(timeout time.Duration, conf ConnConfig) (*connHandler, error) {
 		return nil, errs.Wrap(err, "failed to create connection")
 	}
 
-	return &connHandler{conn: conn, lastAccessTime: time.Now()}, nil
+	ch := &connHandler{
+		conn:           conn,
+		lastAccessTime: time.Now(),
+		// callTimeout:    timeout,
+		logr:           logger,
+		expectResponse: nil,
+		response:       make(chan ember.ElementCollection),
+		expectedPath:   make(chan string),
+	}
+
+	go ch.reader()
+
+	return ch, nil
 }
