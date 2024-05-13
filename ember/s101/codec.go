@@ -37,10 +37,15 @@ func Encode(message []byte, packetType uint8) []uint8 {
 }
 
 // Decode removes all the S101 addons from the packet returning only glow data, currently does not check CRC.
-func Decode(message []byte) ([]uint8, error) {
+func Decode(message []byte) ([]byte, byte, error) {
 	s101 := getS101(message)
 	if len(s101) < s101LenTilGlow+s101LenAfterGlow {
-		return nil, errs.Errorf("malformed s101 packet, malformed s101 data: %x", s101)
+		return nil, 0, errs.Errorf("malformed s101 packet, malformed s101 data: %x", s101)
+	}
+
+	packetType, err := getPacketType(s101)
+	if err != nil {
+		return nil, 0, errs.Errorf("malformed s101 packet, malformed s101 data: %x, failed to read packet type", s101)
 	}
 
 	// remove checksum and end of frame byte, this check is done here as not to XOR a checksum byte
@@ -49,7 +54,7 @@ func Decode(message []byte) ([]uint8, error) {
 	var ceFound bool
 
 	//nolint:prealloc
-	var out []uint8
+	var out []byte
 
 	for _, b := range s101 {
 		if b == ce {
@@ -69,15 +74,15 @@ func Decode(message []byte) ([]uint8, error) {
 		out = append(out, b)
 	}
 
-	return out[s101LenTilGlow:], nil
+	return out[s101LenTilGlow:], packetType, nil
 }
 
-func GetPacketType(message []byte) (byte, error) {
-	if len(message) < 5 {
+func getPacketType(s101 []byte) (byte, error) {
+	if len(s101) < 6 {
 		return 0, errs.New("invalid s101 packet")
 	}
 
-	return message[4], nil
+	return s101[5], nil
 }
 
 // getS101 reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.

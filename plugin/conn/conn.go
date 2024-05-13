@@ -285,13 +285,6 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 }
 
 func (ch *connHandler) read() ([]byte, error) {
-	// err := ch.conn.SetReadDeadline(time.Now().Add(timeout))
-	// if err != nil {
-	// 	return nil, errs.Wrap(err, "failed to set read deadline for connection")
-	// }
-
-	//nolint:makezero // value taken from ember+ documentation
-
 	var out []byte
 	var multi bool
 
@@ -303,27 +296,32 @@ read:
 			return nil, errs.Wrap(err, "failed to read from connection")
 		}
 
-		pType, err := s101.GetPacketType(response)
+		glow, pType, err := s101.Decode(response[:n])
 		if err != nil {
-			return nil, errs.Wrap(err, "failed to read packet type")
+			ch.logr.Debugf("failed to decode response: %s", err.Error())
+
+			continue
 		}
+
+		ch.logr.Tracef("got packet with type %x", pType)
+		ch.logr.Tracef("got packet with data %x", response)
 
 		switch pType {
 		case s101.FirstMultiPacket, s101.BodyMultiPacket:
-			out = append(out, response[:n]...)
+			out = append(out, glow...)
 			multi = true
 
 			continue
 		case s101.LastMultiPacket:
-			out = append(out, response[:n]...)
+			out = append(out, glow...)
 			break read
 		default:
 			if multi {
-				ch.logr.Errf("dropping message in the middle of a multi packet read %x", response[:n])
+				ch.logr.Errf("dropping message in the middle of a multi packet read %x", glow)
 				continue
 			}
 
-			out = response[:n]
+			out = glow
 			break read
 		}
 	}
@@ -350,7 +348,7 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 func (ch *connHandler) reader() {
 main:
 	for {
-		data, err := ch.read()
+		glow, err := ch.read()
 		if err != nil {
 			ch.logr.Debugf("failed to read from handler: %s", err.Error())
 
@@ -367,13 +365,6 @@ main:
 		path := <-ch.expectedPath
 
 		ch.logr.Tracef("got path for request %s", path)
-
-		glow, err := s101.Decode(data)
-		if err != nil {
-			ch.logr.Debugf("failed to decode response: %s", err.Error())
-
-			continue
-		}
 
 		el := ember.NewElementConnection()
 
