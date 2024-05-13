@@ -197,6 +197,18 @@ func GetRootRequest() ([]byte, error) {
 	return s101.Encode(encoder.GetData(), s101.FirstMultiPacket), nil
 }
 
+// GetRootRequest returns a S101 request packet with an encoded request for root collection.
+func GetUnSubRequest() ([]byte, error) {
+	encoder := asn1.NewEncoder()
+
+	err := encoder.WriteUnSub()
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to write root command request")
+	}
+
+	return s101.Encode(encoder.GetData(), 0xC0), nil
+}
+
 // GetRequestByType returns S101 packet with an encoded request for element with the provided type and path.
 func GetRequestByType(et ElementType, path string) ([]byte, error) {
 	encoder := asn1.NewEncoder()

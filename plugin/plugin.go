@@ -145,6 +145,18 @@ func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any
 		return nil, errs.Wrap(err, "failed to create connection config")
 	}
 
+	unsub, err := ember.GetUnSubRequest()
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to write root command request")
+	}
+
+	err = p.conns.Write(unsub, connConf)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to handle request")
+	}
+
+	p.Debugf("write success")
+
 	req, err := ember.GetRootRequest()
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get root collection request")

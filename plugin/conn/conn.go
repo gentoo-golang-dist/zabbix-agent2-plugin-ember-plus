@@ -49,6 +49,7 @@ type ConnCollection struct {
 }
 
 type connHandler struct {
+	mu               sync.Mutex
 	conn             net.Conn
 	lastAccessTime   time.Time
 	lastAccessTimeMu sync.Mutex
@@ -71,6 +72,9 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, err
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
+
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
 
 	err = ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
 	if err != nil {
@@ -103,6 +107,30 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, err
 	}
 
 	return out, nil
+}
+
+func (c *ConnCollection) Write(req []byte, conf ConnConfig) error {
+	ch, err := c.get(time.Duration(c.callTimeout)*time.Second, conf)
+	if err != nil {
+		return errs.Wrap(err, "failed to get conn")
+	}
+
+	err = ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
+	if err != nil {
+		return errs.Wrap(err, "failed to set write deadline for connection")
+	}
+
+	_, err = ch.conn.Write(req)
+	if err != nil {
+		cerr := c.close(conf)
+		if cerr != nil {
+			c.logr.Errf("write connection clean-up failed, err: %w", cerr)
+		}
+
+		return errs.Wrap(err, "failed to write to connection")
+	}
+
+	return nil
 }
 
 // CloseAll closes all connections in the collection.

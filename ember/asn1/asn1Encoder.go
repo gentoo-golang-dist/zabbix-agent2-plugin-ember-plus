@@ -100,6 +100,38 @@ func (c *Encoder) WriteRootTreeRequest() error {
 	return nil
 }
 
+// WriteRootTreeRequest writes a request for root element collection into the buffer.
+func (c *Encoder) WriteUnSub() error {
+	c.openSequence(ApplicationByte(RootElementCollectionTag))
+	defer c.closeSequence()
+
+	c.openSequence(ApplicationByte(RootElementTag))
+	defer c.closeSequence()
+
+	err := c.WriteGetUnSubCmd()
+	if err != nil {
+		return errs.Wrap(err, "failed to write command request")
+	}
+
+	return nil
+}
+
+// WriteGetDirCommand writes a get dir command request into the buffer.
+func (c *Encoder) WriteGetUnSubCmd() error {
+	c.openSequence(ContextByte(0))
+	defer c.closeSequence()
+
+	c.openSequence(ApplicationByte(commandApplicationTag))
+	defer c.closeSequence()
+
+	err := c.writeInt(31, 0)
+	if err != nil {
+		return errs.Wrap(err, "failed dir write int")
+	}
+
+	return nil
+}
+
 // WriteGetDirCommand writes a get dir command request into the buffer.
 func (c *Encoder) WriteGetDirCommand() error {
 	c.openSequence(ContextByte(0))
