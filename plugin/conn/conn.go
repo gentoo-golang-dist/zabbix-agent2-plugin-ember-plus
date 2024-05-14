@@ -212,7 +212,11 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 		return nil, errs.Wrap(err, "failed to create conn")
 	}
 
-	return c.setConn(conf, ch), nil
+	ch = c.setConn(conf, ch)
+
+	go c.reader(ch)
+
+	return ch, nil
 }
 
 // housekeeper repeatedly checks for unused connections and closes them.
@@ -283,8 +287,6 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 	}
 
 	c.conns[cc] = ch
-
-	go c.reader(ch)
 
 	return ch
 }
@@ -357,10 +359,12 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 }
 
 func (c *ConnCollection) reader(ch *connHandler) {
+	ch.logr.Debugf("starting reader for connection %s", ch.conf.URI)
+
 	for {
 		glow, err := ch.read()
 		if err != nil {
-			ch.logr.Debugf("failed to read from handler: %s", err.Error())
+			ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, err.Error())
 
 			cerr := c.close(ch.conf)
 			if cerr != nil {
