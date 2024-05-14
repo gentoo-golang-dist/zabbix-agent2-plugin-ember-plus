@@ -359,12 +359,12 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 }
 
 func (c *ConnCollection) reader(ch *connHandler) {
-	ch.logr.Debugf("starting reader for connection %s", ch.conf.URI)
+	c.logr.Debugf("starting reader for connection %s", ch.conf.URI)
 
 	for {
 		glow, err := ch.read()
 		if err != nil {
-			ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, err.Error())
+			c.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, err.Error())
 
 			cerr := c.close(ch.conf)
 			if cerr != nil {
@@ -375,18 +375,18 @@ func (c *ConnCollection) reader(ch *connHandler) {
 		}
 
 		if ch.expectResponse == nil || !*ch.expectResponse {
-			ch.logr.Tracef("got ember+ plus update data, skipping")
+			c.logr.Tracef("got ember+ plus update data, skipping")
 
 			continue
 		}
 
 		path := <-ch.expectedPath
 
-		ch.logr.Tracef("got path for request %s", path)
+		c.logr.Tracef("got path for request %s", path)
 
 		el, gotPath, err := ch.getCollection(glow)
 		if err != nil {
-			ch.logr.Debugf("failed to read glow response: %s", err.Error())
+			c.logr.Debugf("failed to read glow response: %s", err.Error())
 
 			continue
 		}
@@ -395,7 +395,7 @@ func (c *ConnCollection) reader(ch *connHandler) {
 			continue
 		}
 
-		ch.logr.Tracef("found expected response with path %s", path)
+		c.logr.Tracef("found expected response with path %s", path)
 
 		ch.response <- el
 	}
