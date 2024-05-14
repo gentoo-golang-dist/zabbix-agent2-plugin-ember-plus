@@ -84,8 +84,10 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
 
-	var expectOn = true
-	var expectOff = false
+	var (
+		expectOn  = true
+		expectOff = false
+	)
 	// turns on response expectation in the listener
 	ch.expectResponse = &expectOn
 	defer func() { ch.expectResponse = &expectOff }()
@@ -285,11 +287,15 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 }
 
 func (ch *connHandler) read() ([]byte, error) {
-	var out []byte
-	var multi bool
+	var (
+		out   []byte
+		multi bool
+	)
 
 read:
 	for {
+		//nolint:makezero
+		// length taken from Ember+ documentation
 		response := make([]byte, 1290)
 		n, err := ch.conn.Read(response)
 		if err != nil {
@@ -303,8 +309,7 @@ read:
 			continue
 		}
 
-		ch.logr.Tracef("got packet with type %x", pType)
-		ch.logr.Tracef("got packet with data %x", response)
+		ch.logr.Tracef("got packet with type %x and data %x", pType, response)
 
 		switch pType {
 		case s101.FirstMultiPacket, s101.BodyMultiPacket:
@@ -314,14 +319,17 @@ read:
 			continue
 		case s101.LastMultiPacket:
 			out = append(out, glow...)
+
 			break read
 		default:
 			if multi {
 				ch.logr.Errf("dropping message in the middle of a multi packet read %x", glow)
+
 				continue
 			}
 
 			out = glow
+
 			break read
 		}
 	}
@@ -346,7 +354,6 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 }
 
 func (ch *connHandler) reader() {
-main:
 	for {
 		glow, err := ch.read()
 		if err != nil {
@@ -366,53 +373,72 @@ main:
 
 		ch.logr.Tracef("got path for request %s", path)
 
-		el := ember.NewElementConnection()
-
-		err = el.Populate(asn1.NewDecoder(glow))
+		el, gotPath, err := ch.getCollection(glow)
 		if err != nil {
-			ch.logr.Debugf("failed to populate glow response: %s", err.Error())
+			ch.logr.Debugf("failed to read glow response: %s", err.Error())
 
 			continue
 		}
 
-		if len(el) == 0 {
-			ch.logr.Tracef("empty collection, skipping")
+		if !ch.expectedData(path, gotPath) {
 			continue
-		}
-
-		var gotPath []string
-
-		ch.logr.Tracef("collection, %+v", el)
-
-		for k := range el {
-			// we care only about the path from the first element as it's a control value and every other element
-			// should have the same path prefix
-			gotPath = strings.Split(k.Path, ".")
-			ch.logr.Tracef("path from first element %s", gotPath)
-			break
-		}
-
-		splitExpectedPath, expectedLength := parseExpectedLength(path)
-		// gotPath has to be one path element longer
-		if len(gotPath) != expectedLength && len(gotPath) != expectedLength+1 {
-			ch.logr.Tracef(
-				"path %s length %d does not match the expected path %s length %d",
-				gotPath, len(gotPath), splitExpectedPath, expectedLength,
-			)
-			continue
-		}
-
-		for i, v := range splitExpectedPath {
-			if gotPath[i] != v {
-				ch.logr.Tracef("path %s does not match the expected %s", gotPath, splitExpectedPath)
-				continue main
-			}
 		}
 
 		ch.logr.Tracef("found expected response with path %s", path)
 
 		ch.response <- el
 	}
+}
+
+func (ch *connHandler) getCollection(glow []byte) (ember.ElementCollection, []string, error) {
+	el := ember.NewElementConnection()
+
+	err := el.Populate(asn1.NewDecoder(glow))
+	if err != nil {
+		return ember.ElementCollection{}, nil, errs.Errorf("failed to populate glow response: %s", err.Error())
+	}
+
+	if len(el) == 0 {
+		return ember.ElementCollection{}, nil, errs.New("empty collection")
+	}
+
+	var gotPath []string
+
+	ch.logr.Tracef("got collection, %+v", el)
+
+	for k := range el {
+		// we care only about the path from the one element as it's a control value and every other element
+		// should have the same path prefix
+		gotPath = strings.Split(k.Path, ".")
+		ch.logr.Tracef("path from first element %s", gotPath)
+
+		break
+	}
+
+	return el, gotPath, nil
+}
+
+func (ch *connHandler) expectedData(expectedPath string, incomingPath []string) bool {
+	splitExpectedPath, expectedLength := parseExpectedLength(expectedPath)
+	// gotPath has to be one path element longer or the same length in case data has children and not values
+	if len(incomingPath) != expectedLength && len(incomingPath) != expectedLength+1 {
+		ch.logr.Tracef(
+			"path %s length %d does not match the expected path %s length %d",
+			incomingPath, len(incomingPath), splitExpectedPath, expectedLength,
+		)
+
+		return false
+	}
+
+	for i, v := range splitExpectedPath {
+		if incomingPath[i] != v {
+			ch.logr.Tracef("path %s does not match the expected %s", incomingPath, splitExpectedPath)
+
+			return false
+		}
+	}
+
+	return true
 }
 
 func parseExpectedLength(path string) ([]string, int) {

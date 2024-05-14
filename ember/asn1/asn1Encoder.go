@@ -100,7 +100,7 @@ func (c *Encoder) WriteRootTreeRequest() error {
 	return nil
 }
 
-// WriteRootTreeRequest writes a request for root element collection into the buffer.
+// WriteUnSub writes a request for root element collection into the buffer.
 func (c *Encoder) WriteUnSub() error {
 	c.openSequence(ApplicationByte(RootElementCollectionTag))
 	defer c.closeSequence()
@@ -116,7 +116,7 @@ func (c *Encoder) WriteUnSub() error {
 	return nil
 }
 
-// WriteGetDirCommand writes a get dir command request into the buffer.
+// WriteGetUnSubCmd writes a get dir command request into the buffer.
 func (c *Encoder) WriteGetUnSubCmd() error {
 	c.openSequence(ContextByte(0))
 	defer c.closeSequence()

@@ -205,7 +205,7 @@ func GetRootRequest() ([]byte, error) {
 	return s101.Encode(encoder.GetData(), s101.FirstMultiPacket), nil
 }
 
-// GetRootRequest returns a S101 request packet with an encoded request for root collection.
+// GetUnSubRequest returns a S101 request packet with an encoded request for root collection.
 func GetUnSubRequest() ([]byte, error) {
 	encoder := asn1.NewEncoder()
 
