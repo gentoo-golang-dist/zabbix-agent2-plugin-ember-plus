@@ -227,7 +227,7 @@ func (p *emberPlugin) getCollectionByID(
 	collection ember.ElementCollection, connConf conn.ConnConfig, ids []string,
 ) (ember.ElementCollection, error) {
 	for _, id := range ids {
-		el, err := collection.GetElementByID(id)
+		el, fullPath, err := collection.GetElementByID(id)
 		if err != nil {
 			return nil, errs.Wrapf(
 				err,
@@ -235,12 +235,12 @@ func (p *emberPlugin) getCollectionByID(
 			)
 		}
 
-		req, err := ember.GetRequestByType(el.ElementType, el.Path)
+		req, err := ember.GetRequestByType(el.ElementType, fullPath)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to get request")
 		}
 
-		collection, err = p.conns.HandleRequest(req, connConf, el.Path)
+		collection, err = p.conns.HandleRequest(req, connConf, fullPath)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to handle request")
 		}

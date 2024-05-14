@@ -124,14 +124,20 @@ func (ec ElementCollection) GetElementByPath(currentPath string) (*Element, erro
 }
 
 // GetElementByID returns element from collection with the provided identifier.
-func (ec ElementCollection) GetElementByID(id string) (*Element, error) {
-	for key, value := range ec {
+func (ec ElementCollection) GetElementByID(id string) (*Element, string, error) {
+	for key, el := range ec {
 		if key.ID == id {
-			return value, nil
+			return el, key.Path, nil
+		}
+
+		for _, ch := range el.Children {
+			if ch.Identifier == id {
+				return ch, fmt.Sprintf("%s.%s", key.Path, ch.Path), nil
+			}
 		}
 	}
 
-	return nil, ErrElementNotFound
+	return nil, "", ErrElementNotFound
 }
 
 // MarshalJSON returns the collection with path(string) in key value instead of a structure for json marshaling.
