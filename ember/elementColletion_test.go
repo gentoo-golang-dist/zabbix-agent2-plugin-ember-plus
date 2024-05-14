@@ -657,7 +657,6 @@ func TestElementCollection_Populate(t *testing.T) {
 	}
 }
 
-//nolint:dupl
 func TestElementCollection_GetElementByPath(t *testing.T) {
 	t.Parallel()
 
@@ -808,7 +807,6 @@ func TestElementCollection_GetElementByPath(t *testing.T) {
 	}
 }
 
-//nolint:dupl
 func TestElementCollection_GetElementByID(t *testing.T) {
 	t.Parallel()
 

@@ -55,6 +55,7 @@ type ConnCollection struct {
 type connHandler struct {
 	mu               sync.Mutex
 	conn             net.Conn
+	conf             ConnConfig
 	lastAccessTime   time.Time
 	lastAccessTimeMu sync.Mutex
 	logr             log.Logger
@@ -283,6 +284,8 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 
 	c.conns[cc] = ch
 
+	go c.reader(ch)
+
 	return ch
 }
 
@@ -353,18 +356,22 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 	return ch.lastAccessTime
 }
 
-func (ch *connHandler) reader() {
+func (c *ConnCollection) reader(ch *connHandler) {
 	for {
 		glow, err := ch.read()
 		if err != nil {
 			ch.logr.Debugf("failed to read from handler: %s", err.Error())
 
+			cerr := c.close(ch.conf)
+			if cerr != nil {
+				c.logr.Errf("reader connection clean-up failed, err: %w", cerr)
+			}
+
 			return
 		}
 
 		if ch.expectResponse == nil || !*ch.expectResponse {
-			sendUnsubscribe()
-			ch.logr.Tracef("got spam data, skipping and sent unsubscribe request")
+			ch.logr.Tracef("got ember+ plus update data, skipping")
 
 			continue
 		}
@@ -451,8 +458,6 @@ func parseExpectedLength(path string) ([]string, int) {
 	return splitExpectedPath, len(splitExpectedPath)
 }
 
-func sendUnsubscribe() {}
-
 func newConn(timeout time.Duration, conf ConnConfig, logger log.Logger) (*connHandler, error) {
 	connURI, err := uri.New(conf.URI, nil)
 	if err != nil {
@@ -474,14 +479,12 @@ func newConn(timeout time.Duration, conf ConnConfig, logger log.Logger) (*connHa
 	ch := &connHandler{
 		conn:           conn,
 		lastAccessTime: time.Now(),
-		// callTimeout:    timeout,
 		logr:           logger,
+		conf:           conf,
 		expectResponse: nil,
 		response:       make(chan ember.ElementCollection),
 		expectedPath:   make(chan string),
 	}
-
-	go ch.reader()
 
 	return ch, nil
 }
