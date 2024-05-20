@@ -301,8 +301,8 @@ func (ch *connHandler) read() ([]byte, error) {
 		//nolint:makezero
 		// length taken from Ember+ documentation
 		response := make([]byte, 1290)
-		n, err := ch.conn.Read(response)
 
+		n, err := ch.conn.Read(response)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to read from connection")
 		}
@@ -390,14 +390,6 @@ func (ch *connHandler) reader() {
 }
 
 func (ch *connHandler) readExpected(path string, timeout int) (ember.ElementCollection, error) {
-	err := ch.conn.SetReadDeadline(
-		time.Now().Add((time.Duration(timeout) * time.Second)),
-	)
-
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to set read deadline")
-	}
-
 	t := time.NewTimer(time.Duration(timeout) * time.Second)
 	defer t.Stop()
 
