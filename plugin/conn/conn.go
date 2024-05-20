@@ -357,7 +357,7 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 }
 
 func (ch *connHandler) pathReader(c *ConnCollection) {
-	go ch.reader()
+	go ch.reader(c)
 
 	for {
 		select {
@@ -365,14 +365,15 @@ func (ch *connHandler) pathReader(c *ConnCollection) {
 			ch.logr.Tracef("got path for request %s", path)
 			resp, err := ch.readExpected(path, c.callTimeout)
 			ch.parsedData <- parsedResponse{resp, err}
-		case resp := <-ch.readData:
-			if resp.err != nil {
-				ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, resp.err.Error())
+		case resp, ok := <-ch.readData:
+			if !ok {
+				// incase we get an error in readExpected, then we will exit this function here. As ch.reader will be
+				// stopped and ch.readData chan will be closed.
+				return
+			}
 
-				cerr := c.close(ch.conf)
-				if cerr != nil {
-					ch.logr.Errf("reader connection clean-up failed, err: %w", cerr)
-				}
+			if resp.err != nil {
+				ch.logr.Debugf("stopping pathReader for connection %s, err: %s", ch.conf.URI, resp.err.Error())
 
 				return
 			}
@@ -382,10 +383,23 @@ func (ch *connHandler) pathReader(c *ConnCollection) {
 	}
 }
 
-func (ch *connHandler) reader() {
+func (ch *connHandler) reader(c *ConnCollection) {
 	for {
 		data, err := ch.read()
 		ch.readData <- readResponse{data, err}
+
+		if err != nil {
+			ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, err.Error())
+
+			cerr := c.close(ch.conf)
+			if cerr != nil {
+				ch.logr.Errf("reader connection clean-up failed, err: %w", cerr)
+			}
+
+			close(ch.readData)
+
+			return
+		}
 	}
 }
 
@@ -403,7 +417,7 @@ func (ch *connHandler) readExpected(path string, timeout int) (ember.ElementColl
 			if resp.err != nil {
 				ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, resp.err.Error())
 
-				return nil, errs.Wrapf(resp.err, "failed to find expected Ember+ response")
+				return nil, errs.Wrapf(resp.err, "failed to read Ember+ response")
 			}
 
 			el, gotPath, err := ch.getCollection(resp.data)
