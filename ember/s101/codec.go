@@ -43,10 +43,7 @@ func Decode(message []byte) ([]byte, byte, error) {
 		return nil, 0, errs.Errorf("malformed s101 packet, malformed s101 data: %x", s101)
 	}
 
-	packetType, err := getPacketType(s101)
-	if err != nil {
-		return nil, 0, errs.Errorf("malformed s101 packet, malformed s101 data: %x, failed to read packet type", s101)
-	}
+	packetType := s101[5]
 
 	// remove checksum and end of frame byte, this check is done here as not to XOR a checksum byte
 	s101 = s101[:len(s101)-s101LenAfterGlow]
@@ -75,14 +72,6 @@ func Decode(message []byte) ([]byte, byte, error) {
 	}
 
 	return out[s101LenTilGlow:], packetType, nil
-}
-
-func getPacketType(s101 []byte) (byte, error) {
-	if len(s101) < 6 {
-		return 0, errs.New("invalid s101 packet")
-	}
-
-	return s101[5], nil
 }
 
 // getS101 reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.

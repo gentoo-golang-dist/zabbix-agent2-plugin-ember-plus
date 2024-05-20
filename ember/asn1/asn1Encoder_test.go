@@ -160,7 +160,7 @@ func TestEncoder_WriteRequest(t *testing.T) {
 			false,
 		},
 		{
-			"-unsubscribe",
+			"+unsubscribe",
 			fields{
 				bytes.NewBuffer([]byte{}),
 			},

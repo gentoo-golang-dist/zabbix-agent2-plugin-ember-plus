@@ -59,9 +59,19 @@ type connHandler struct {
 	lastAccessTime   time.Time
 	lastAccessTimeMu sync.Mutex
 	logr             log.Logger
-	expectResponse   *bool
-	response         chan ember.ElementCollection
+	readData         chan readResponse
+	parsedData       chan parsedResponse
 	expectedPath     chan string
+}
+
+type parsedResponse struct {
+	element ember.ElementCollection
+	err     error
+}
+
+type readResponse struct {
+	data []byte
+	err  error
 }
 
 // Init initializes a pre-allocated connection collection.
@@ -85,13 +95,9 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
 
-	var (
-		expectOn  = true
-		expectOff = false
-	)
 	// turns on response expectation in the listener
-	ch.expectResponse = &expectOn
-	defer func() { ch.expectResponse = &expectOff }()
+
+	ch.expectedPath <- path
 
 	err = ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
 	if err != nil {
@@ -108,19 +114,13 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 		return nil, errs.Wrap(err, "failed to write to connection")
 	}
 
-	select {
-	case ch.expectedPath <- path:
-		c.logr.Tracef("wrote path %s for request", path)
-	case <-time.After((time.Duration(c.callTimeout) * time.Second) / 2):
-		return nil, errs.Errorf("failed to send path %s for requested response", path)
+	data := <-ch.parsedData
+	if data.err != nil {
+		//nolint:wrapcheck
+		return nil, errs.WrapConst(err, ember.ErrElementNotFound)
 	}
 
-	select {
-	case el := <-ch.response:
-		return el, nil
-	case <-time.After((time.Duration(c.callTimeout) * time.Second) / 2):
-		return nil, errs.New("element not found")
-	}
+	return data.element, nil
 }
 
 func (c *ConnCollection) Write(req []byte, conf ConnConfig) error {
@@ -214,7 +214,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 
 	ch = c.setConn(conf, ch)
 
-	go c.reader(ch)
+	go ch.pathReader(c)
 
 	return ch, nil
 }
@@ -297,12 +297,12 @@ func (ch *connHandler) read() ([]byte, error) {
 		multi bool
 	)
 
-read:
 	for {
 		//nolint:makezero
 		// length taken from Ember+ documentation
 		response := make([]byte, 1290)
 		n, err := ch.conn.Read(response)
+
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to read from connection")
 		}
@@ -325,7 +325,7 @@ read:
 		case s101.LastMultiPacket:
 			out = append(out, glow...)
 
-			break read
+			return out, nil
 		default:
 			if multi {
 				ch.logr.Errf("dropping message in the middle of a multi packet read %x", glow)
@@ -335,11 +335,9 @@ read:
 
 			out = glow
 
-			break read
+			return out, nil
 		}
 	}
-
-	return out, nil
 }
 
 // updateLastAccessTime updates the last time a connection was accessed.
@@ -358,46 +356,79 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 	return ch.lastAccessTime
 }
 
-func (c *ConnCollection) reader(ch *connHandler) {
-	c.logr.Debugf("starting reader for connection %s", ch.conf.URI)
+func (ch *connHandler) pathReader(c *ConnCollection) {
+	go ch.reader()
 
 	for {
-		glow, err := ch.read()
-		if err != nil {
-			c.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, err.Error())
+		select {
+		case path := <-ch.expectedPath:
+			ch.logr.Tracef("got path for request %s", path)
+			resp, err := ch.readExpected(path, c.callTimeout)
+			ch.parsedData <- parsedResponse{resp, err}
+		case resp := <-ch.readData:
+			if resp.err != nil {
+				ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, resp.err.Error())
 
-			cerr := c.close(ch.conf)
-			if cerr != nil {
-				c.logr.Errf("reader connection clean-up failed, err: %w", cerr)
+				cerr := c.close(ch.conf)
+				if cerr != nil {
+					ch.logr.Errf("reader connection clean-up failed, err: %w", cerr)
+				}
+
+				return
 			}
 
-			return
+			ch.logr.Tracef("got not requested ember+ plus data, skipping")
 		}
+	}
+}
 
-		if ch.expectResponse == nil || !*ch.expectResponse {
-			c.logr.Tracef("got ember+ plus update data, skipping")
+func (ch *connHandler) reader() {
+	for {
+		data, err := ch.read()
+		ch.readData <- readResponse{data, err}
+	}
+}
 
-			continue
+func (ch *connHandler) readExpected(path string, timeout int) (ember.ElementCollection, error) {
+	err := ch.conn.SetReadDeadline(
+		time.Now().Add((time.Duration(timeout) * time.Second)),
+	)
+
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to set read deadline")
+	}
+
+	t := time.NewTimer(time.Duration(timeout) * time.Second)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			ch.logr.Debugf("failed to find Ember+ response in time for request with path %s", path)
+
+			return nil, errs.New("failed to find Ember+ response in time")
+		case resp := <-ch.readData:
+			if resp.err != nil {
+				ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, resp.err.Error())
+
+				return nil, errs.Wrapf(resp.err, "failed to find expected Ember+ response")
+			}
+
+			el, gotPath, err := ch.getCollection(resp.data)
+			if err != nil {
+				ch.logr.Debugf("failed to read glow response: %s", err.Error())
+
+				continue
+			}
+
+			if !ch.expectedData(path, gotPath) {
+				continue
+			}
+
+			ch.logr.Tracef("found expected response with path %s", path)
+
+			return el, nil
 		}
-
-		path := <-ch.expectedPath
-
-		c.logr.Tracef("got path for request %s", path)
-
-		el, gotPath, err := ch.getCollection(glow)
-		if err != nil {
-			c.logr.Debugf("failed to read glow response: %s", err.Error())
-
-			continue
-		}
-
-		if !ch.expectedData(path, gotPath) {
-			continue
-		}
-
-		c.logr.Tracef("found expected response with path %s", path)
-
-		ch.response <- el
 	}
 }
 
@@ -480,15 +511,13 @@ func newConn(timeout time.Duration, conf ConnConfig, logger log.Logger) (*connHa
 		return nil, errs.Wrap(err, "failed to create connection")
 	}
 
-	ch := &connHandler{
+	return &connHandler{
 		conn:           conn,
 		lastAccessTime: time.Now(),
 		logr:           logger,
 		conf:           conf,
-		expectResponse: nil,
-		response:       make(chan ember.ElementCollection),
+		readData:       make(chan readResponse),
+		parsedData:     make(chan parsedResponse),
 		expectedPath:   make(chan string),
-	}
-
-	return ch, nil
+	}, nil
 }

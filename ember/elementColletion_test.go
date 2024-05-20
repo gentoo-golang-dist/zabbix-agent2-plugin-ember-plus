@@ -26,7 +26,6 @@ import (
 	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 )
 
-//nolint:maintidx
 func TestElementCollection_Populate(t *testing.T) {
 	t.Parallel()
 

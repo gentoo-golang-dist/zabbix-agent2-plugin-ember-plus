@@ -120,7 +120,7 @@ func (ec ElementCollection) GetElementByPath(currentPath string) (*Element, erro
 		}
 	}
 
-	return nil, ErrElementNotFound
+	return nil, errs.Wrapf(ErrElementNotFound, "failed to find element with path %q", currentPath)
 }
 
 // GetElementByID returns element from collection with the provided identifier.
