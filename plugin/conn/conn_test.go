@@ -228,11 +228,17 @@ func Test_connHandler_read(t *testing.T) {
 	}
 	for _, tt := range tests {
 		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			server, client := net.Pipe()
+
+			defer func() {
+				//nolint:gosec
+				server.Close()
+				//nolint:gosec
+				client.Close()
+			}()
 
 			ch := &connHandler{conn: client, logr: log.New("Test")}
 			go func() {
@@ -257,11 +263,6 @@ func Test_connHandler_read(t *testing.T) {
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("connHandler.read() = %s", diff)
 			}
-
-			//nolint:gosec
-			server.Close()
-			//nolint:gosec
-			client.Close()
 		})
 	}
 }
@@ -300,7 +301,8 @@ func Test_connHandler_readExpected(t *testing.T) {
 			},
 			ember.ElementCollection{
 				ember.ElementKey{
-					ID: "R3LAYVirtualPatchBay", Path: "1"}: &ember.Element{
+					ID: "R3LAYVirtualPatchBay", Path: "1",
+				}: &ember.Element{
 					Path:        "1",
 					ElementType: "node",
 					Identifier:  "R3LAYVirtualPatchBay",
@@ -352,7 +354,8 @@ func Test_connHandler_readExpected(t *testing.T) {
 			},
 			ember.ElementCollection{
 				ember.ElementKey{
-					ID: "R3LAYVirtualPatchBay", Path: "1"}: &ember.Element{
+					ID: "R3LAYVirtualPatchBay", Path: "1",
+				}: &ember.Element{
 					Path:        "1",
 					ElementType: "node",
 					Identifier:  "R3LAYVirtualPatchBay",
@@ -404,7 +407,8 @@ func Test_connHandler_readExpected(t *testing.T) {
 			},
 			ember.ElementCollection{
 				ember.ElementKey{
-					ID: "R3LAYVirtualPatchBay", Path: "1"}: &ember.Element{
+					ID: "R3LAYVirtualPatchBay", Path: "1",
+				}: &ember.Element{
 					Path:        "1",
 					ElementType: "node",
 					Identifier:  "R3LAYVirtualPatchBay",
@@ -445,7 +449,8 @@ func Test_connHandler_readExpected(t *testing.T) {
 			},
 			ember.ElementCollection{
 				ember.ElementKey{
-					ID: "R3LAYVirtualPatchBay", Path: "1"}: &ember.Element{
+					ID: "R3LAYVirtualPatchBay", Path: "1",
+				}: &ember.Element{
 					Path:        "1",
 					ElementType: "node",
 					Identifier:  "R3LAYVirtualPatchBay",
@@ -486,7 +491,8 @@ func Test_connHandler_readExpected(t *testing.T) {
 			},
 			ember.ElementCollection{
 				ember.ElementKey{
-					ID: "R3LAYVirtualPatchBay", Path: "1"}: &ember.Element{
+					ID: "R3LAYVirtualPatchBay", Path: "1",
+				}: &ember.Element{
 					Path:        "1",
 					ElementType: "node",
 					Identifier:  "R3LAYVirtualPatchBay",
