@@ -30,9 +30,8 @@ import (
 	"golang.zabbix.com/sdk/log"
 )
 
-//nolint:paralleltest
 func Test_connHandler_read(t *testing.T) {
-	server, client := net.Pipe()
+	t.Parallel()
 
 	type args struct {
 		message  [][]byte
@@ -228,7 +227,13 @@ func Test_connHandler_read(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			server, client := net.Pipe()
+
 			ch := &connHandler{conn: client, logr: log.New("Test")}
 			go func() {
 				for _, m := range tt.args.message {
@@ -252,13 +257,13 @@ func Test_connHandler_read(t *testing.T) {
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("connHandler.read() = %s", diff)
 			}
+
+			//nolint:gosec
+			server.Close()
+			//nolint:gosec
+			client.Close()
 		})
 	}
-
-	//nolint:gosec
-	server.Close()
-	//nolint:gosec
-	client.Close()
 }
 
 func Test_connHandler_readExpected(t *testing.T) {
@@ -266,7 +271,7 @@ func Test_connHandler_readExpected(t *testing.T) {
 
 	type args struct {
 		path    string
-		timeout int
+		timeout time.Duration
 		message []readResponse
 	}
 
@@ -533,12 +538,12 @@ func Test_connHandler_readExpected(t *testing.T) {
 				}
 			}()
 
-			got, err := ch.readExpected(tt.args.path, tt.args.timeout)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("connHandler.readExpected() error = %v, wantErr %v", err, tt.wantErr)
+			got := ch.readExpected(tt.args.path, tt.args.timeout)
+			if (got.err != nil) != tt.wantErr {
+				t.Fatalf("connHandler.readExpected() error = %v, wantErr %v", got.err, tt.wantErr)
 			}
 
-			if diff := cmp.Diff(tt.want, got); diff != "" {
+			if diff := cmp.Diff(tt.want, got.element); diff != "" {
 				t.Fatalf("connHandler.readExpected() = %s", diff)
 			}
 		})

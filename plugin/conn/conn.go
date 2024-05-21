@@ -34,8 +34,6 @@ import (
 	"golang.zabbix.com/sdk/uri"
 )
 
-const interval = 10
-
 // ConnConfig is a configuration for a connection to the database.
 type ConnConfig struct {
 	URI string
@@ -46,7 +44,7 @@ type ConnConfig struct {
 type ConnCollection struct {
 	mu          sync.Mutex
 	conns       map[ConnConfig]*connHandler
-	callTimeout int
+	callTimeout time.Duration
 	keepAlive   time.Duration
 	logr        log.Logger
 	done        chan bool
@@ -78,16 +76,16 @@ type readResponse struct {
 func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
 	c.conns = make(map[ConnConfig]*connHandler)
 	c.keepAlive = time.Duration(keepAlive) * time.Second
-	c.callTimeout = callTimeout
+	c.callTimeout = time.Duration(callTimeout) * time.Second
 	c.logr = logr
 	c.done = make(chan bool)
 
-	go c.housekeeper(interval * time.Second)
+	go c.housekeeper(10 * time.Second)
 }
 
 // HandleRequest sends a request and reads response based on the provided connection parameters.
 func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string) (ember.ElementCollection, error) {
-	ch, err := c.get(time.Duration(c.callTimeout)*time.Second, conf)
+	ch, err := c.get(c.callTimeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
@@ -99,7 +97,7 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 
 	ch.expectedPath <- path
 
-	err = ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
+	err = ch.conn.SetWriteDeadline(time.Now().Add(c.callTimeout))
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set write deadline for connection")
 	}
@@ -116,35 +114,10 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 
 	data := <-ch.parsedData
 	if data.err != nil {
-		//nolint:wrapcheck
-		return nil, errs.WrapConst(err, ember.ErrElementNotFound)
+		return nil, errs.Wrapf(ember.ErrElementNotFound, "failed to find element, err %s", data.err.Error())
 	}
 
 	return data.element, nil
-}
-
-func (c *ConnCollection) Write(req []byte, conf ConnConfig) error {
-	ch, err := c.get(time.Duration(c.callTimeout)*time.Second, conf)
-	if err != nil {
-		return errs.Wrap(err, "failed to get conn")
-	}
-
-	err = ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
-	if err != nil {
-		return errs.Wrap(err, "failed to set write deadline for connection")
-	}
-
-	_, err = ch.conn.Write(req)
-	if err != nil {
-		cerr := c.close(conf)
-		if cerr != nil {
-			c.logr.Errf("write connection clean-up failed, err: %w", cerr)
-		}
-
-		return errs.Wrap(err, "failed to write to connection")
-	}
-
-	return nil
 }
 
 // CloseAll closes all connections in the collection.
@@ -333,9 +306,7 @@ func (ch *connHandler) read() ([]byte, error) {
 				continue
 			}
 
-			out = glow
-
-			return out, nil
+			return glow, nil
 		}
 	}
 }
@@ -363,8 +334,7 @@ func (ch *connHandler) pathReader(c *ConnCollection) {
 		select {
 		case path := <-ch.expectedPath:
 			ch.logr.Tracef("got path for request %s", path)
-			resp, err := ch.readExpected(path, c.callTimeout)
-			ch.parsedData <- parsedResponse{resp, err}
+			ch.parsedData <- ch.readExpected(path, c.callTimeout)
 		case resp, ok := <-ch.readData:
 			if !ok {
 				// incase we get an error in readExpected, then we will exit this function here. As ch.reader will be
@@ -403,8 +373,8 @@ func (ch *connHandler) reader(c *ConnCollection) {
 	}
 }
 
-func (ch *connHandler) readExpected(path string, timeout int) (ember.ElementCollection, error) {
-	t := time.NewTimer(time.Duration(timeout) * time.Second)
+func (ch *connHandler) readExpected(path string, timeout time.Duration) parsedResponse {
+	t := time.NewTimer(timeout)
 	defer t.Stop()
 
 	for {
@@ -412,12 +382,12 @@ func (ch *connHandler) readExpected(path string, timeout int) (ember.ElementColl
 		case <-t.C:
 			ch.logr.Debugf("failed to find Ember+ response in time for request with path %s", path)
 
-			return nil, errs.New("failed to find Ember+ response in time")
+			return parsedResponse{nil, errs.New("failed to find Ember+ response in time")}
 		case resp := <-ch.readData:
 			if resp.err != nil {
 				ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, resp.err.Error())
 
-				return nil, errs.Wrapf(resp.err, "failed to read Ember+ response")
+				return parsedResponse{nil, errs.Wrapf(resp.err, "failed to read Ember+ response")}
 			}
 
 			el, gotPath, err := ch.getCollection(resp.data)
@@ -433,7 +403,7 @@ func (ch *connHandler) readExpected(path string, timeout int) (ember.ElementColl
 
 			ch.logr.Tracef("found expected response with path %s", path)
 
-			return el, nil
+			return parsedResponse{el, nil}
 		}
 	}
 }
