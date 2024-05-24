@@ -21,7 +21,6 @@ import (
 	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 )
 
-//nolint:maintidx
 func TestElement_handleApplication(t *testing.T) {
 	t.Parallel()
 
@@ -362,7 +361,6 @@ func TestElement_handleApplication(t *testing.T) {
 	}
 }
 
-//nolint:maintidx
 func TestElement_handleChildren(t *testing.T) {
 	t.Parallel()
 
@@ -720,7 +718,6 @@ func TestElement_handleChildren(t *testing.T) {
 	}
 }
 
-//nolint:maintidx
 func TestElement_setChild(t *testing.T) {
 	t.Parallel()
 
@@ -1220,7 +1217,6 @@ func TestElement_handleContent(t *testing.T) {
 	}
 }
 
-//nolint:maintidx
 func TestElement_handleContentContext(t *testing.T) {
 	t.Parallel()
 
@@ -1986,7 +1982,6 @@ func Test_getPath(t *testing.T) {
 	}
 }
 
-//nolint:maintidx
 func TestGetElement(t *testing.T) {
 	t.Parallel()
 
@@ -2493,7 +2488,6 @@ func TestElement_handleNodeContext(t *testing.T) {
 	}
 }
 
-//nolint:maintidx
 func TestElement_handleParameterContext(t *testing.T) {
 	t.Parallel()
 
