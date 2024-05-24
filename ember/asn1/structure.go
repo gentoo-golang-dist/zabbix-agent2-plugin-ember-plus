@@ -35,6 +35,11 @@ const (
 	// FunctionType glow data field function type.
 	FunctionType = "function"
 
+	// EmberGetDirCommand integer for request dir command, based on S101 and glow protocol.
+	EmberGetDirCommand = 32
+	// EmberGetUnsubscribeCommand integer for request Unsubscribe command, based on S101 and glow protocol.
+	EmberGetUnsubscribeCommand = 31
+
 	// RootElementCollectionTag tag for defining glow root element collection encoding command.
 	RootElementCollectionTag = 0
 	// RootElementTag tag for defining glow root element collection.
@@ -70,8 +75,6 @@ const (
 	// byte used in glow data len decoding.
 	lenByte = 0x7F
 
-	// integer to request dir command, based on S101 and glow protocol.
-	emberGetDirCommand = 32
 	// additional option for dir command, based on S101 and glow protocol.
 	dirFieldMaskAll = -1
 	// ember encoding int tag.

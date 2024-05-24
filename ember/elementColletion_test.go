@@ -21,7 +21,6 @@ import (
 	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 )
 
-//nolint:maintidx
 func TestElementCollection_Populate(t *testing.T) {
 	t.Parallel()
 
@@ -652,7 +651,6 @@ func TestElementCollection_Populate(t *testing.T) {
 	}
 }
 
-//nolint:dupl
 func TestElementCollection_GetElementByPath(t *testing.T) {
 	t.Parallel()
 
@@ -725,6 +723,38 @@ func TestElementCollection_GetElementByPath(t *testing.T) {
 			false,
 		},
 		{
+			"+child",
+			ElementCollection{
+				ElementKey{
+					Path: "1",
+					ID:   "foo",
+				}: &Element{
+					Path:        "1",
+					ElementType: "node",
+					Identifier:  "foo",
+					Description: "foobar",
+					Children: []*Element{
+						{
+							Path:        "2",
+							ElementType: "node",
+							Identifier:  "bar",
+							Description: "foobar",
+						},
+					},
+				},
+			},
+			args{
+				"1.2",
+			},
+			&Element{
+				Path:        "2",
+				ElementType: "node",
+				Identifier:  "bar",
+				Description: "foobar",
+			},
+			false,
+		},
+		{
 			"-notFound",
 			ElementCollection{
 				ElementKey{
@@ -771,7 +801,6 @@ func TestElementCollection_GetElementByPath(t *testing.T) {
 	}
 }
 
-//nolint:dupl
 func TestElementCollection_GetElementByID(t *testing.T) {
 	t.Parallel()
 
@@ -780,11 +809,12 @@ func TestElementCollection_GetElementByID(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		ec      ElementCollection
-		args    args
-		want    *Element
-		wantErr bool
+		name     string
+		ec       ElementCollection
+		args     args
+		wantEl   *Element
+		wantPath string
+		wantErr  bool
 	}{
 		{
 			"+valid",
@@ -808,6 +838,7 @@ func TestElementCollection_GetElementByID(t *testing.T) {
 				Identifier:  "test",
 				Description: "foobar",
 			},
+			"1",
 			false,
 		},
 		{
@@ -841,6 +872,40 @@ func TestElementCollection_GetElementByID(t *testing.T) {
 				Identifier:  "test",
 				Description: "foobar",
 			},
+			"1",
+			false,
+		},
+		{
+			"+child",
+			ElementCollection{
+				ElementKey{
+					Path: "1",
+					ID:   "foo",
+				}: &Element{
+					Path:        "1",
+					ElementType: "node",
+					Identifier:  "foo",
+					Description: "foobar",
+					Children: []*Element{
+						{
+							Path:        "2",
+							ElementType: "node",
+							Identifier:  "bar",
+							Description: "foobar",
+						},
+					},
+				},
+			},
+			args{
+				"bar",
+			},
+			&Element{
+				Path:        "2",
+				ElementType: "node",
+				Identifier:  "bar",
+				Description: "foobar",
+			},
+			"1.2",
 			false,
 		},
 		{
@@ -869,6 +934,7 @@ func TestElementCollection_GetElementByID(t *testing.T) {
 				"foobar",
 			},
 			nil,
+			"",
 			true,
 		},
 	}
@@ -878,13 +944,17 @@ func TestElementCollection_GetElementByID(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := tt.ec.GetElementByID(tt.args.id)
+			got, got1, err := tt.ec.GetElementByID(tt.args.id)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("ElementCollection.GetElementByID() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Fatalf("ElementCollection.GetElementByID() = %s", diff)
+			if diff := cmp.Diff(tt.wantEl, got); diff != "" {
+				t.Fatalf("ElementCollection.GetElementByID() element = %s", diff)
+			}
+
+			if diff := cmp.Diff(tt.wantPath, got1); diff != "" {
+				t.Fatalf("ElementCollection.GetElementByID() path = %s", diff)
 			}
 		})
 	}

@@ -17,15 +17,17 @@ package conn
 import (
 	"net"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
+	"golang.zabbix.com/plugin/ember-plus/ember"
+	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
+	"golang.zabbix.com/plugin/ember-plus/ember/s101"
 	"golang.zabbix.com/sdk/errs"
 	"golang.zabbix.com/sdk/log"
 	"golang.zabbix.com/sdk/uri"
 )
-
-const interval = 10
 
 // ConnConfig is a configuration for a connection to the database.
 type ConnConfig struct {
@@ -37,37 +39,60 @@ type ConnConfig struct {
 type ConnCollection struct {
 	mu          sync.Mutex
 	conns       map[ConnConfig]*connHandler
-	callTimeout int
+	callTimeout time.Duration
 	keepAlive   time.Duration
 	logr        log.Logger
 	done        chan bool
 }
 
 type connHandler struct {
+	mu               sync.Mutex
 	conn             net.Conn
+	conf             ConnConfig
 	lastAccessTime   time.Time
 	lastAccessTimeMu sync.Mutex
+	logr             log.Logger
+	readData         chan readResponse
+	parsedData       chan parsedResponse
+	expectedPath     chan string
+}
+
+type parsedResponse struct {
+	element ember.ElementCollection
+	err     error
+}
+
+type readResponse struct {
+	data []byte
+	err  error
 }
 
 // Init initializes a pre-allocated connection collection.
 func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
 	c.conns = make(map[ConnConfig]*connHandler)
 	c.keepAlive = time.Duration(keepAlive) * time.Second
-	c.callTimeout = callTimeout
+	c.callTimeout = time.Duration(callTimeout) * time.Second
 	c.logr = logr
 	c.done = make(chan bool)
 
-	go c.housekeeper(interval * time.Second)
+	go c.housekeeper(10 * time.Second)
 }
 
 // HandleRequest sends a request and reads response based on the provided connection parameters.
-func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, error) {
-	ch, err := c.get(time.Duration(c.callTimeout)*time.Second, conf)
+func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string) (ember.ElementCollection, error) {
+	ch, err := c.get(c.callTimeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
 
-	err = ch.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+
+	// turns on response expectation in the listener
+
+	ch.expectedPath <- path
+
+	err = ch.conn.SetWriteDeadline(time.Now().Add(c.callTimeout))
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set write deadline for connection")
 	}
@@ -82,25 +107,12 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig) ([]byte, err
 		return nil, errs.Wrap(err, "failed to write to connection")
 	}
 
-	err = ch.conn.SetReadDeadline(time.Now().Add(time.Duration(c.callTimeout) * time.Second))
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to set read deadline for connection")
+	data := <-ch.parsedData
+	if data.err != nil {
+		return nil, errs.Wrapf(ember.ErrElementNotFound, "failed to find element, err %s", data.err.Error())
 	}
 
-	//nolint:makezero // value taken from ember+ documentation
-	response := make([]byte, 1290)
-
-	_, err = ch.conn.Read(response)
-	if err != nil {
-		cerr := c.close(conf)
-		if cerr != nil {
-			c.logr.Errf("read connection clean-up failed, err: %w", cerr)
-		}
-
-		return nil, errs.Wrap(err, "failed to read from connection")
-	}
-
-	return response, nil
+	return data.element, nil
 }
 
 // CloseAll closes all connections in the collection.
@@ -163,12 +175,16 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 
 	c.logr.Debugf("creating new connection for %s", conf.URI)
 
-	ch, err := newConn(timeout, conf)
+	ch, err := newConn(timeout, conf, c.logr)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create conn")
 	}
 
-	return c.setConn(conf, ch), nil
+	ch = c.setConn(conf, ch)
+
+	go ch.pathReader(c)
+
+	return ch, nil
 }
 
 // housekeeper repeatedly checks for unused connections and closes them.
@@ -243,23 +259,212 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 	return ch
 }
 
-// updateLastAccessTime updates the last time a connection was accessed.
-func (conn *connHandler) updateLastAccessTime() {
-	conn.lastAccessTimeMu.Lock()
-	defer conn.lastAccessTimeMu.Unlock()
+func (ch *connHandler) read() ([]byte, error) {
+	var (
+		out   []byte
+		multi bool
+	)
 
-	conn.lastAccessTime = time.Now()
+	for {
+		//nolint:makezero
+		// length taken from Ember+ documentation
+		response := make([]byte, 1290)
+
+		n, err := ch.conn.Read(response)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to read from connection")
+		}
+
+		glow, pType, err := s101.Decode(response[:n])
+		if err != nil {
+			ch.logr.Debugf("failed to decode response: %s", err.Error())
+
+			continue
+		}
+
+		ch.logr.Tracef("got packet with type %x and data %x", pType, response)
+
+		switch pType {
+		case s101.FirstMultiPacket, s101.BodyMultiPacket:
+			out = append(out, glow...)
+			multi = true
+
+			continue
+		case s101.LastMultiPacket:
+			out = append(out, glow...)
+
+			return out, nil
+		default:
+			if multi {
+				ch.logr.Errf("dropping message in the middle of a multi packet read %x", glow)
+
+				continue
+			}
+
+			return glow, nil
+		}
+	}
+}
+
+// updateLastAccessTime updates the last time a connection was accessed.
+func (ch *connHandler) updateLastAccessTime() {
+	ch.lastAccessTimeMu.Lock()
+	defer ch.lastAccessTimeMu.Unlock()
+
+	ch.lastAccessTime = time.Now()
 }
 
 // getLastAccessTime returns the last time a connection was accessed.
-func (conn *connHandler) getLastAccessTime() time.Time {
-	conn.lastAccessTimeMu.Lock()
-	defer conn.lastAccessTimeMu.Unlock()
+func (ch *connHandler) getLastAccessTime() time.Time {
+	ch.lastAccessTimeMu.Lock()
+	defer ch.lastAccessTimeMu.Unlock()
 
-	return conn.lastAccessTime
+	return ch.lastAccessTime
 }
 
-func newConn(timeout time.Duration, conf ConnConfig) (*connHandler, error) {
+func (ch *connHandler) pathReader(c *ConnCollection) {
+	go ch.reader(c)
+
+	for {
+		select {
+		case path := <-ch.expectedPath:
+			ch.logr.Tracef("got path for request %s", path)
+			ch.parsedData <- ch.readExpected(path, c.callTimeout)
+		case resp, ok := <-ch.readData:
+			if !ok {
+				// incase we get an error in readExpected, then we will exit this function here. As ch.reader will be
+				// stopped and ch.readData chan will be closed.
+				return
+			}
+
+			if resp.err != nil {
+				ch.logr.Debugf("stopping pathReader for connection %s, err: %s", ch.conf.URI, resp.err.Error())
+
+				return
+			}
+
+			ch.logr.Tracef("got not requested ember+ plus data, skipping")
+		}
+	}
+}
+
+func (ch *connHandler) reader(c *ConnCollection) {
+	for {
+		data, err := ch.read()
+		ch.readData <- readResponse{data, err}
+
+		if err != nil {
+			ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, err.Error())
+
+			cerr := c.close(ch.conf)
+			if cerr != nil {
+				ch.logr.Errf("reader connection clean-up failed, err: %w", cerr)
+			}
+
+			close(ch.readData)
+
+			return
+		}
+	}
+}
+
+func (ch *connHandler) readExpected(path string, timeout time.Duration) parsedResponse {
+	t := time.NewTimer(timeout)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			ch.logr.Debugf("failed to find Ember+ response in time for request with path %s", path)
+
+			return parsedResponse{nil, errs.New("failed to find Ember+ response in time")}
+		case resp := <-ch.readData:
+			if resp.err != nil {
+				ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, resp.err.Error())
+
+				return parsedResponse{nil, errs.Wrapf(resp.err, "failed to read Ember+ response")}
+			}
+
+			el, gotPath, err := ch.getCollection(resp.data)
+			if err != nil {
+				ch.logr.Debugf("failed to read glow response: %s", err.Error())
+
+				continue
+			}
+
+			if !ch.expectedData(path, gotPath) {
+				continue
+			}
+
+			ch.logr.Tracef("found expected response with path %s", path)
+
+			return parsedResponse{el, nil}
+		}
+	}
+}
+
+func (ch *connHandler) getCollection(glow []byte) (ember.ElementCollection, []string, error) {
+	el := ember.NewElementConnection()
+
+	err := el.Populate(asn1.NewDecoder(glow))
+	if err != nil {
+		return ember.ElementCollection{}, nil, errs.Errorf("failed to populate glow response: %s", err.Error())
+	}
+
+	if len(el) == 0 {
+		return ember.ElementCollection{}, nil, errs.New("empty collection")
+	}
+
+	var gotPath []string
+
+	ch.logr.Tracef("got collection, %+v", el)
+
+	for k := range el {
+		// we care only about the path from the one element as it's a control value and every other element
+		// should have the same path prefix
+		gotPath = strings.Split(k.Path, ".")
+		ch.logr.Tracef("path from first element %s", gotPath)
+
+		break
+	}
+
+	return el, gotPath, nil
+}
+
+func (ch *connHandler) expectedData(expectedPath string, incomingPath []string) bool {
+	splitExpectedPath, expectedLength := parseExpectedLength(expectedPath)
+	// gotPath has to be one path element longer or the same length in case data has children and not values
+	if len(incomingPath) != expectedLength && len(incomingPath) != expectedLength+1 {
+		ch.logr.Tracef(
+			"path %s length %d does not match the expected path %s length %d",
+			incomingPath, len(incomingPath), splitExpectedPath, expectedLength,
+		)
+
+		return false
+	}
+
+	for i, v := range splitExpectedPath {
+		if incomingPath[i] != v {
+			ch.logr.Tracef("path %s does not match the expected %s", incomingPath, splitExpectedPath)
+
+			return false
+		}
+	}
+
+	return true
+}
+
+func parseExpectedLength(path string) ([]string, int) {
+	if path == "" {
+		return nil, 1
+	}
+
+	splitExpectedPath := strings.Split(path, ".")
+
+	return splitExpectedPath, len(splitExpectedPath)
+}
+
+func newConn(timeout time.Duration, conf ConnConfig, logger log.Logger) (*connHandler, error) {
 	connURI, err := uri.New(conf.URI, nil)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set URI defaults")
@@ -277,5 +482,13 @@ func newConn(timeout time.Duration, conf ConnConfig) (*connHandler, error) {
 		return nil, errs.Wrap(err, "failed to create connection")
 	}
 
-	return &connHandler{conn: conn, lastAccessTime: time.Now()}, nil
+	return &connHandler{
+		conn:           conn,
+		lastAccessTime: time.Now(),
+		logr:           logger,
+		conf:           conf,
+		readData:       make(chan readResponse),
+		parsedData:     make(chan parsedResponse),
+		expectedPath:   make(chan string),
+	}, nil
 }

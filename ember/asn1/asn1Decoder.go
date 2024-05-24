@@ -36,7 +36,7 @@ func (c *Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*Decoder, 
 		return nil, false, errs.Errorf("is not correct byte: %x got %x", compareByte(tag), b)
 	}
 
-	lenB, _, err := c.ReadLength()
+	lenB, _, err := c.readLength()
 	if err != nil {
 		if !errors.Is(err, ErrNoLenByte) {
 			return nil, false, errs.Wrap(err, "failed to read length byte")
@@ -60,9 +60,9 @@ func (c *Decoder) Read(tag uint8, compareByte func(num uint8) uint8) (*Decoder, 
 	return NewDecoder(out), false, nil
 }
 
-// ReadLength reads next in line data blocks length and returns it as well as how many bytes the data
+// readLength reads next in line data blocks length and returns it as well as how many bytes the data
 // length was written in.
-func (c *Decoder) ReadLength() (int, int, error) {
+func (c *Decoder) readLength() (int, int, error) {
 	lenB, err := c.data.ReadByte()
 	if err != nil {
 		return 0, 0, errs.Wrap(err, "incorrect length byte")
@@ -153,7 +153,7 @@ func (c *Decoder) DecodeUniversal() ([]int, error) {
 		return nil, errs.New("incorrect universal byte")
 	}
 
-	lenB, _, err := c.ReadLength()
+	lenB, _, err := c.readLength()
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to read len byte")
 	}
@@ -183,7 +183,7 @@ func (c *Decoder) DecodeInteger() (int, error) {
 		return 0, errs.New("incorrect integer byte")
 	}
 
-	lenB, _, err := c.ReadLength()
+	lenB, _, err := c.readLength()
 	if err != nil {
 		return 0, errs.Wrap(err, "failed to read len byte")
 	}
