@@ -21,6 +21,7 @@ package ember
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/plugin/ember-plus/ember/s101"
@@ -106,24 +107,37 @@ func (ec ElementCollection) Populate(data *asn1.Decoder) error {
 
 // GetElementByPath returns element from collection with the provided path OID.
 func (ec ElementCollection) GetElementByPath(currentPath string) (*Element, error) {
-	for key, value := range ec {
+	for key, el := range ec {
 		if key.Path == currentPath {
-			return value, nil
+			return el, nil
+		}
+
+		for _, ch := range el.Children {
+			childPath := fmt.Sprintf("%s.%s", key.Path, ch.Path)
+			if childPath == currentPath {
+				return ch, nil
+			}
 		}
 	}
 
-	return nil, ErrElementNotFound
+	return nil, errs.Wrapf(ErrElementNotFound, "failed to find element with path %q", currentPath)
 }
 
 // GetElementByID returns element from collection with the provided identifier.
-func (ec ElementCollection) GetElementByID(id string) (*Element, error) {
-	for key, value := range ec {
+func (ec ElementCollection) GetElementByID(id string) (*Element, string, error) {
+	for key, el := range ec {
 		if key.ID == id {
-			return value, nil
+			return el, key.Path, nil
+		}
+
+		for _, ch := range el.Children {
+			if ch.Identifier == id {
+				return ch, fmt.Sprintf("%s.%s", key.Path, ch.Path), nil
+			}
 		}
 	}
 
-	return nil, ErrElementNotFound
+	return nil, "", ErrElementNotFound
 }
 
 // MarshalJSON returns the collection with path(string) in key value instead of a structure for json marshaling.
@@ -206,7 +220,7 @@ func GetRequestByType(et ElementType, path string) ([]byte, error) {
 		return nil, errs.Wrap(err, "failed to parse path")
 	}
 
-	err = encoder.WriteRequest(parsed, string(et))
+	err = encoder.WriteRequest(parsed, string(et), asn1.EmberGetDirCommand)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to write request")
 	}

@@ -244,5 +244,6 @@ issues:
         - goerr113
         - revive
         - wrapcheck
+        - maintidx
 severity:
   default-severity: error

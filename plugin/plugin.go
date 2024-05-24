@@ -26,8 +26,6 @@ import (
 	"strings"
 
 	"golang.zabbix.com/plugin/ember-plus/ember"
-	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
-	"golang.zabbix.com/plugin/ember-plus/ember/s101"
 	"golang.zabbix.com/plugin/ember-plus/plugin/conn"
 	"golang.zabbix.com/plugin/ember-plus/plugin/params"
 	"golang.zabbix.com/sdk/errs"
@@ -150,7 +148,7 @@ func (p *emberPlugin) GetEmber(metricParams map[string]string, _ ...string) (any
 		return nil, errs.Wrap(err, "failed to get root collection request")
 	}
 
-	rootCollection, err := p.handleRequest(connConf, req)
+	rootCollection, err := p.conns.HandleRequest(req, connConf, "")
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to retrieve root collection")
 	}
@@ -216,9 +214,9 @@ func (p *emberPlugin) getCollectionByPath(
 			return nil, errs.Wrap(err, "failed to get request by element type")
 		}
 
-		collection, err = p.handleRequest(connConf, req)
+		collection, err = p.conns.HandleRequest(req, connConf, fullPath)
 		if err != nil {
-			return nil, errs.Wrapf(err, "failed to retrieve element collection with path %s", fullPath)
+			return nil, errs.Wrap(err, "failed to handle request")
 		}
 	}
 
@@ -229,7 +227,7 @@ func (p *emberPlugin) getCollectionByID(
 	collection ember.ElementCollection, connConf conn.ConnConfig, ids []string,
 ) (ember.ElementCollection, error) {
 	for _, id := range ids {
-		el, err := collection.GetElementByID(id)
+		el, fullPath, err := collection.GetElementByID(id)
 		if err != nil {
 			return nil, errs.Wrapf(
 				err,
@@ -237,39 +235,18 @@ func (p *emberPlugin) getCollectionByID(
 			)
 		}
 
-		req, err := ember.GetRequestByType(el.ElementType, el.Path)
+		req, err := ember.GetRequestByType(el.ElementType, fullPath)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to get request")
 		}
 
-		collection, err = p.handleRequest(connConf, req)
+		collection, err = p.conns.HandleRequest(req, connConf, fullPath)
 		if err != nil {
-			return nil, errs.Wrapf(err, "failed to retrieve element collection with path '%s'", el.Path)
+			return nil, errs.Wrap(err, "failed to handle request")
 		}
 	}
 
 	return collection, nil
-}
-
-func (p *emberPlugin) handleRequest(connConf conn.ConnConfig, req []byte) (ember.ElementCollection, error) {
-	resp, err := p.conns.HandleRequest(req, connConf)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to handle request")
-	}
-
-	glow, err := s101.Decode(resp)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to decode response")
-	}
-
-	el := ember.NewElementConnection()
-
-	err = el.Populate(asn1.NewDecoder(glow))
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to populate glow response")
-	}
-
-	return el, nil
 }
 
 func withJSONResponse(handler handlerFunc) handlerFunc {

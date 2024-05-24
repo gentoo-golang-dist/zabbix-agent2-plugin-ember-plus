@@ -26,7 +26,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-//nolint:maintidx
 func TestDecoder_Read(t *testing.T) {
 	t.Parallel()
 
@@ -302,7 +301,7 @@ func TestDecoder_Read(t *testing.T) {
 	}
 }
 
-func TestDecoder_ReadLength(t *testing.T) {
+func TestDecoder_readLength(t *testing.T) {
 	t.Parallel()
 
 	type fields struct {
@@ -374,17 +373,17 @@ func TestDecoder_ReadLength(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
-			got, gotOffset, err := c.ReadLength()
+			got, gotOffset, err := c.readLength()
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("Decoder.ReadLength() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("Decoder.readLength() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Fatalf("Decoder.ReadLength() got = %s", diff)
+				t.Fatalf("Decoder.readLength() got = %s", diff)
 			}
 
 			if diff := cmp.Diff(tt.wantOffset, gotOffset); diff != "" {
-				t.Fatalf("Decoder.ReadLength() got1 = %s", diff)
+				t.Fatalf("Decoder.readLength() got1 = %s", diff)
 			}
 		})
 	}

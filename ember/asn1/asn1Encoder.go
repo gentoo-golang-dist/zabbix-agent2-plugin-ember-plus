@@ -32,7 +32,7 @@ func (c *Encoder) GetData() []byte {
 
 // WriteRequest writes a request into the encoder buffer, for the provided element type, currently supports parameters,
 // qualified parameters, nodes qualified nodes and functions.
-func (c *Encoder) WriteRequest(path []int, tag string) error {
+func (c *Encoder) WriteRequest(path []int, tag string, cmd int) error {
 	c.openSequence(ApplicationByte(RootElementCollectionTag))
 	defer c.closeSequence()
 
@@ -66,7 +66,7 @@ func (c *Encoder) WriteRequest(path []int, tag string) error {
 	c.openSequence(ApplicationByte(elementCollectionTag))
 	defer c.closeSequence()
 
-	err := c.WriteGetDirCommand()
+	err := c.WriteCommand(cmd)
 	if err != nil {
 		return errs.Wrap(err, "failed to writer dir command")
 	}
@@ -92,7 +92,7 @@ func (c *Encoder) WriteRootTreeRequest() error {
 	c.openSequence(ApplicationByte(RootElementTag))
 	defer c.closeSequence()
 
-	err := c.WriteGetDirCommand()
+	err := c.WriteCommand(EmberGetDirCommand)
 	if err != nil {
 		return errs.Wrap(err, "failed to write command request")
 	}
@@ -100,22 +100,24 @@ func (c *Encoder) WriteRootTreeRequest() error {
 	return nil
 }
 
-// WriteGetDirCommand writes a get dir command request into the buffer.
-func (c *Encoder) WriteGetDirCommand() error {
+// WriteCommand writes a get dir command request into the buffer.
+func (c *Encoder) WriteCommand(cmd int) error {
 	c.openSequence(ContextByte(0))
 	defer c.closeSequence()
 
 	c.openSequence(ApplicationByte(commandApplicationTag))
 	defer c.closeSequence()
 
-	err := c.writeInt(emberGetDirCommand, 0)
+	err := c.writeInt(cmd, 0)
 	if err != nil {
 		return errs.Wrap(err, "failed dir write int")
 	}
 
-	err = c.writeInt(dirFieldMaskAll, 1)
-	if err != nil {
-		return errs.Wrap(err, "failed to write dir field mask int")
+	if cmd == EmberGetDirCommand {
+		err = c.writeInt(dirFieldMaskAll, 1)
+		if err != nil {
+			return errs.Wrap(err, "failed to write dir field mask int")
+		}
 	}
 
 	return nil
