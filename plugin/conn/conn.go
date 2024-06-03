@@ -280,16 +280,16 @@ func (ch *connHandler) read() ([]byte, error) {
 			return nil, errs.Wrap(err, "failed to read from connection")
 		}
 
-		glow, pType, err := s101.Decode(response[:n])
+		glow, lastPacketType, err := s101.Decode(response[:n])
 		if err != nil {
 			ch.logr.Debugf("failed to decode response: %s", err.Error())
 
 			continue
 		}
 
-		ch.logr.Tracef("got packet with type %x and data %x", pType, response)
+		ch.logr.Tracef("got packet with last packet type %x and data %x", lastPacketType, response)
 
-		switch pType {
+		switch lastPacketType {
 		case s101.FirstMultiPacket, s101.BodyMultiPacket:
 			out = append(out, glow...)
 			multi = true

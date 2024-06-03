@@ -38,69 +38,95 @@ func Encode(message []byte, packetType uint8) []uint8 {
 
 // Decode removes all the S101 addons from the packet returning only glow data, currently does not check CRC.
 func Decode(message []byte) ([]byte, byte, error) {
-	s101 := getS101(message)
-	if len(s101) < s101LenTilGlow+s101LenAfterGlow {
-		return nil, 0, errs.Errorf("malformed s101 packet, malformed s101 data: %x", s101)
+	if len(message) == 0 {
+		return nil, 0, errs.New("no data")
 	}
 
-	packetType := s101[5]
+	var (
+		out            []byte
+		lastPacketType byte
+	)
 
-	// remove checksum and end of frame byte, this check is done here as not to XOR a checksum byte
-	s101 = s101[:len(s101)-s101LenAfterGlow]
-
-	var ceFound bool
-
-	//nolint:prealloc
-	var out []byte
-
-	for _, b := range s101 {
-		if b == ce {
-			ceFound = true
-
-			continue
+	s101s := getS101s(message)
+	for i, s101 := range s101s {
+		if len(s101) < s101LenTilGlow+s101LenAfterGlow {
+			return nil, 0, errs.Errorf("malformed s101 packet, malformed s101 data: %x", s101)
 		}
 
-		if ceFound {
-			ceFound = false
-
-			out = append(out, xorce^b)
-
-			continue
+		if i == len(s101s)-1 {
+			lastPacketType = s101[5]
 		}
 
-		out = append(out, b)
+		// remove checksum and end of frame byte, this check is done here as not to XOR a checksum byte
+		s101 = s101[:len(s101)-s101LenAfterGlow]
+
+		var (
+			ceFound bool
+			glow    []byte
+		)
+
+		for _, b := range s101 {
+			if b == ce {
+				ceFound = true
+
+				continue
+			}
+
+			if ceFound {
+				ceFound = false
+
+				glow = append(glow, xorce^b)
+
+				continue
+			}
+
+			glow = append(glow, b)
+		}
+
+		out = append(out, glow[s101LenTilGlow:]...)
 	}
 
-	return out[s101LenTilGlow:], packetType, nil
+	return out, lastPacketType, nil
 }
 
-// getS101 reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.
-func getS101(in []uint8) []uint8 {
-	var start, end int
+// getS101s reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.
+func getS101s(in []uint8) [][]uint8 {
+	var sFound bool
 
-	var sFound, eFound bool
+	r := bytes.NewBuffer(in)
 
-	for i, b := range in {
+	var out [][]uint8
+
+	var single []uint8
+
+	for {
+		b, err := r.ReadByte()
+		if err != nil {
+			return out
+		}
+
 		if b == bof {
-			start = i
 			sFound = true
 
+			single = append(single, b)
+
 			continue
 		}
 
-		if b == eof {
-			end = i
-			eFound = true
+		if sFound {
+			single = append(single, b)
+		}
+
+		if b == eof && sFound {
+			sFound = false
+
+			out = append(out, single)
+
+			single = []uint8{}
 
 			continue
 		}
 	}
-
-	if !sFound || !eFound {
-		return []byte{}
-	}
-
-	return in[start : end+1]
 }
 
 // createS101 creates a S101 packet from the provided payload and packet type.
