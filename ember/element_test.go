@@ -425,7 +425,7 @@ func TestElement_handleChildren(t *testing.T) {
 						Identifier:  "Corr Gain[dB]",
 						Maximum:     int64(0),
 						Minimum:     int64(-12),
-						Value:       int64(0),
+						Value:       0,
 						IsOnline:    true,
 						Access:      3,
 						ValueType:   1,
@@ -2501,8 +2501,13 @@ func TestElement_handleParameterContext(t *testing.T) {
 		tag     byte
 	}
 
+	type fields struct {
+		valueType int
+	}
+
 	tests := []struct {
 		name        string
+		fields      fields
 		args        args
 		wantElement *Element
 		wantDecoder *asn1.Decoder
@@ -2510,6 +2515,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 	}{
 		{
 			"+context0",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x0C, 0x02, 0x4F, 0x6E},
@@ -2522,6 +2528,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context1",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x0C, 0x02, 0x4F, 0x6E},
@@ -2534,18 +2541,20 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context2",
+			fields{3},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x0C, 0x02, 0x4F, 0x6E},
 				),
 				2,
 			},
-			&Element{Value: "On"},
+			&Element{Value: "On", ValueType: 3},
 			asn1.NewDecoder([]byte{}),
 			false,
 		},
 		{
 			"+context3",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2558,6 +2567,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context4",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2570,6 +2580,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context5",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2582,6 +2593,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context6",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x0C, 0x02, 0x4F, 0x6E},
@@ -2594,6 +2606,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context7",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x0C, 0x02, 0x4F, 0x6E},
@@ -2606,6 +2619,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context8",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2618,6 +2632,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context9",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x01, 0x01, 0x00},
@@ -2630,6 +2645,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context10",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x0C, 0x02, 0x4F, 0x6E},
@@ -2642,6 +2658,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context11",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x0C, 0x02, 0x4F, 0x6E},
@@ -2654,6 +2671,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context12",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x0C, 0x02, 0x4F, 0x6E},
@@ -2666,6 +2684,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context13",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2678,6 +2697,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context14",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2690,6 +2710,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context15",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2702,6 +2723,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context16",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2714,6 +2736,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context17",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2726,6 +2749,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context18",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2738,6 +2762,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+context18ReadOverUser",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x01, 0x04},
@@ -2750,6 +2775,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+leftByteRead",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x02, 0x80, 0x04, 0x00, 0x00, 0x02, 0x01, 0x04},
@@ -2762,6 +2788,7 @@ func TestElement_handleParameterContext(t *testing.T) {
 		},
 		{
 			"+leftByteReadWithLenByte",
+			fields{},
 			args{
 				asn1.NewDecoder(
 					[]byte{0x01, 0x01, 0xFF, 0x00, 0x02, 0x01, 0x04},
@@ -2772,25 +2799,25 @@ func TestElement_handleParameterContext(t *testing.T) {
 			asn1.NewDecoder([]byte{0x00, 0x02, 0x01, 0x04}),
 			false,
 		},
-		{"-context0Err", args{asn1.NewDecoder([]byte{}), 0}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context1Err", args{asn1.NewDecoder([]byte{}), 1}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context2Err", args{asn1.NewDecoder([]byte{}), 2}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context3Err", args{asn1.NewDecoder([]byte{}), 3}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context4Err", args{asn1.NewDecoder([]byte{}), 4}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context5Err", args{asn1.NewDecoder([]byte{}), 5}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context6Err", args{asn1.NewDecoder([]byte{}), 6}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context7Err", args{asn1.NewDecoder([]byte{}), 7}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context8Err", args{asn1.NewDecoder([]byte{}), 8}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context9Err", args{asn1.NewDecoder([]byte{}), 9}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context10Err", args{asn1.NewDecoder([]byte{}), 10}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context11Err", args{asn1.NewDecoder([]byte{}), 11}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context10Err", args{asn1.NewDecoder([]byte{}), 12}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context13Err", args{asn1.NewDecoder([]byte{}), 13}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context14Err", args{asn1.NewDecoder([]byte{}), 14}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context15Err", args{asn1.NewDecoder([]byte{}), 15}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context16Err", args{asn1.NewDecoder([]byte{}), 16}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context17Err", args{asn1.NewDecoder([]byte{}), 17}, &Element{}, asn1.NewDecoder(nil), true},
-		{"-context18Err", args{asn1.NewDecoder([]byte{}), 18}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context0Err", fields{}, args{asn1.NewDecoder([]byte{}), 0}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context1Err", fields{}, args{asn1.NewDecoder([]byte{}), 1}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context2Err", fields{}, args{asn1.NewDecoder([]byte{}), 2}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context3Err", fields{}, args{asn1.NewDecoder([]byte{}), 3}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context4Err", fields{}, args{asn1.NewDecoder([]byte{}), 4}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context5Err", fields{}, args{asn1.NewDecoder([]byte{}), 5}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context6Err", fields{}, args{asn1.NewDecoder([]byte{}), 6}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context7Err", fields{}, args{asn1.NewDecoder([]byte{}), 7}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context8Err", fields{}, args{asn1.NewDecoder([]byte{}), 8}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context9Err", fields{}, args{asn1.NewDecoder([]byte{}), 9}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context10Err", fields{}, args{asn1.NewDecoder([]byte{}), 10}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context11Err", fields{}, args{asn1.NewDecoder([]byte{}), 11}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context10Err", fields{}, args{asn1.NewDecoder([]byte{}), 12}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context13Err", fields{}, args{asn1.NewDecoder([]byte{}), 13}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context14Err", fields{}, args{asn1.NewDecoder([]byte{}), 14}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context15Err", fields{}, args{asn1.NewDecoder([]byte{}), 15}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context16Err", fields{}, args{asn1.NewDecoder([]byte{}), 16}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context17Err", fields{}, args{asn1.NewDecoder([]byte{}), 17}, &Element{}, asn1.NewDecoder(nil), true},
+		{"-context18Err", fields{}, args{asn1.NewDecoder([]byte{}), 18}, &Element{}, asn1.NewDecoder(nil), true},
 	}
 
 	for _, tt := range tests {
@@ -2798,7 +2825,10 @@ func TestElement_handleParameterContext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			el := &Element{}
+			el := &Element{
+				ValueType: tt.fields.valueType,
+			}
+
 			got, err := el.handleParameterContext(tt.args.context, tt.args.tag)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.handleParameterContext() error = %v, wantErr %v", err, tt.wantErr)
@@ -2810,6 +2840,122 @@ func TestElement_handleParameterContext(t *testing.T) {
 
 			if diff := cmp.Diff(tt.wantDecoder.Bytes(), got.Bytes()); diff != "" {
 				t.Fatalf("handleParameterContext() = %s", diff)
+			}
+		})
+	}
+}
+
+func TestElement_setValue(t *testing.T) {
+	t.Parallel()
+
+	type fields struct {
+		ValueType int
+	}
+
+	type args struct {
+		context *asn1.Decoder
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    any
+		want1   int
+		wantErr bool
+	}{
+		{
+			"+int",
+			fields{1},
+			args{asn1.NewDecoder([]byte{0x02, 0x01, 0x01})},
+			1,
+			0,
+			false,
+		},
+		{
+			"+real",
+			fields{2},
+			args{asn1.NewDecoder([]byte{0x02, 0x01, 0x01})},
+			int64(1),
+			3,
+			false,
+		},
+		{
+			"+string",
+			fields{3},
+			args{asn1.NewDecoder([]byte{0x0C, 0x04, 0x52, 0x75, 0x62, 0x79})},
+			"Ruby",
+			0,
+			false,
+		},
+		{
+			"+bool",
+			fields{4},
+			args{asn1.NewDecoder([]byte{0x01, 0x01, 0xff})},
+			true,
+			3,
+			false,
+		},
+		{
+			"+enum",
+			fields{6},
+			args{asn1.NewDecoder([]byte{0x02, 0x01, 0x01})},
+			1,
+			0,
+			false,
+		},
+		{
+			"-intDecodeErr",
+			fields{1},
+			args{asn1.NewDecoder([]byte{0x00})},
+			nil,
+			0,
+			true,
+		},
+		{
+			"-stringDecodeErr",
+			fields{3},
+			args{asn1.NewDecoder([]byte{0x04, 0x52, 0x75, 0x62, 0x79})},
+			nil,
+			0,
+			true,
+		},
+		{
+			"-boolDecodeErr",
+			fields{4},
+			args{asn1.NewDecoder([]byte{0x01, 0x01})},
+			nil,
+			0,
+			true,
+		},
+		{
+			"-anyDecodeErr",
+			fields{2},
+			args{asn1.NewDecoder([]byte{0x02})},
+			nil,
+			0,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			el := &Element{
+				ValueType: tt.fields.ValueType,
+			}
+			got, got1, err := el.setValue(tt.args.context)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Element.setValue() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("Element.setValue() got = %s", diff)
+			}
+
+			if diff := cmp.Diff(tt.want1, got1); diff != "" {
+				t.Fatalf("Element.setValue() got1 = %s", diff)
 			}
 		})
 	}
