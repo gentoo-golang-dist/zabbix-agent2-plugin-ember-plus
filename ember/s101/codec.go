@@ -36,18 +36,25 @@ func Encode(message []byte, packetType uint8) []uint8 {
 	return out
 }
 
-// Decode removes all the S101 addons from the packet returning only glow data, currently does not check CRC.
-func Decode(message []byte) ([]byte, byte, error) {
+// GetS101s returns all s101 data packets from message, if the message contains an incomplete packet it will return the
+// raw data in the second response value.
+func GetS101s(message []byte) ([][]byte, []byte, error) {
 	if len(message) == 0 {
-		return nil, 0, errs.New("no data")
+		return nil, nil, errs.New("no data")
 	}
 
+	s101s, incompleteData := getS101s(message)
+
+	return s101s, incompleteData, nil
+}
+
+// Decode removes all the S101 addons from the packet returning only glow data, currently does not check CRC.
+func Decode(s101s [][]byte) ([]byte, byte, error) {
 	var (
 		out            []byte
 		lastPacketType byte
 	)
 
-	s101s := getS101s(message)
 	for i, s101 := range s101s {
 		if len(s101) < s101LenTilGlow+s101LenAfterGlow {
 			return nil, 0, errs.Errorf("malformed s101 packet, malformed s101 data: %x", s101)
@@ -90,8 +97,12 @@ func Decode(message []byte) ([]byte, byte, error) {
 }
 
 // getS101s reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.
-func getS101s(in []uint8) [][]uint8 {
-	var sFound bool
+// if data is incomplete, returns it as second parameter.
+func getS101s(in []uint8) ([][]uint8, []uint8) {
+	var (
+		startFound bool
+		endFound   bool
+	)
 
 	r := bytes.NewBuffer(in)
 
@@ -102,23 +113,29 @@ func getS101s(in []uint8) [][]uint8 {
 	for {
 		b, err := r.ReadByte()
 		if err != nil {
-			return out
+			if !endFound {
+				// no closing byte found assuming packet is sent in multiple writes, we return raw data
+				return nil, single
+			}
+
+			return out, nil
 		}
 
 		if b == bof {
-			sFound = true
+			startFound = true
 
 			single = append(single, b)
 
 			continue
 		}
 
-		if sFound {
+		if startFound {
 			single = append(single, b)
 		}
 
-		if b == eof && sFound {
-			sFound = false
+		if b == eof && startFound {
+			startFound = false
+			endFound = true
 
 			out = append(out, single)
 
