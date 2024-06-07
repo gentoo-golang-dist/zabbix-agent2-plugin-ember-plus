@@ -3,6 +3,7 @@ Changes for 7.0.1rc1
 New features:
 
 Bug fixes:
+[ZBX-24456] fixed reading multi packet message and no length packets (esneiders)
 
 --------------------------------------------------------------------------------
 Changes for 7.0.0
