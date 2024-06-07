@@ -114,7 +114,7 @@ func getS101s(in []uint8) ([][]uint8, []uint8) {
 		b, err := r.ReadByte()
 		if err != nil {
 			if !endFound {
-				// no closing byte found assuming packet is sent in multiple writes, we return raw data
+				// no closing byte found assuming packet is sent in multiple writes, we return raw data.
 				return nil, single
 			}
 
@@ -124,6 +124,10 @@ func getS101s(in []uint8) ([][]uint8, []uint8) {
 		if b == bof {
 			startFound = true
 
+			// a valid glow packet should not have multiple FE without FF, so we are interested in reading only the
+			// last valid glow data, incase there is some left over invalid data at the beginning of the frame.
+			single = []uint8{}
+
 			single = append(single, b)
 
 			continue
@@ -131,17 +135,15 @@ func getS101s(in []uint8) ([][]uint8, []uint8) {
 
 		if startFound {
 			single = append(single, b)
-		}
 
-		if b == eof && startFound {
-			startFound = false
-			endFound = true
+			if b == eof {
+				startFound = false
+				endFound = true
 
-			out = append(out, single)
+				out = append(out, single)
 
-			single = []uint8{}
-
-			continue
+				single = []uint8{}
+			}
 		}
 	}
 }
