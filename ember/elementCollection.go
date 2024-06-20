@@ -78,6 +78,10 @@ func (ec ElementCollection) Populate(data *asn1.Decoder) error {
 			return errs.Wrap(err, "failed to decode current sequence end")
 		}
 
+		if decoder.Len() > 0 {
+			app11Codec = asn1.NewDecoder(append(decoder.Bytes(), app11Codec.Bytes()...))
+		}
+
 		end, err = app11Codec.ReadEnd() // all  element end
 		if err != nil {
 			return errs.Wrap(err, "failed to decode element sequence end")
