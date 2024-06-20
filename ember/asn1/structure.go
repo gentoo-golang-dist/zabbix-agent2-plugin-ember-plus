@@ -71,6 +71,8 @@ const (
 
 	// UniversalObjectTag context universal object tag.
 	UniversalObjectTag = 0x0D
+	// UTF8StringTag context utf8String object tag.
+	UTF8StringTag = 0x0C
 	// byte used for writing context.
 	contextByte = 0x80
 	// byte used for byte OR check for context tag.
