@@ -163,13 +163,43 @@ func (c *Decoder) DecodeUniversal() ([]int, error) {
 	for i := 1; i <= lenB; i++ {
 		b, err := c.data.ReadByte()
 		if err != nil {
-			return nil, errs.Wrap(err, "failed to read extra len bytes")
+			return nil, errs.Wrap(err, "failed to read bytes")
 		}
 
 		out = append(out, int(b))
 	}
 
 	return out, nil
+}
+
+// DecodeUTF8 decoded the following utf8 data type of glow.
+func (c *Decoder) DecodeUTF8() (string, error) {
+	b, err := c.data.ReadByte()
+	if err != nil {
+		return "", errs.Wrap(err, "failed to read tag byte")
+	}
+
+	if b != UTF8StringTag {
+		return "", errs.New("incorrect utf8 string byte")
+	}
+
+	lenB, _, err := c.readLength()
+	if err != nil {
+		return "", errs.Wrap(err, "failed to read len byte")
+	}
+
+	var out []byte
+
+	for i := 1; i <= lenB; i++ {
+		b, err := c.data.ReadByte()
+		if err != nil {
+			return "", errs.Wrap(err, "failed to read bytes")
+		}
+
+		out = append(out, b)
+	}
+
+	return string(out), nil
 }
 
 // DecodeInteger decodes the following integer.

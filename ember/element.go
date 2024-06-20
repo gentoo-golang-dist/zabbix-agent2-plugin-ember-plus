@@ -29,6 +29,13 @@ const (
 	functionTag = 20
 	// parameterTag glow  parameter tag.
 	parameterTag = 1
+
+	// node values types held in context(13), define what is the type of value in context(2).
+	valueTypeInt    = 1
+	valueTypeReal   = 2
+	valueTypeString = 3
+	valueTypeBool   = 4
+	valueTypeEnum   = 6
 )
 
 // ErrElementNotFound error when element is not found.
@@ -370,7 +377,7 @@ func (el *Element) handleFunctionContext(context *asn1.Decoder, tag byte) (*asn1
 	case asn1.ContextByte(0):
 		var id string
 
-		n, err = asn1.DecodeAny(context.Bytes(), &id)
+		id, err = context.DecodeUTF8()
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode identifier")
 		}
@@ -379,7 +386,7 @@ func (el *Element) handleFunctionContext(context *asn1.Decoder, tag byte) (*asn1
 	case asn1.ContextByte(1):
 		var desc string
 
-		n, err = asn1.DecodeAny(context.Bytes(), &desc)
+		desc, err = context.DecodeUTF8()
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode description")
 		}
@@ -418,7 +425,7 @@ func (el *Element) handleNodeContext(context *asn1.Decoder, tag byte) (*asn1.Dec
 	case asn1.ContextByte(0):
 		var id string
 
-		n, err = asn1.DecodeAny(context.Bytes(), &id)
+		id, err = context.DecodeUTF8()
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode identifier")
 		}
@@ -427,7 +434,7 @@ func (el *Element) handleNodeContext(context *asn1.Decoder, tag byte) (*asn1.Dec
 	case asn1.ContextByte(1):
 		var desc string
 
-		n, err = asn1.DecodeAny(context.Bytes(), &desc)
+		desc, err = context.DecodeUTF8()
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode description")
 		}
@@ -486,7 +493,7 @@ func (el *Element) handleParameterContext(context *asn1.Decoder, tag byte) (*asn
 	case asn1.ContextByte(0):
 		var id string
 
-		n, err = asn1.DecodeAny(context.Bytes(), &id)
+		id, err = context.DecodeUTF8()
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode identifier")
 		}
@@ -495,7 +502,7 @@ func (el *Element) handleParameterContext(context *asn1.Decoder, tag byte) (*asn
 	case asn1.ContextByte(1):
 		var desc string
 
-		n, err = asn1.DecodeAny(context.Bytes(), &desc)
+		desc, err = context.DecodeUTF8()
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode description")
 		}
@@ -504,7 +511,7 @@ func (el *Element) handleParameterContext(context *asn1.Decoder, tag byte) (*asn
 	case asn1.ContextByte(2):
 		var value any
 
-		n, err = asn1.DecodeAny(context.Bytes(), &value)
+		value, n, err = el.setValue(context)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode parameter value")
 		}
@@ -540,16 +547,16 @@ func (el *Element) handleParameterContext(context *asn1.Decoder, tag byte) (*asn
 	case asn1.ContextByte(6):
 		var format string
 
-		n, err = asn1.DecodeAny(context.Bytes(), &format)
+		format, err = context.DecodeUTF8()
 		if err != nil {
-			return nil, errs.Wrap(err, "failed to decode is format")
+			return nil, errs.Wrap(err, "failed to decode format")
 		}
 
 		el.Format = format
 	case asn1.ContextByte(7):
 		var enum string
 
-		n, err = asn1.DecodeAny(context.Bytes(), &enum)
+		enum, err = context.DecodeUTF8()
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode enumeration")
 		}
@@ -641,14 +648,55 @@ func (el *Element) handleParameterContext(context *asn1.Decoder, tag byte) (*asn
 	return context, nil
 }
 
+// setValue set's element value based on value type, this function assumes that value type is already set for element
+// as it comes before value in data stream, but it will try to decode a default value type is none is set.
+func (el *Element) setValue(context *asn1.Decoder) (any, int, error) {
+	var (
+		out any
+		n   int
+		err error
+	)
+
+	switch el.ValueType {
+	case valueTypeInt, valueTypeEnum:
+		out, err = context.DecodeInteger()
+		if err != nil {
+			return nil, 0, errs.New("failed to decode integer value")
+		}
+	case valueTypeString:
+		out, err = context.DecodeUTF8()
+		if err != nil {
+			return nil, 0, errs.New("failed to decode string value")
+		}
+	case valueTypeBool:
+		var b bool
+
+		n, err = asn1.DecodeAny(context.Bytes(), &b)
+		if err != nil {
+			return nil, 0, errs.Wrapf(err, "failed to decode value of type %d", el.ValueType)
+		}
+
+		out = b
+	default:
+		n, err = asn1.DecodeAny(context.Bytes(), &out)
+		if err != nil {
+			return nil, 0, errs.Wrapf(err, "failed to decode value of type %d", el.ValueType)
+		}
+	}
+
+	return out, n, nil
+}
+
 func (el *Element) setDefaultElementValue() {
+	// no default for enum data type as value for enum data type defines witch of string lines in enum field to use.
+	// and none should be used if there no value
 	if el.Value == nil {
 		switch el.ValueType {
-		case 1, 2:
+		case valueTypeInt, valueTypeReal:
 			el.Value = 0
-		case 3:
+		case valueTypeString:
 			el.Value = ""
-		case 4:
+		case valueTypeBool:
 			el.Value = false
 		}
 	}

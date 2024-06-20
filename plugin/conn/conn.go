@@ -259,10 +259,13 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 	return ch
 }
 
+//nolint:cyclop
 func (ch *connHandler) read() ([]byte, error) {
 	var (
-		out   []byte
-		multi bool
+		s101s          [][]byte
+		incompleteS101 []byte
+		out            []byte
+		multi          bool
 	)
 
 	for {
@@ -275,16 +278,29 @@ func (ch *connHandler) read() ([]byte, error) {
 			return nil, errs.Wrap(err, "failed to read from connection")
 		}
 
-		glow, pType, err := s101.Decode(response[:n])
+		if len(incompleteS101) > 0 {
+			response = append(incompleteS101, response[:n]...)
+		}
+
+		s101s, incompleteS101, err = s101.GetS101s(response)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to get s101 data from read")
+		}
+
+		if len(incompleteS101) > 0 {
+			continue
+		}
+
+		glow, lastPacketType, err := s101.Decode(s101s)
 		if err != nil {
 			ch.logr.Debugf("failed to decode response: %s", err.Error())
 
 			continue
 		}
 
-		ch.logr.Tracef("got packet with type %x and data %x", pType, response)
+		ch.logr.Tracef("got packet with last packet type %x and data %x", lastPacketType, response)
 
-		switch pType {
+		switch lastPacketType {
 		case s101.FirstMultiPacket, s101.BodyMultiPacket:
 			out = append(out, glow...)
 			multi = true

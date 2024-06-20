@@ -31,71 +31,116 @@ func Encode(message []byte, packetType uint8) []uint8 {
 	return out
 }
 
-// Decode removes all the S101 addons from the packet returning only glow data, currently does not check CRC.
-func Decode(message []byte) ([]byte, byte, error) {
-	s101 := getS101(message)
-	if len(s101) < s101LenTilGlow+s101LenAfterGlow {
-		return nil, 0, errs.Errorf("malformed s101 packet, malformed s101 data: %x", s101)
+// GetS101s returns all s101 data packets from message, if the message contains an incomplete packet it will return the
+// raw data in the second response value.
+func GetS101s(message []byte) ([][]byte, []byte, error) {
+	if len(message) == 0 {
+		return nil, nil, errs.New("no data")
 	}
 
-	packetType := s101[5]
+	s101s, incompleteData := getS101s(message)
 
-	// remove checksum and end of frame byte, this check is done here as not to XOR a checksum byte
-	s101 = s101[:len(s101)-s101LenAfterGlow]
-
-	var ceFound bool
-
-	//nolint:prealloc
-	var out []byte
-
-	for _, b := range s101 {
-		if b == ce {
-			ceFound = true
-
-			continue
-		}
-
-		if ceFound {
-			ceFound = false
-
-			out = append(out, xorce^b)
-
-			continue
-		}
-
-		out = append(out, b)
-	}
-
-	return out[s101LenTilGlow:], packetType, nil
+	return s101s, incompleteData, nil
 }
 
-// getS101 reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.
-func getS101(in []uint8) []uint8 {
-	var start, end int
+// Decode removes all the S101 addons from the packet returning only glow data, currently does not check CRC.
+func Decode(s101s [][]byte) ([]byte, byte, error) {
+	var (
+		out            []byte
+		lastPacketType byte
+	)
 
-	var sFound, eFound bool
+	for i, s101 := range s101s {
+		if len(s101) < s101LenTilGlow+s101LenAfterGlow {
+			return nil, 0, errs.Errorf("malformed s101 packet, malformed s101 data: %x", s101)
+		}
 
-	for i, b := range in {
+		if i == len(s101s)-1 {
+			lastPacketType = s101[5]
+		}
+
+		// remove checksum and end of frame byte, this check is done here as not to XOR a checksum byte
+		s101 = s101[:len(s101)-s101LenAfterGlow]
+
+		var (
+			ceFound bool
+			glow    []byte
+		)
+
+		for _, b := range s101 {
+			if b == ce {
+				ceFound = true
+
+				continue
+			}
+
+			if ceFound {
+				ceFound = false
+
+				glow = append(glow, xorce^b)
+
+				continue
+			}
+
+			glow = append(glow, b)
+		}
+
+		out = append(out, glow[s101LenTilGlow:]...)
+	}
+
+	return out, lastPacketType, nil
+}
+
+// getS101s reads the last entry in the byte array start starts with BOF byte and ends with EOF byte.
+// if data is incomplete, returns it as second parameter.
+func getS101s(in []uint8) ([][]uint8, []uint8) {
+	var (
+		startFound bool
+		endFound   bool
+	)
+
+	r := bytes.NewBuffer(in)
+
+	var out [][]uint8
+
+	var single []uint8
+
+	for {
+		b, err := r.ReadByte()
+		if err != nil {
+			if !endFound {
+				// no closing byte found assuming packet is sent in multiple writes, we return raw data.
+				return nil, single
+			}
+
+			return out, nil
+		}
+
 		if b == bof {
-			start = i
-			sFound = true
+			startFound = true
+
+			// a valid glow packet should not have multiple FE without FF, so we are interested in reading only the
+			// last valid glow data, incase there is some left over invalid data at the beginning of the frame.
+			single = []uint8{}
+
+			single = append(single, b)
 
 			continue
 		}
 
-		if b == eof {
-			end = i
-			eFound = true
+		if startFound {
+			single = append(single, b)
 
-			continue
+			if b == eof {
+				startFound = false
+				endFound = true
+
+				out = append(out, single)
+
+				single = []uint8{}
+			}
 		}
 	}
-
-	if !sFound || !eFound {
-		return []byte{}
-	}
-
-	return in[start : end+1]
 }
 
 // createS101 creates a S101 packet from the provided payload and packet type.
