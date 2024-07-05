@@ -6,6 +6,12 @@ Bug fixes:
 [ZBX-24456] fixed reading multi packet message and no length packets (esneiders)
 
 --------------------------------------------------------------------------------
+Changes for 7.0.1rc1
+
+Bug fixes:
+[ZBX-24456] fixed reading multi packet message and no length packets (esneiders)
+
+--------------------------------------------------------------------------------
 Changes for 7.0.0
 
 7.0.0rc3 was released as 7.0.0 without any changes
@@ -25,6 +31,27 @@ Changes for 7.0.0rc1
 
 New features:
 [ZBXNEXT-9168] replaced the software license with AGPL-3.0-only (Sasha)
+[ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
+
+--------------------------------------------------------------------------------
+Changes for 6.0.31
+
+6.0.31rc1 was released as 6.0.31 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.31rc1
+
+6.0.30 was released as 6.0.31rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.30
+
+6.0.30rc1 was released as 6.0.30 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.30rc1
+
+New features:
 [ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
 
 --------------------------------------------------------------------------------
