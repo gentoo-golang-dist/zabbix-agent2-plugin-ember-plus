@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.zabbix.com/plugin/ember-plus/ember"
 	"golang.zabbix.com/plugin/ember-plus/plugin/conn"
@@ -92,6 +93,13 @@ func Launch() error {
 
 	p.Logger = &h
 
+	go func() {
+		t := time.NewTicker(time.Second)
+		for range t.C {
+			p.Logger.Tracef("ping")
+		}
+	}()
+
 	err = h.Execute()
 	if err != nil {
 		return errs.Wrap(err, "failed to execute plugin handler")
@@ -110,27 +118,49 @@ func (p *emberPlugin) Stop() {
 	p.conns.CloseAll()
 }
 
+var pinr bool
+
+func (p *emberPlugin) pinger() {
+	if !pinr {
+		pinr = true
+
+		for {
+			<-time.After(1 * time.Second)
+			p.Logger.Tracef("plugin ping")
+		}
+	}
+}
+
 // Export collects all the metrics.
 func (p *emberPlugin) Export(key string, rawParams []string, _ plugin.ContextProvider) (any, error) {
+
 	m, ok := p.metrics[emberMetricKey(key)]
 	if !ok {
 		return nil, errs.Wrapf(zbxerr.ErrorUnsupportedMetric, "unknown metric %q", key)
 	}
+
+	p.Logger.Tracef("got metric")
 
 	metricParams, extraParams, hardcodedParams, err := m.metric.EvalParams(rawParams, p.config.Sessions)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to evaluate metric parameters")
 	}
 
+	p.Logger.Tracef("got params")
+
 	err = metric.SetDefaults(metricParams, hardcodedParams, p.config.Default)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set default params")
 	}
 
+	p.Logger.Tracef("got SetDefaults")
+
 	res, err := m.handler(metricParams, extraParams...)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to execute handler")
 	}
+
+	p.Logger.Tracef("plugin got resp")
 
 	return res, nil
 }

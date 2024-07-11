@@ -22,6 +22,7 @@ package conn
 import (
 	"net"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -102,8 +103,12 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 		return nil, errs.Wrap(err, "failed to set write deadline for connection")
 	}
 
+	c.logr.Tracef("wrote req")
+
 	_, err = ch.conn.Write(req)
 	if err != nil {
+		c.logr.Tracef("got err")
+
 		cerr := c.close(conf)
 		if cerr != nil {
 			c.logr.Errf("write connection clean-up failed, err: %w", cerr)
@@ -112,7 +117,11 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 		return nil, errs.Wrap(err, "failed to write to connection")
 	}
 
+	c.logr.Tracef("wrote req done")
+
 	data := <-ch.parsedData
+	c.logr.Tracef("got resp")
+
 	if data.err != nil {
 		return nil, errs.Wrapf(ember.ErrElementNotFound, "failed to find element, err %s", data.err.Error())
 	}
@@ -264,6 +273,12 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 	return ch
 }
 
+var f *os.File
+
+func init() {
+	f, _ = os.Create("C:\\Users\\EriksSneiders\\work\\ember-plus\\tm2p.log")
+}
+
 //nolint:cyclop
 func (ch *connHandler) read() ([]byte, error) {
 	var (
@@ -277,11 +292,18 @@ func (ch *connHandler) read() ([]byte, error) {
 		//nolint:makezero
 		// length taken from Ember+ documentation
 		response := make([]byte, 1290)
+		ch.logr.Debugf("read before")
+		f.WriteString("read data start\n")
 
 		n, err := ch.conn.Read(response)
 		if err != nil {
+			f.WriteString("read data err\n")
+			ch.logr.Debugf("read err")
 			return nil, errs.Wrap(err, "failed to read from connection")
 		}
+		f.WriteString("read data after\n")
+
+		ch.logr.Debugf("read after")
 
 		if len(incompleteS101) > 0 {
 			response = append(incompleteS101, response[:n]...)
@@ -291,17 +313,24 @@ func (ch *connHandler) read() ([]byte, error) {
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to get s101 data from read")
 		}
+		f.WriteString("incompleteS101\n")
 
 		if len(incompleteS101) > 0 {
+			f.WriteString("incompleteS101 cont\n")
+
 			continue
 		}
+		f.WriteString("incompleteS101 after\n")
 
 		glow, lastPacketType, err := s101.Decode(s101s)
 		if err != nil {
+			f.WriteString("lastPacketType cont\n")
+
 			ch.logr.Debugf("failed to decode response: %s", err.Error())
 
 			continue
 		}
+		f.WriteString("lastPacketType after\n")
 
 		ch.logr.Tracef("got packet with last packet type %x and data %x", lastPacketType, response)
 
@@ -309,18 +338,22 @@ func (ch *connHandler) read() ([]byte, error) {
 		case s101.FirstMultiPacket, s101.BodyMultiPacket:
 			out = append(out, glow...)
 			multi = true
+			f.WriteString("FirstMultiPacket cont\n")
 
 			continue
 		case s101.LastMultiPacket:
 			out = append(out, glow...)
+			f.WriteString("LastMultiPacket ret\n")
 
 			return out, nil
 		default:
 			if multi {
 				ch.logr.Errf("dropping message in the middle of a multi packet read %x", glow)
+				f.WriteString("multi err\n")
 
 				continue
 			}
+			f.WriteString("glow ret\n")
 
 			return glow, nil
 		}
