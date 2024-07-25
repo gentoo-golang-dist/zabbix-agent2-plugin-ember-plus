@@ -1,0 +1,1 @@
+...G...... [ZBX-24824] fixed a panic when a lot of requests are started at the same time (esneiders)

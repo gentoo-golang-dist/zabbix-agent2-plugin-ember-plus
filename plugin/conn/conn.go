@@ -252,11 +252,9 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
 
 	existingHandler, ok := c.conns[cc]
 	if ok {
-		defer ch.conn.Close() //nolint:errcheck
+		defer existingHandler.conn.Close() //nolint:errcheck
 
 		c.logr.Debugf("closed redundant connection: %s", cc.URI)
-
-		return existingHandler
 	}
 
 	c.conns[cc] = ch
