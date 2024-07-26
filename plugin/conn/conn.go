@@ -196,7 +196,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 
 		existing := c.getConn(conf)
 		if existing == nil {
-			return nil, errs.New("failed to got existing connection handler")
+			return nil, errs.New("failed to get existing connection handler")
 		}
 
 		return existing, nil
