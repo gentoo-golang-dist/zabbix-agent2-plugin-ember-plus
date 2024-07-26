@@ -194,7 +194,12 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 
 		c.logr.Debugf("closed redundant connection %s, %s", conf.URI, err.Error())
 
-		return c.getConn(conf), nil
+		existing := c.getConn(conf)
+		if existing == nil {
+			return nil, errs.New("failed to got existing connection handler")
+		}
+
+		return existing, nil
 	}
 
 	go ch.pathReader(c)
