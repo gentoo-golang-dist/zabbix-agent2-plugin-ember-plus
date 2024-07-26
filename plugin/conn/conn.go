@@ -192,7 +192,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 	if err != nil {
 		defer ch.conn.Close() //nolint:errcheck
 
-		c.logr.Debugf("closed redundant connection: %s", conf.URI)
+		c.logr.Debugf("closed redundant connection %s, %s", conf.URI, err.Error())
 
 		return c.getConn(conf), nil
 	}
