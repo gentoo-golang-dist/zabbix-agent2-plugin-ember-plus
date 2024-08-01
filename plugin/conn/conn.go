@@ -34,6 +34,9 @@ import (
 	"golang.zabbix.com/sdk/uri"
 )
 
+// ErrConnectionSet error when trying to cache a connection handler that already exists.
+var ErrConnectionSet = errs.New("connection handler already exists")
+
 // ConnConfig is a configuration for a connection to the database.
 type ConnConfig struct {
 	URI string
@@ -185,7 +188,19 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 		return nil, errs.Wrap(err, "failed to create conn")
 	}
 
-	ch = c.setConn(conf, ch)
+	err = c.setConn(conf, ch)
+	if err != nil {
+		defer ch.conn.Close() //nolint:errcheck
+
+		c.logr.Debugf("closed redundant connection %s, %s", conf.URI, err.Error())
+
+		existing := c.getConn(conf)
+		if existing == nil {
+			return nil, errs.New("failed to get existing connection handler")
+		}
+
+		return existing, nil
+	}
 
 	go ch.pathReader(c)
 
@@ -244,24 +259,19 @@ func (c *ConnCollection) getConn(cc ConnConfig) *connHandler {
 
 // setConn concurrent connections cache setter.
 //
-// Returns the cached connection. If the provider connection is already present
-// in cache, it is closed.
-func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) *connHandler {
+// Caches the connections, and returns an error if it already exists.
+func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	existingHandler, ok := c.conns[cc]
+	_, ok := c.conns[cc]
 	if ok {
-		defer ch.conn.Close() //nolint:errcheck
-
-		c.logr.Debugf("closed redundant connection: %s", cc.URI)
-
-		return existingHandler
+		return ErrConnectionSet
 	}
 
 	c.conns[cc] = ch
 
-	return ch
+	return nil
 }
 
 //nolint:cyclop
