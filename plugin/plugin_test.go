@@ -57,7 +57,7 @@ func Test_withJSONResponse(t *testing.T) {
 				},
 			},
 			`{"1.2.3":` + `{"path":"1.2.3","element_type":"node","children":null,"identifier":"","description":"",` +
-				`"is_online":true,"is_root":false}}`,
+				`"is_online":true,"is_root":false}}asht`,
 			false,
 		},
 		{
@@ -101,7 +101,11 @@ func Test_withJSONResponse(t *testing.T) {
 
 			got, err := handler(nil)
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("withJSONResponse() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf(
+					"withJSONResponse() error = %v, wantErr %v",
+					err,
+					tt.wantErr,
+				)
 			}
 
 			if diff := cmp.Diff(tt.want, got); diff != "" {
@@ -278,7 +282,11 @@ func Test_parsePathString(t *testing.T) {
 
 			got, isId, err := parsePathString(tt.args.path)
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("parsePathString() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf(
+					"parsePathString() error = %v, wantErr %v",
+					err,
+					tt.wantErr,
+				)
 			}
 
 			if diff := cmp.Diff(tt.wantPath, got); diff != "" {
