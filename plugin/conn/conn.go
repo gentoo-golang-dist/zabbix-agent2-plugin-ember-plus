@@ -82,8 +82,12 @@ func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
 }
 
 // HandleRequest sends a request and reads response based on the provided connection parameters.
-func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string) (ember.ElementCollection, error) {
-	ch, err := c.get(c.callTimeout, conf)
+func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string, reqTimeout time.Duration) (ember.ElementCollection, error) {
+	if c.callTimeout > reqTimeout {
+		reqTimeout = c.callTimeout
+	}
+
+	ch, err := c.get(reqTimeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
@@ -95,7 +99,7 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 
 	ch.expectedPath <- path
 
-	err = ch.conn.SetWriteDeadline(time.Now().Add(c.callTimeout))
+	err = ch.conn.SetWriteDeadline(time.Now().Add(reqTimeout))
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set write deadline for connection")
 	}
