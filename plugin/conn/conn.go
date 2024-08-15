@@ -82,7 +82,12 @@ func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
 }
 
 // HandleRequest sends a request and reads response based on the provided connection parameters.
-func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string, reqTimeout time.Duration) (ember.ElementCollection, error) {
+func (c *ConnCollection) HandleRequest(
+	req []byte,
+	conf ConnConfig,
+	path string,
+	reqTimeout time.Duration,
+) (ember.ElementCollection, error) {
 	if c.callTimeout > reqTimeout {
 		reqTimeout = c.callTimeout
 	}
@@ -201,7 +206,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 		return existing, nil
 	}
 
-	go ch.pathReader(c)
+	go ch.pathReader(c, timeout)
 
 	return ch, nil
 }
@@ -352,14 +357,14 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 	return ch.lastAccessTime
 }
 
-func (ch *connHandler) pathReader(c *ConnCollection) {
+func (ch *connHandler) pathReader(c *ConnCollection, timeout time.Duration) {
 	go ch.reader(c)
 
 	for {
 		select {
 		case path := <-ch.expectedPath:
 			ch.logr.Tracef("got path for request %s", path)
-			ch.parsedData <- ch.readExpected(path, c.callTimeout)
+			ch.parsedData <- ch.readExpected(path, timeout)
 		case resp, ok := <-ch.readData:
 			if !ok {
 				// incase we get an error in readExpected, then we will exit this function here. As ch.reader will be

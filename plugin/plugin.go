@@ -107,7 +107,7 @@ func (p *emberPlugin) Stop() {
 }
 
 // Export collects all the metrics.
-func (p *emberPlugin) Export(key string, rawParams []string, pctx plugin.ContextProvider) (any, error) {
+func (p *emberPlugin) Export(key string, rawParams []string, ctx plugin.ContextProvider) (any, error) {
 	m, ok := p.metrics[emberMetricKey(key)]
 	if !ok {
 		return nil, errs.Wrapf(zbxerr.ErrorUnsupportedMetric, "unknown metric %q", key)
@@ -123,8 +123,7 @@ func (p *emberPlugin) Export(key string, rawParams []string, pctx plugin.Context
 		return nil, errs.Wrap(err, "failed to set default params")
 	}
 
-	reqTimeout := time.Second * time.Duration(pctx.Timeout())
-	res, err := m.handler(metricParams, reqTimeout, extraParams...)
+	res, err := m.handler(metricParams, time.Second*time.Duration(ctx.Timeout()), extraParams...)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to execute handler")
 	}
