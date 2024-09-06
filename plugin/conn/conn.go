@@ -40,12 +40,11 @@ type ConnConfig struct {
 // ConnCollection is a collection of connections to the database.
 // Allows managing multiple connections.
 type ConnCollection struct {
-	mu          sync.Mutex
-	conns       map[ConnConfig]*connHandler
-	callTimeout time.Duration
-	keepAlive   time.Duration
-	logr        log.Logger
-	done        chan bool
+	mu        sync.Mutex
+	conns     map[ConnConfig]*connHandler
+	keepAlive time.Duration
+	logr      log.Logger
+	done      chan bool
 }
 
 type connHandler struct {
@@ -71,10 +70,9 @@ type readResponse struct {
 }
 
 // Init initializes a pre-allocated connection collection.
-func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
+func (c *ConnCollection) Init(keepAlive int, logr log.Logger) {
 	c.conns = make(map[ConnConfig]*connHandler)
 	c.keepAlive = time.Duration(keepAlive) * time.Second
-	c.callTimeout = time.Duration(callTimeout) * time.Second
 	c.logr = logr
 	c.done = make(chan bool)
 
@@ -88,10 +86,6 @@ func (c *ConnCollection) HandleRequest(
 	path string,
 	reqTimeout time.Duration,
 ) (ember.ElementCollection, error) {
-	if c.callTimeout > reqTimeout {
-		reqTimeout = c.callTimeout
-	}
-
 	ch, err := c.get(reqTimeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")

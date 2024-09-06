@@ -49,7 +49,7 @@ var (
 )
 
 // HandlerFunc describes the signature all metric handler functions must have.
-type handlerFunc func(metricParams map[string]string, timeout time.Duration, extraParams ...string) (any, error)
+type handlerFunc func(timeout time.Duration, metricParams map[string]string, extraParams ...string) (any, error)
 
 type emberMetricKey string
 
@@ -98,7 +98,7 @@ func Launch() error {
 
 // Start initiates the connection handler.
 func (p *emberPlugin) Start() {
-	p.conns.Init(p.config.KeepAlive, p.config.Timeout, p)
+	p.conns.Init(p.config.KeepAlive, p)
 }
 
 // Stop stops the mssql plugin, closing all the connections.
@@ -107,7 +107,7 @@ func (p *emberPlugin) Stop() {
 }
 
 // Export collects all the metrics.
-func (p *emberPlugin) Export(key string, rawParams []string, ctx plugin.ContextProvider) (any, error) {
+func (p *emberPlugin) Export(key string, rawParams []string, pluginCtx plugin.ContextProvider) (any, error) {
 	m, ok := p.metrics[emberMetricKey(key)]
 	if !ok {
 		return nil, errs.Wrapf(zbxerr.ErrorUnsupportedMetric, "unknown metric %q", key)
@@ -123,7 +123,13 @@ func (p *emberPlugin) Export(key string, rawParams []string, ctx plugin.ContextP
 		return nil, errs.Wrap(err, "failed to set default params")
 	}
 
-	res, err := m.handler(metricParams, time.Second*time.Duration(ctx.Timeout()), extraParams...)
+	timeout := time.Second * time.Duration(p.config.Timeout)
+
+	if timeout < time.Second*time.Duration(pluginCtx.Timeout()) {
+		timeout = time.Second * time.Duration(pluginCtx.Timeout())
+	}
+
+	res, err := m.handler(timeout, metricParams, extraParams...)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to execute handler")
 	}
@@ -133,7 +139,7 @@ func (p *emberPlugin) Export(key string, rawParams []string, ctx plugin.ContextP
 
 // GetEmber handles ember.get metric, returns collection data based on request metrics, response needs to be handled,
 // otherwise it is not possible to json marshal it.
-func (p *emberPlugin) GetEmber(metricParams map[string]string, timeout time.Duration, _ ...string) (any, error) {
+func (p *emberPlugin) GetEmber(timeout time.Duration, metricParams map[string]string, _ ...string) (any, error) {
 	connConf, err := conn.NewConnConfig(metricParams[params.URI.Name()])
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create connection config")
@@ -247,9 +253,9 @@ func (p *emberPlugin) getCollectionByID(
 
 func withJSONResponse(handler handlerFunc) handlerFunc {
 	return func(
-		metricParams map[string]string, timeout time.Duration, extraParams ...string,
+		timeout time.Duration, metricParams map[string]string, extraParams ...string,
 	) (any, error) {
-		res, err := handler(metricParams, timeout, extraParams...)
+		res, err := handler(timeout, metricParams, extraParams...)
 		if err != nil {
 			return nil, errs.Wrap(err, "handler failed")
 		}

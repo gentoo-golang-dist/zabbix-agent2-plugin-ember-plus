@@ -40,7 +40,7 @@ func Test_withJSONResponse(t *testing.T) {
 			"+valid",
 			args{
 				func(
-					metricParams map[string]string, timeout time.Duration, extraParams ...string,
+					timeout time.Duration, metricParams map[string]string, extraParams ...string,
 				) (any, error) {
 					coll := ember.ElementCollection{
 						ember.ElementKey{
@@ -67,7 +67,7 @@ func Test_withJSONResponse(t *testing.T) {
 			"-handlerErr",
 			args{
 				func(
-					metricParams map[string]string, timeout time.Duration, extraParams ...string,
+					timeout time.Duration, metricParams map[string]string, extraParams ...string,
 				) (any, error) {
 					return nil, errs.New("failed")
 				},
@@ -79,7 +79,7 @@ func Test_withJSONResponse(t *testing.T) {
 			"-marshalErr",
 			args{
 				func(
-					metricParams map[string]string, timeout time.Duration, extraParams ...string,
+					timeout time.Duration, metricParams map[string]string, extraParams ...string,
 				) (any, error) {
 					coll := ember.ElementCollection{
 						ember.ElementKey{
@@ -106,7 +106,7 @@ func Test_withJSONResponse(t *testing.T) {
 
 			handler := withJSONResponse(tt.args.handler)
 
-			got, err := handler(nil, 0)
+			got, err := handler(0, nil)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("withJSONResponse() error = %v, wantErr %v", err, tt.wantErr)
 			}
