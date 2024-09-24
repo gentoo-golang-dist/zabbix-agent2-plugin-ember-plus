@@ -1,8 +1,18 @@
-Changes for 7.0.4rc1
+Changes for 7.0.5rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.0.4
+
+7.0.4rc1 was released as 7.0.4 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.4rc1
+
+7.0.3 was released as 7.0.4rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 7.0.3
@@ -68,11 +78,14 @@ New features:
 [ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
 
 --------------------------------------------------------------------------------
+Changes for 6.0.34rc2
+
+6.0.34rc1 was released as 6.0.34rc2 without any changes
+
+--------------------------------------------------------------------------------
 Changes for 6.0.34rc1
 
-New features:
-
-Bug fixes:
+6.0.33 was released as 6.0.34rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 6.0.33
