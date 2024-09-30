@@ -40,12 +40,11 @@ type ConnConfig struct {
 // ConnCollection is a collection of connections to the database.
 // Allows managing multiple connections.
 type ConnCollection struct {
-	mu          sync.Mutex
-	conns       map[ConnConfig]*connHandler
-	callTimeout time.Duration
-	keepAlive   time.Duration
-	logr        log.Logger
-	done        chan bool
+	mu        sync.Mutex
+	conns     map[ConnConfig]*connHandler
+	keepAlive time.Duration
+	logr      log.Logger
+	done      chan bool
 }
 
 type connHandler struct {
@@ -71,10 +70,9 @@ type readResponse struct {
 }
 
 // Init initializes a pre-allocated connection collection.
-func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
+func (c *ConnCollection) Init(keepAlive int, logr log.Logger) {
 	c.conns = make(map[ConnConfig]*connHandler)
 	c.keepAlive = time.Duration(keepAlive) * time.Second
-	c.callTimeout = time.Duration(callTimeout) * time.Second
 	c.logr = logr
 	c.done = make(chan bool)
 
@@ -82,8 +80,13 @@ func (c *ConnCollection) Init(keepAlive, callTimeout int, logr log.Logger) {
 }
 
 // HandleRequest sends a request and reads response based on the provided connection parameters.
-func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string) (ember.ElementCollection, error) {
-	ch, err := c.get(c.callTimeout, conf)
+func (c *ConnCollection) HandleRequest(
+	req []byte,
+	conf ConnConfig,
+	path string,
+	reqTimeout time.Duration,
+) (ember.ElementCollection, error) {
+	ch, err := c.get(reqTimeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
@@ -95,7 +98,7 @@ func (c *ConnCollection) HandleRequest(req []byte, conf ConnConfig, path string)
 
 	ch.expectedPath <- path
 
-	err = ch.conn.SetWriteDeadline(time.Now().Add(c.callTimeout))
+	err = ch.conn.SetWriteDeadline(time.Now().Add(reqTimeout))
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set write deadline for connection")
 	}
@@ -197,7 +200,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 		return existing, nil
 	}
 
-	go ch.pathReader(c)
+	go ch.pathReader(c, timeout)
 
 	return ch, nil
 }
@@ -348,14 +351,14 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 	return ch.lastAccessTime
 }
 
-func (ch *connHandler) pathReader(c *ConnCollection) {
+func (ch *connHandler) pathReader(c *ConnCollection, timeout time.Duration) {
 	go ch.reader(c)
 
 	for {
 		select {
 		case path := <-ch.expectedPath:
 			ch.logr.Tracef("got path for request %s", path)
-			ch.parsedData <- ch.readExpected(path, c.callTimeout)
+			ch.parsedData <- ch.readExpected(path, timeout)
 		case resp, ok := <-ch.readData:
 			if !ok {
 				// incase we get an error in readExpected, then we will exit this function here. As ch.reader will be
