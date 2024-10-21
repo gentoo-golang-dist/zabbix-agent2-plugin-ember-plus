@@ -11,6 +11,11 @@ Bug fixes:
 [ZBX-24456] fixed reading multi packet message and no length packets (esneiders)
 
 --------------------------------------------------------------------------------
+Changes for 7.0.5
+
+7.0.5rc1 was released as 7.0.5 without any changes
+
+--------------------------------------------------------------------------------
 Changes for 7.0.5rc1
 
 7.0.4 was released as 7.0.5rc1 without any changes
