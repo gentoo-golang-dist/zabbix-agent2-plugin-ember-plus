@@ -90,7 +90,7 @@ Path to the Ember+ plugin executable.
 Example:
 
 ```conf
-Plugins.EmberPlus.System.Path=/usr/sbin/zabbix-agent2-plugin/zabbix-agent2-plugin-ember
+Plugins.EmberPlus.System.Path=/usr/libexec/zabbix/zabbix-agent2-plugin-ember-plus
 ```
 
 #### `Plugins.EmberPlus.Timeout`
