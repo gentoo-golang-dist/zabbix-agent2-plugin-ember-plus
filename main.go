@@ -34,7 +34,7 @@ const (
 	PLUGIN_VERSION_MAJOR = 7
 	PLUGIN_VERSION_MINOR = 2
 	PLUGIN_VERSION_PATCH = 0
-	PLUGIN_VERSION_RC    = "alpha2"
+	PLUGIN_VERSION_RC    = "beta1"
 )
 
 func main() {
