@@ -7,8 +7,14 @@ Bug fixes:
 --------------------------------------------------------------------------------
 Changes for 7.2.0alpha1
 
+New features:
+[ZBXNEXT-9281] added configurable item timeout support (dgoloscapov)
+
 Bug fixes:
 [ZBX-24456] fixed reading multi packet message and no length packets (esneiders)
+[ZBX-24245] fixed invalid Zabbix agent 2 and plugin protocol log message (esneiders)
+[ZBX-24619] updated atomic variables to be more safe (esneiders)
+[ZBX-24824] fixed a panic when a lot of requests are started at the same time (esneiders)
 
 --------------------------------------------------------------------------------
 Changes for 7.0.6rc1
