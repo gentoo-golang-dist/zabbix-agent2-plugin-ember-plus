@@ -22,6 +22,11 @@ Bug fixes:
 [ZBX-24824] fixed a panic when a lot of requests are started at the same time (esneiders)
 
 --------------------------------------------------------------------------------
+Changes for 7.0.6
+
+7.0.6rc1 was released as 7.0.6 without any changes
+
+--------------------------------------------------------------------------------
 Changes for 7.0.6rc1
 
 7.0.5 was released as 7.0.6rc1 without any changes
