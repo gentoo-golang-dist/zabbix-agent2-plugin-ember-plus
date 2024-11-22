@@ -268,6 +268,7 @@ func TestDecoder_Read(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, got1, err := c.Read(tt.args.tag, tt.args.compareByte)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.Read() error = %v, wantErr %v", err, tt.wantErr)
@@ -368,6 +369,7 @@ func TestDecoder_readLength(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, gotOffset, err := c.readLength()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.readLength() error = %v, wantErr %v", err, tt.wantErr)
@@ -461,6 +463,7 @@ func TestDecoder_ReadEnd(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, err := c.ReadEnd()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.ReadEnd() error = %v, wantErr %v", err, tt.wantErr)
@@ -520,6 +523,7 @@ func TestDecoder_Peek(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, err := c.Peek()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.Peek() error = %v, wantErr %v", err, tt.wantErr)
@@ -599,6 +603,7 @@ func TestDecoder_DecodeUniversal(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, err := c.DecodeUniversal()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.DecodeUniversal() error = %v, wantErr %v", err, tt.wantErr)
@@ -731,6 +736,7 @@ func TestDecoder_DecodeUtf8(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, err := c.DecodeUTF8()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.DecodeUtf8() error = %v, wantErr %v", err, tt.wantErr)
@@ -818,6 +824,7 @@ func TestDecoder_DecodeInteger(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, err := c.DecodeInteger()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.DecodeInteger() error = %v, wantErr %v", err, tt.wantErr)
@@ -877,6 +884,7 @@ func TestDecoder_ReadByte(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, err := c.ReadByte()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.ReadByte() error = %v, wantErr %v", err, tt.wantErr)
@@ -930,6 +938,7 @@ func TestDecoder_readWithOutLength(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, err := c.readWithOutLength()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.readWithOutLength() error = %v, wantErr %v", err, tt.wantErr)
@@ -991,6 +1000,7 @@ func TestDecoder_readWithLength(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got, err := c.readWithLength(tt.args.length)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Decoder.readWithLength() error = %v, wantErr %v", err, tt.wantErr)
