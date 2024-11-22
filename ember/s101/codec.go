@@ -213,7 +213,7 @@ func getCRC(data []byte) []uint8 {
 
 	crc = (^crc) & eof16
 
-	return parseCRC([]uint8{uint8(crc & eof), uint8(crc >> checkSumSecondDeviation)})
+	return parseCRC([]byte{byte(crc & eof), byte(crc >> checkSumSecondDeviation)})
 }
 
 // parseCRC bytes above 0xf8 must be preceded with and 0xfd byte and XORed with 0x20 byte.

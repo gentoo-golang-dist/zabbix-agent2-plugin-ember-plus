@@ -350,6 +350,7 @@ func TestElement_handleApplication(t *testing.T) {
 			el := &Element{
 				ElementType: tt.fields.ElementType,
 			}
+
 			got, err := el.handleApplication(tt.args.decoder)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.handleApplication() error = %v, wantErr %v", err, tt.wantErr)
@@ -698,6 +699,7 @@ func TestElement_handleChildren(t *testing.T) {
 			t.Parallel()
 
 			el := &Element{}
+
 			got, err := el.handleChildren(tt.args.decoder)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.handleChildren() error = %v, wantErr %v", err, tt.wantErr)
@@ -969,7 +971,6 @@ func TestElement_setChild(t *testing.T) {
 			true,
 		},
 	}
-	//nolint:dupl
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -978,6 +979,7 @@ func TestElement_setChild(t *testing.T) {
 			el := &Element{
 				Children: tt.fields.Children,
 			}
+
 			got, err := el.setChild(tt.args.childrenDecoder)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.setChild() error = %v, wantErr %v", err, tt.wantErr)
@@ -1188,7 +1190,6 @@ func TestElement_handleContent(t *testing.T) {
 			true,
 		},
 	}
-	//nolint:dupl
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -1197,6 +1198,7 @@ func TestElement_handleContent(t *testing.T) {
 			el := &Element{
 				ElementType: tt.fields.ElementType,
 			}
+
 			got, err := el.handleContent(tt.args.c)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.handleContent() error = %v, wantErr %v", err, tt.wantErr)
@@ -1650,7 +1652,6 @@ func TestElement_handleContentContext(t *testing.T) {
 			true,
 		},
 	}
-	//nolint:dupl
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -1659,6 +1660,7 @@ func TestElement_handleContentContext(t *testing.T) {
 			el := &Element{
 				ElementType: tt.fields.ElementType,
 			}
+
 			got, err := el.handleContentContext(tt.args.decoder)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.handleContentContext() error = %v, wantErr %v", err, tt.wantErr)
@@ -1876,6 +1878,7 @@ func TestElement_handlePath(t *testing.T) {
 			t.Parallel()
 
 			el := &Element{}
+
 			got, err := el.handlePath(tt.args.decoder)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.handlePath() error = %v, wantErr %v", err, tt.wantErr)
@@ -2336,6 +2339,7 @@ func TestElement_handleFunctionContext(t *testing.T) {
 			t.Parallel()
 
 			el := &Element{}
+
 			got, err := el.handleFunctionContext(tt.args.context, tt.args.tag)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.handleFunctionContext() error = %v, wantErr %v", err, tt.wantErr)
@@ -2477,6 +2481,7 @@ func TestElement_handleNodeContext(t *testing.T) {
 			t.Parallel()
 
 			el := &Element{}
+
 			got, err := el.handleNodeContext(tt.args.context, tt.args.tag)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.handleNodeContext() error = %v, wantErr %v", err, tt.wantErr)
@@ -2945,6 +2950,7 @@ func TestElement_setValue(t *testing.T) {
 			el := &Element{
 				ValueType: tt.fields.ValueType,
 			}
+
 			got, got1, err := el.setValue(tt.args.context)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Element.setValue() error = %v, wantErr %v", err, tt.wantErr)

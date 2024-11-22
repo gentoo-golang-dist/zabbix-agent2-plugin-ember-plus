@@ -523,23 +523,23 @@ func (el *Element) handleParameterContext(context *asn1.Decoder, tag byte) (*asn
 
 		el.Value = value
 	case asn1.ContextByte(3):
-		var min any
+		var minimum any
 
-		n, err = asn1.DecodeAny(context.Bytes(), &min)
+		n, err = asn1.DecodeAny(context.Bytes(), &minimum)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode is min")
 		}
 
-		el.Minimum = min
+		el.Minimum = minimum
 	case asn1.ContextByte(4):
-		var max any
+		var maximum any
 
-		n, err = asn1.DecodeAny(context.Bytes(), &max)
+		n, err = asn1.DecodeAny(context.Bytes(), &maximum)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to decode is max")
 		}
 
-		el.Maximum = max
+		el.Maximum = maximum
 	case asn1.ContextByte(5):
 		var access int
 

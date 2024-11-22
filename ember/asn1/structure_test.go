@@ -109,6 +109,7 @@ func TestDecoder_Bytes(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got := c.Bytes()
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("Decoder.Bytes() = %s", diff)
@@ -154,6 +155,7 @@ func TestDecoder_Len(t *testing.T) {
 			c := &Decoder{
 				data: tt.fields.data,
 			}
+
 			got := c.Len()
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("Decoder.Len() = %s", diff)
