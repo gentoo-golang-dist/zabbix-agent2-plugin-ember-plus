@@ -90,13 +90,14 @@ Path to the Ember+ plugin executable.
 Example:
 
 ```conf
-Plugins.EmberPlus.System.Path=/usr/sbin/zabbix-agent2-plugin/zabbix-agent2-plugin-ember
+Plugins.EmberPlus.System.Path=/usr/libexec/zabbix/zabbix-agent2-plugin-ember-plus
 ```
 
 #### `Plugins.EmberPlus.Timeout`
 
 Specifies the wait time (in seconds) for a device to respond when first connecting and on follow-up operations in the session.
-Range: 1-30 seconds. If not specified, the value defaults to a global timeout value defined in Zabbix agent 2 configuration.
+Global item-type timeout (or individual item timeout) will override this value if it is greater.
+Range: 1-30 seconds. If not specified, the value defaults to a global timeout value defined in Zabbix agent 2 configuration file.
 
 Example:
 

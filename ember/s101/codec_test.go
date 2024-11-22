@@ -328,6 +328,7 @@ func TestDecode(t *testing.T) {
 			if diff := cmp.Diff(tt.wantData, got); diff != "" {
 				t.Fatalf("Decode() = data %s", diff)
 			}
+
 			if diff := cmp.Diff(tt.wantType, got1); diff != "" {
 				t.Fatalf("Decode() = type %s", diff)
 			}
