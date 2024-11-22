@@ -1,8 +1,52 @@
-Changes for 7.0.3rc1
+Changes for 7.0.7rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.0.6
+
+7.0.6rc1 was released as 7.0.6 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.6rc1
+
+7.0.5 was released as 7.0.6rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.5
+
+7.0.5rc1 was released as 7.0.5 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.5rc1
+
+New features:
+[ZBXNEXT-9281] added configurable item timeout support (dgoloscapov)
+
+--------------------------------------------------------------------------------
+Changes for 7.0.4
+
+7.0.4rc1 was released as 7.0.4 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.4rc1
+
+Bug fixes:
+[ZBX-24619] updated atomic variables to be more safe (esneiders)
+[ZBX-24245] fixed invalid Zabbix agent 2 and plugin protocol log message (esneiders)
+
+--------------------------------------------------------------------------------
+Changes for 7.0.3
+
+7.0.3rc1 was released as 7.0.3 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.3rc1
+
+Bug fixes:
+[ZBX-24824] fixed a panic when a lot of requests are started at the same time (esneiders)
 
 --------------------------------------------------------------------------------
 Changes for 7.0.2
@@ -58,11 +102,56 @@ New features:
 [ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
 
 --------------------------------------------------------------------------------
-Changes for 6.0.33rc1
+Changes for 6.0.37rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 6.0.36
+
+6.0.36rc1 was released as 6.0.36 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.36rc1
+
+6.0.35 was released as 6.0.36rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.35
+
+6.0.35rc1 was released as 6.0.35 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.35rc1
+
+6.0.34 was released as 6.0.35rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.34
+
+6.0.34rc2 was released as 6.0.34 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.34rc2
+
+6.0.34rc1 was released as 6.0.34rc2 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.34rc1
+
+6.0.33 was released as 6.0.34rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.33
+
+6.0.33rc1 was released as 6.0.33 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.33rc1
+
+6.0.32 was released as 6.0.33rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 6.0.32
