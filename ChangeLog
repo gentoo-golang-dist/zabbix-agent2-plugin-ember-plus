@@ -100,6 +100,13 @@ New features:
 [ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
 
 --------------------------------------------------------------------------------
+Changes for 6.0.38rc1
+
+New features:
+
+Bug fixes:
+
+--------------------------------------------------------------------------------
 Changes for 6.0.37
 
 6.0.37rc1 was released as 6.0.37 without any changes
