@@ -77,10 +77,10 @@ func (c *Encoder) WriteRequest(path []int, tag string, cmd int) error {
 // WriteUniversal writes the provided integer into the buffer as an glow encoded universal value.
 func (c *Encoder) WriteUniversal(path []int) {
 	c.data.WriteByte(UniversalObjectTag)
-	c.data.WriteByte(uint8(len(path)))
+	c.data.WriteByte(byte((len(path))))
 
 	for _, p := range path {
-		c.data.WriteByte(uint8(p))
+		c.data.WriteByte(byte((p)))
 	}
 }
 
@@ -135,7 +135,7 @@ func (c *Encoder) writeInt(i int, cont uint8) error {
 		return errs.Wrap(err, "failed native go int asn1 marshal")
 	}
 
-	c.data.WriteByte(uint8(len(b)))
+	c.data.WriteByte(byte(len(b)))
 	c.data.Write(b)
 
 	return nil

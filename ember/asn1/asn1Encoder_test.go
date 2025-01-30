@@ -53,6 +53,7 @@ func TestEncoder_GetData(t *testing.T) {
 			c := &Encoder{
 				data: tt.fields.data,
 			}
+
 			got := c.GetData()
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("Encoder.GetData() = %s", diff)

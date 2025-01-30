@@ -808,6 +808,7 @@ func Test_connHandler_read(t *testing.T) {
 			}()
 
 			ch := &connHandler{conn: client, logr: log.New("Test")}
+
 			go func() {
 				for _, m := range tt.args.message {
 					_, err := server.Write(m)
@@ -893,7 +894,6 @@ func Test_connHandler_readExpected(t *testing.T) {
 						},
 						err: nil,
 					},
-					//nolint:dupl
 					{
 						data: []byte{
 							0x60, 0x82, 0x01, 0x01, 0x6b, 0x82, 0x00, 0xfd, 0xa0, 0x23, 0x69, 0x21, 0xa0, 0x05, 0x0d,
@@ -937,7 +937,6 @@ func Test_connHandler_readExpected(t *testing.T) {
 				"1",
 				3,
 				[]readResponse{
-					//nolint:dupl
 					{
 						data: []byte{
 							0x60, 0x82, 0x01, 0x01, 0x6b, 0x82, 0x00, 0xfd, 0xa0, 0x23, 0x69, 0x21, 0xa0, 0x05, 0x0d,
