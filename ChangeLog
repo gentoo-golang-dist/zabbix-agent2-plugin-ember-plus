@@ -1,3 +1,69 @@
+Changes for 7.4.0alpha1
+
+New features:
+
+Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.2.4rc1
+
+New features:
+
+Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.2.3
+
+7.2.3rc1 was released as 7.2.3 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.2.3rc1
+
+7.2.2 was released as 7.2.3rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.2.2
+
+7.2.2rc1 was released as 7.2.2 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.2.2rc1
+
+7.2.1 was released as 7.2.2rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.2.1
+
+7.2.1rc2 was released as 7.2.1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.2.1rc2
+
+7.2.1rc1 was released as 7.2.1rc2 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.2.1rc1
+
+New features:
+
+Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.2.0
+
+7.2.0rc3 was released as 7.2.0 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.2.0rc3
+
+7.2.0rc2 was released as 7.2.0rc3 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.2.0rc2
+
+7.2.0rc1 was released as 7.2.0rc2 without any changes
+
+--------------------------------------------------------------------------------
 Changes for 7.2.0rc1
 
 New features:
@@ -14,18 +80,52 @@ Changes for 7.2.0alpha1
 New features:
 [ZBXNEXT-9281] added configurable item timeout support (dgoloscapov)
 
-Bug fixes:
-[ZBX-24456] fixed reading multi packet message and no length packets (esneiders)
-[ZBX-24245] fixed invalid Zabbix agent 2 and plugin protocol log message (esneiders)
-[ZBX-24619] updated atomic variables to be more safe (esneiders)
-[ZBX-24824] fixed a panic when a lot of requests are started at the same time (esneiders)
-
 --------------------------------------------------------------------------------
-Changes for 7.0.7rc1
+Changes for 7.0.10rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.0.9
+
+7.0.9rc2 was released as 7.0.9 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.9rc2
+
+7.0.9rc1 was released as 7.0.9rc2 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.9rc1
+
+7.0.8 was released as 7.0.9rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.8
+
+7.0.8rc2 was released as 7.0.8 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.8rc2
+
+7.0.8rc1 was released as 7.0.8rc2 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.8rc1
+
+7.0.7 was released as 7.0.8rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.7
+
+7.0.7rc1 was released as 7.0.7 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.7rc1
+
+7.0.6 was released as 7.0.7rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 7.0.6
@@ -55,7 +155,9 @@ Changes for 7.0.4
 --------------------------------------------------------------------------------
 Changes for 7.0.4rc1
 
-7.0.3 was released as 7.0.4rc1 without any changes
+Bug fixes:
+...G...... [ZBX-24619] updated atomic variables to be more safe (esneiders)
+...G...... [ZBX-24245] fixed invalid Zabbix agent 2 and plugin protocol log message (esneiders)
 
 --------------------------------------------------------------------------------
 Changes for 7.0.3
@@ -65,7 +167,8 @@ Changes for 7.0.3
 --------------------------------------------------------------------------------
 Changes for 7.0.3rc1
 
-7.0.2 was released as 7.0.3rc1 without any changes
+Bug fixes:
+...G...... [ZBX-24824] fixed a panic when a lot of requests are started at the same time (esneiders)
 
 --------------------------------------------------------------------------------
 Changes for 7.0.2
@@ -121,11 +224,31 @@ New features:
 [ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
 
 --------------------------------------------------------------------------------
-Changes for 6.0.37rc1
+Changes for 6.0.39rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 6.0.38
+
+6.0.38rc1 was released as 6.0.38 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.38rc1
+
+6.0.37 was released as 6.0.38rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.37
+
+6.0.37rc1 was released as 6.0.37 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.37rc1
+
+6.0.36 was released as 6.0.37rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 6.0.36
@@ -160,7 +283,9 @@ Changes for 6.0.34rc2
 --------------------------------------------------------------------------------
 Changes for 6.0.34rc1
 
-6.0.33 was released as 6.0.34rc1 without any changes
+Bug fixes:
+...G...... [ZBX-24619] updated atomic variables to be more safe (esneiders)
+...G...... [ZBX-24245] fixed invalid Zabbix agent 2 and plugin protocol log message (esneiders)
 
 --------------------------------------------------------------------------------
 Changes for 6.0.33
@@ -170,7 +295,8 @@ Changes for 6.0.33
 --------------------------------------------------------------------------------
 Changes for 6.0.33rc1
 
-6.0.32 was released as 6.0.33rc1 without any changes
+Bug fixes:
+...G...... [ZBX-24824] fixed a panic when a lot of requests are started at the same time (esneiders)
 
 --------------------------------------------------------------------------------
 Changes for 6.0.32
