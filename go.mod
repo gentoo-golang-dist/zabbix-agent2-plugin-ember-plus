@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/google/go-cmp v0.6.0
-	golang.zabbix.com/sdk v1.2.2-0.20250211112017-26e1ac68979e
+	golang.zabbix.com/sdk v1.2.2-0.20250214072554-abd5e97e6797
 )
 
 require (
