@@ -89,9 +89,7 @@ Changes for 7.2.1rc2
 --------------------------------------------------------------------------------
 Changes for 7.2.1rc1
 
-New features:
-
-Bug fixes:
+7.2.0 was released as 7.2.1rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 7.2.0
@@ -225,7 +223,8 @@ Changes for 7.0.5
 --------------------------------------------------------------------------------
 Changes for 7.0.5rc1
 
-7.0.4 was released as 7.0.5rc1 without any changes
+New features:
+[ZBXNEXT-9281] added configurable item timeout support (dgoloscapov)
 
 --------------------------------------------------------------------------------
 Changes for 7.0.4
