@@ -215,12 +215,7 @@ linters:
 
     # having one length vars is fine.
     - varnamelen
-
-    # deprecated
-    - execinquery
-    - exportloopref
-    - gomnd
-
+    
 issues:
   exclude-use-default: false
   max-issues-per-linter: 0 # unlimited
