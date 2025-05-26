@@ -33,5 +33,6 @@ var (
 		WithDefault("localhost:9998").
 		WithSession()
 
-	Path = metric.NewParam("Path", "Path to requires ember collection, node or parameter").WithDefault("")
+	// Path to require ember collection, node or parameter.
+	Path = metric.NewParam("Path", "Path to require ember collection, node or parameter").WithDefault("")
 )

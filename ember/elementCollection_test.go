@@ -769,7 +769,6 @@ func TestElementCollection_Populate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -922,7 +921,6 @@ func TestElementCollection_GetElementByPath(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1077,7 +1075,6 @@ func TestElementCollection_GetElementByID(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1204,7 +1201,6 @@ func TestElementCollection_MarshalJSON(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1220,7 +1216,7 @@ func TestElementCollection_MarshalJSON(t *testing.T) {
 	}
 }
 
-func TestNewElementConnection(t *testing.T) {
+func TestNewElementCollection(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -1233,13 +1229,12 @@ func TestNewElementConnection(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := NewElementConnection()
+			got := NewElementCollection()
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Fatalf("NewElementConnection() = %s", diff)
+				t.Fatalf("NewElementCollection() = %s", diff)
 			}
 		})
 	}
@@ -1265,7 +1260,6 @@ func TestGetRootRequest(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1331,7 +1325,6 @@ func TestGetRequestByType(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
