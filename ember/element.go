@@ -404,7 +404,7 @@ func (el *Element) handleFunctionContext(context *asn1.Decoder, tag byte) (*asn1
 		}
 	}
 
-	for i := 0; i < n; i++ {
+	for range n {
 		_, err := context.ReadByte()
 		if err != nil {
 			return nil, errs.Wrapf(err, "failed to read over used bytes")
@@ -470,7 +470,7 @@ func (el *Element) handleNodeContext(context *asn1.Decoder, tag byte) (*asn1.Dec
 		}
 	}
 
-	for i := 0; i < n; i++ {
+	for range n {
 		_, err := context.ReadByte()
 		if err != nil {
 			return nil, errs.Wrapf(err, "failed to read over used bytes")
@@ -638,7 +638,7 @@ func (el *Element) handleParameterContext(context *asn1.Decoder, tag byte) (*asn
 
 	el.setDefaultElementValue()
 
-	for i := 0; i < n; i++ {
+	for range n {
 		_, err := context.ReadByte()
 		if err != nil {
 			return nil, errs.Wrapf(err, "failed to read over used bytes")
@@ -688,8 +688,8 @@ func (el *Element) setValue(context *asn1.Decoder) (any, int, error) {
 }
 
 func (el *Element) setDefaultElementValue() {
-	// no default for enum data type as value for enum data type defines witch of string lines in enum field to use.
-	// and none should be used if there no value
+	// No default for enum data type as value for enum data type defines witch of string lines in enum field to use.
+	// and none should be used if there is no value
 	if el.Value == nil {
 		switch el.ValueType {
 		case valueTypeInt, valueTypeReal:

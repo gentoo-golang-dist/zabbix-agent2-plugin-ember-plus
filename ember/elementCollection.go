@@ -32,6 +32,11 @@ type ElementKey struct {
 // ElementCollection contains one level of elements and their Ids as key.
 type ElementCollection map[ElementKey]*Element
 
+// NewElementCollection creates a empty element collection.
+func NewElementCollection() ElementCollection {
+	return make(ElementCollection)
+}
+
 // Populate fills in collection with data from the decoder.
 //
 //nolint:gocyclo,cyclop
@@ -191,11 +196,6 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 	}
 
 	return bytes, nil
-}
-
-// NewElementConnection creates a empty element collection.
-func NewElementConnection() ElementCollection {
-	return make(ElementCollection)
 }
 
 // GetRootRequest returns a S101 request packet with an encoded request for root collection.
