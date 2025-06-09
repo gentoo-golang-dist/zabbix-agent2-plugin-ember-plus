@@ -433,7 +433,7 @@ func (ch *connHandler) readExpected(path string, timeout time.Duration) parsedRe
 }
 
 func (ch *connHandler) getCollection(glow []byte) (ember.ElementCollection, []string, error) {
-	el := ember.NewElementConnection()
+	el := ember.NewElementCollection()
 
 	err := el.Populate(asn1.NewDecoder(glow))
 	if err != nil {

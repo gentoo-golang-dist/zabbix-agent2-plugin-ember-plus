@@ -22,7 +22,7 @@ import (
 )
 
 // Read reads the next glow data block of the appropriate type, it checks the glow tag against the provided compare
-// function and if they match it reads the glow data block and returns it as it's own decoded, original decoder might
+// function and if they match it reads the glow data block and returns it as its own decoded, original decoder might
 // have more data left, THIS DOES NOT READ ALL THE DATA.
 // If no length byte is found in data returns ALL remaining bytes.
 // Returns True if next element length is unknown.
@@ -87,7 +87,7 @@ func (c *Decoder) readLength() (int, int, error) {
 		offset = 1
 	)
 
-	for i := 0; i < int(lenB); i++ {
+	for range int(lenB) {
 		val, err := c.data.ReadByte()
 		if err != nil {
 			return 0, 0, errs.Wrap(err, "incorrect additional length bytes")
@@ -116,7 +116,7 @@ func (c *Decoder) ReadEnd() (bool, error) {
 		return false, nil
 	}
 
-	for i := 0; i < closingOffset; i++ {
+	for range closingOffset {
 		_, err := c.data.ReadByte()
 		if err != nil {
 			return false, errs.Wrapf(err, "failed to read end bytes")
