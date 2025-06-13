@@ -57,7 +57,7 @@ func main() {
 
 	p, err := plugin.New()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to register metrics: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "failed to initialize plugin: %s\n", err.Error())
 		os.Exit(1)
 	}
 
