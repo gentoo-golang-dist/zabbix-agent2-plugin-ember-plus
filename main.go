@@ -46,46 +46,32 @@ func main() {
 	}
 
 	pluginInfo := &sdkplugin.Info{
-
-		Name: plugin.Name,
-
-		BinName: os.Args[0],
-
+		Name:             plugin.Name,
+		BinName:          os.Args[0],
 		CopyrightMessage: copyrightMessage,
-
-		MajorVersion: PLUGIN_VERSION_MAJOR,
-
-		MinorVersion: PLUGIN_VERSION_MINOR,
-
-		PatchVersion: PLUGIN_VERSION_PATCH,
-
-		Alphatag: PLUGIN_VERSION_RC,
+		MajorVersion:     PLUGIN_VERSION_MAJOR,
+		MinorVersion:     PLUGIN_VERSION_MINOR,
+		PatchVersion:     PLUGIN_VERSION_PATCH,
+		Alphatag:         PLUGIN_VERSION_RC,
 	}
 
-	p := plugin.New()
-	err = p.RegisterMetrics()
-
+	p, err := plugin.New()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to register plugin: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "failed to register metrics: %s\n", err.Error())
 		os.Exit(1)
 	}
+
 	err = flag.DecideActionFromFlags(args, p, pluginInfo, nil)
-
 	if err != nil {
-
 		if !errors.Is(err, errs.ErrExitGracefully) {
-
 			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-
 			os.Exit(1)
 		}
-
 		// exit gracefully if parameter supposed to exit after execution
-
 		os.Exit(0)
 	}
 
-	err = plugin.Launch()
+	err = p.Run()
 	if err != nil {
 		panic(err)
 	}

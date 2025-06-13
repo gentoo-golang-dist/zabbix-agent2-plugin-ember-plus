@@ -65,21 +65,20 @@ type EmberPlugin struct {
 	metrics map[emberMetricKey]*emberMetric
 }
 
-func New() *EmberPlugin {
-	return &EmberPlugin{
+func New() (*EmberPlugin, error) {
+	p := &EmberPlugin{
 		conns: &conn.ConnCollection{},
 	}
+
+	err := p.registerMetrics()
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to register metrics")
+	}
+	return p, nil
 }
 
-// Launch starts the plugin.
-func Launch() error {
-	p := New()
-
-	err := p.RegisterMetrics()
-	if err != nil {
-		return err
-	}
-
+// Run starts the plugin.
+func (p *EmberPlugin) Run() error {
 	h, err := container.NewHandler(Name)
 	if err != nil {
 		return errs.Wrap(err, "failed to create new handler")
@@ -171,7 +170,7 @@ func (p *EmberPlugin) GetEmber(timeout time.Duration, metricParams map[string]st
 	return p.getCollectionByPath(rootCollection, connConf, pathParts, timeout)
 }
 
-func (p *EmberPlugin) RegisterMetrics() error {
+func (p *EmberPlugin) registerMetrics() error {
 	p.metrics = map[emberMetricKey]*emberMetric{
 		get: {
 			metric: metric.New(
