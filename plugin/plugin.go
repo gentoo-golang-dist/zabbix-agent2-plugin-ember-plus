@@ -25,6 +25,7 @@ import (
 	"golang.zabbix.com/plugin/ember-plus/plugin/conn"
 	"golang.zabbix.com/plugin/ember-plus/plugin/params"
 	"golang.zabbix.com/sdk/errs"
+	"golang.zabbix.com/sdk/log"
 	"golang.zabbix.com/sdk/metric"
 	"golang.zabbix.com/sdk/plugin"
 	"golang.zabbix.com/sdk/plugin/container"
@@ -70,7 +71,14 @@ func New() (*EmberPlugin, error) {
 		conns: &conn.ConnCollection{},
 	}
 
-	err := p.registerMetrics()
+	err := log.Open(log.Console, log.Info, "", 0)
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to open log")
+	}
+
+	p.Logger = log.New(Name)
+
+	err = p.registerMetrics()
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to register metrics")
 	}
