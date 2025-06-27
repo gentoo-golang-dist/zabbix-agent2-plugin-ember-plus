@@ -33,7 +33,7 @@ the license. There is NO WARRANTY, to the extent permitted by law.`
 const (
 	PLUGIN_VERSION_MAJOR = 7
 	PLUGIN_VERSION_MINOR = 0
-	PLUGIN_VERSION_PATCH = 15
+	PLUGIN_VERSION_PATCH = 16
 	PLUGIN_VERSION_RC    = ""
 )
 
