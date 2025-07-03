@@ -31,10 +31,10 @@ the license. There is NO WARRANTY, to the extent permitted by law.`
 
 //nolint:revive
 const (
-	PLUGIN_VERSION_MAJOR = 7
-	PLUGIN_VERSION_MINOR = 4
+	PLUGIN_VERSION_MAJOR = 8
+	PLUGIN_VERSION_MINOR = 0
 	PLUGIN_VERSION_PATCH = 0
-	PLUGIN_VERSION_RC    = ""
+	PLUGIN_VERSION_RC    = "alpha1"
 )
 
 func main() {
