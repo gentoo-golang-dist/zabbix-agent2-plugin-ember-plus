@@ -107,3 +107,6 @@ ember-plus
 
 # vscode specific
 .vscode
+
+# Jetbrains
+.idea

@@ -40,7 +40,7 @@ type pluginConfig struct {
 
 // Configure implements the Configurator interface.
 // Initializes configuration structures.
-func (p *emberPlugin) Configure(global *plugin.GlobalOptions, options any) {
+func (p *EmberPlugin) Configure(global *plugin.GlobalOptions, options any) {
 	pConfig := &pluginConfig{}
 
 	err := conf.UnmarshalStrict(options, pConfig)
@@ -59,7 +59,7 @@ func (p *emberPlugin) Configure(global *plugin.GlobalOptions, options any) {
 
 // Validate implements the Configurator interface.
 // Returns an error if validation of a plugin's configuration is failed.
-func (*emberPlugin) Validate(options any) error {
+func (*EmberPlugin) Validate(options any) error {
 	var opts pluginConfig
 
 	err := conf.UnmarshalStrict(options, &opts)

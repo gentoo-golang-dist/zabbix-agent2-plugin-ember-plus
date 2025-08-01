@@ -25,6 +25,7 @@ import (
 	"golang.zabbix.com/plugin/ember-plus/plugin/conn"
 	"golang.zabbix.com/plugin/ember-plus/plugin/params"
 	"golang.zabbix.com/sdk/errs"
+	"golang.zabbix.com/sdk/log"
 	"golang.zabbix.com/sdk/metric"
 	"golang.zabbix.com/sdk/plugin"
 	"golang.zabbix.com/sdk/plugin/container"
@@ -39,10 +40,10 @@ const (
 )
 
 var (
-	_ plugin.Configurator = (*emberPlugin)(nil)
-	_ plugin.Exporter     = (*emberPlugin)(nil)
-	_ plugin.Runner       = (*emberPlugin)(nil)
-	_ handlerFunc         = (*emberPlugin)(nil).GetEmber
+	_ plugin.Configurator = (*EmberPlugin)(nil)
+	_ plugin.Exporter     = (*EmberPlugin)(nil)
+	_ plugin.Runner       = (*EmberPlugin)(nil)
+	_ handlerFunc         = (*EmberPlugin)(nil).GetEmber
 
 	// ErrInvalidPath error when incorrect path is provided.
 	ErrInvalidPath = errs.New("invalid path")
@@ -58,29 +59,34 @@ type emberMetric struct {
 	handler handlerFunc
 }
 
-type emberPlugin struct {
+type EmberPlugin struct {
 	plugin.Base
 	conns   *conn.ConnCollection
 	config  *pluginConfig
 	metrics map[emberMetricKey]*emberMetric
 }
 
-// Plugin holds require plugin data.
-type Plugin struct {
-	plugin.Base
-}
-
-// Launch starts the plugin.
-func Launch() error {
-	p := &emberPlugin{
+func New() (*EmberPlugin, error) {
+	p := &EmberPlugin{
 		conns: &conn.ConnCollection{},
 	}
 
-	err := p.registerMetrics()
+	err := log.Open(log.Console, log.Info, "", 0)
 	if err != nil {
-		return err
+		return nil, errs.Wrap(err, "failed to open log")
 	}
 
+	p.Logger = log.New(Name)
+
+	err = p.registerMetrics()
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to register metrics")
+	}
+	return p, nil
+}
+
+// Run starts the plugin.
+func (p *EmberPlugin) Run() error {
 	h, err := container.NewHandler(Name)
 	if err != nil {
 		return errs.Wrap(err, "failed to create new handler")
@@ -97,17 +103,17 @@ func Launch() error {
 }
 
 // Start initiates the connection handler.
-func (p *emberPlugin) Start() {
+func (p *EmberPlugin) Start() {
 	p.conns.Init(p.config.KeepAlive, p)
 }
 
 // Stop stops the mssql plugin, closing all the connections.
-func (p *emberPlugin) Stop() {
+func (p *EmberPlugin) Stop() {
 	p.conns.CloseAll()
 }
 
 // Export collects all the metrics.
-func (p *emberPlugin) Export(key string, rawParams []string, pluginCtx plugin.ContextProvider) (any, error) {
+func (p *EmberPlugin) Export(key string, rawParams []string, pluginCtx plugin.ContextProvider) (any, error) {
 	m, ok := p.metrics[emberMetricKey(key)]
 	if !ok {
 		return nil, errs.Wrapf(zbxerr.ErrorUnsupportedMetric, "unknown metric %q", key)
@@ -125,7 +131,7 @@ func (p *emberPlugin) Export(key string, rawParams []string, pluginCtx plugin.Co
 
 	timeout := time.Second * time.Duration(p.config.Timeout)
 
-	if timeout < time.Second*time.Duration(pluginCtx.Timeout()) {
+	if pluginCtx != nil && timeout < time.Second*time.Duration(pluginCtx.Timeout()) {
 		timeout = time.Second * time.Duration(pluginCtx.Timeout())
 	}
 
@@ -139,7 +145,7 @@ func (p *emberPlugin) Export(key string, rawParams []string, pluginCtx plugin.Co
 
 // GetEmber handles ember.get metric, returns collection data based on request metrics, response needs to be handled,
 // otherwise it is not possible to json marshal it.
-func (p *emberPlugin) GetEmber(timeout time.Duration, metricParams map[string]string, _ ...string) (any, error) {
+func (p *EmberPlugin) GetEmber(timeout time.Duration, metricParams map[string]string, _ ...string) (any, error) {
 	connConf, err := conn.NewConnConfig(metricParams[params.URI.Name()])
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create connection config")
@@ -172,7 +178,7 @@ func (p *emberPlugin) GetEmber(timeout time.Duration, metricParams map[string]st
 	return p.getCollectionByPath(rootCollection, connConf, pathParts, timeout)
 }
 
-func (p *emberPlugin) registerMetrics() error {
+func (p *EmberPlugin) registerMetrics() error {
 	p.metrics = map[emberMetricKey]*emberMetric{
 		get: {
 			metric: metric.New(
@@ -198,7 +204,7 @@ func (p *emberPlugin) registerMetrics() error {
 	return nil
 }
 
-func (p *emberPlugin) getCollectionByPath(
+func (p *EmberPlugin) getCollectionByPath(
 	collection ember.ElementCollection, connConf conn.ConnConfig, pathPart []string, timeout time.Duration,
 ) (ember.ElementCollection, error) {
 	var fullPath string
@@ -225,7 +231,7 @@ func (p *emberPlugin) getCollectionByPath(
 	return collection, nil
 }
 
-func (p *emberPlugin) getCollectionByID(
+func (p *EmberPlugin) getCollectionByID(
 	collection ember.ElementCollection, connConf conn.ConnConfig, ids []string, timeout time.Duration,
 ) (ember.ElementCollection, error) {
 	for _, id := range ids {
