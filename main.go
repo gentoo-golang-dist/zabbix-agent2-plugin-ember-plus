@@ -33,8 +33,8 @@ the license. There is NO WARRANTY, to the extent permitted by law.`
 const (
 	PLUGIN_VERSION_MAJOR = 7
 	PLUGIN_VERSION_MINOR = 0
-	PLUGIN_VERSION_PATCH = 19
-	PLUGIN_VERSION_RC    = ""
+	PLUGIN_VERSION_PATCH = 20
+	PLUGIN_VERSION_RC    = "rc1"
 )
 
 func main() {
