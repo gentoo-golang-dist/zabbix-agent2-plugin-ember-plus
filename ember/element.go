@@ -43,50 +43,47 @@ var ErrElementNotFound = errs.New("element not found")
 
 // node hold information about node and qualified node parameter fields.
 type node struct {
-	Path        string      `json:"path"`
-	ElementType ElementType `json:"element_type"`
-	Children    []*Element  `json:"children"`
-	Identifier  string      `json:"identifier"`
-	Description string      `json:"description"`
-	IsOnline    bool        `json:"is_online"`
-	IsRoot      bool        `json:"is_root"`
+	Path        string     `json:"path"`
+	ElementType string     `json:"element_type"`
+	Children    []*Element `json:"children"`
+	Identifier  string     `json:"identifier"`
+	Description string     `json:"description"`
+	IsOnline    bool       `json:"is_online"`
+	IsRoot      bool       `json:"is_root"`
 }
 
 // function hold information about function parameter fields.
 type function struct {
-	Path        string      `json:"path"`
-	ElementType ElementType `json:"element_type"`
-	Children    []*Element  `json:"children"`
-	Identifier  string      `json:"identifier"`
-	Description string      `json:"description"`
+	Path        string     `json:"path"`
+	ElementType string     `json:"element_type"`
+	Children    []*Element `json:"children"`
+	Identifier  string     `json:"identifier"`
+	Description string     `json:"description"`
 }
 
 // parameter hold information about parameter and qualified parameter fields.
 type parameter struct {
-	Path        string      `json:"path"`
-	ElementType ElementType `json:"element_type"`
-	Children    []*Element  `json:"children,omitempty"`
-	Identifier  string      `json:"identifier,omitempty"`
-	Description string      `json:"description,omitempty"`
-	Value       any         `json:"value,omitempty"`
-	Minimum     any         `json:"minimum,omitempty"`
-	Maximum     any         `json:"maximum,omitempty"`
-	Access      int         `json:"access,omitempty"`
-	Format      string      `json:"format,omitempty"`
-	Enumeration string      `json:"enumeration,omitempty"`
-	Factor      int         `json:"factor,omitempty"`
-	IsOnline    bool        `json:"is_online,omitempty"`
-	Default     any         `json:"default,omitempty"`
-	ValueType   int         `json:"type,omitempty"`
+	Path        string     `json:"path"`
+	ElementType string     `json:"element_type"`
+	Children    []*Element `json:"children,omitempty"`
+	Identifier  string     `json:"identifier,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Value       any        `json:"value,omitempty"`
+	Minimum     any        `json:"minimum,omitempty"`
+	Maximum     any        `json:"maximum,omitempty"`
+	Access      int        `json:"access,omitempty"`
+	Format      string     `json:"format,omitempty"`
+	Enumeration string     `json:"enumeration,omitempty"`
+	Factor      int        `json:"factor,omitempty"`
+	IsOnline    bool       `json:"is_online,omitempty"`
+	Default     any        `json:"default,omitempty"`
+	ValueType   int        `json:"type,omitempty"`
 }
-
-// ElementType wrapper for string to define available element types.
-type ElementType string
 
 // Element contains all the values a glow element might contain.
 type Element struct {
 	Path        string
-	ElementType ElementType
+	ElementType string
 	Identifier  string
 	Description string
 	Children    []*Element

@@ -211,7 +211,7 @@ func GetRootRequest() ([]byte, error) {
 }
 
 // GetRequestByType returns S101 packet with an encoded request for element with the provided type and path.
-func GetRequestByType(et ElementType, path string) ([]byte, error) {
+func GetRequestByType(et string, path string) ([]byte, error) {
 	encoder := asn1.NewEncoder()
 
 	parsed, err := parsePath(path)
