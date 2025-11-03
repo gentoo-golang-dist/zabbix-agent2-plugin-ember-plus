@@ -1,9 +1,20 @@
+/*
+** Copyright (C) 2001-2025 Zabbix SIA
+**
+** This program is free software: you can redistribute it and/or modify it under the terms of
+** the GNU Affero General Public License as published by the Free Software Foundation, version 3.
+**
+** This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+** without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+** See the GNU Affero General Public License for more details.
+**
+** You should have received a copy of the GNU Affero General Public License along with this program.
+** If not, see <https://www.gnu.org/licenses/>.
+**/
+
 package emberlib
 
 /*
-
-   //#cgo LDFLAGS: /home/erik/dev/ember-plus/libember_slim/Source/libember_slim-static.a
-   //#cgo LDFLAGS: /home/erik/dev/ember-plus/libember_slim/Source/go-sample/reader_callbacks.a
 
    #cgo CFLAGS: -I../../libember_slim/Source
    #cgo LDFLAGS: ./libember_slim/Source/libember_slim-static.a
@@ -70,7 +81,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 	"unsafe"
 )
 
@@ -121,10 +131,10 @@ func (p *EmberLib) EmberStart() error {
 	// We'll pass a nil state pointer (could be used to pass Go context if marshalled properly).
 	C.glowReader_init(
 		p.reader,
-		(C.onNode_t)(unsafe.Pointer(C.c_onNode)), // onNode
+		(C.onNode_t)(unsafe.Pointer(C.c_onNode)),           // onNode
 		(C.onParameter_t)(unsafe.Pointer(C.c_onParameter)), // onParameter
-		nil, // (C.onCommand_t)(unsafe.Pointer(C.c_onCommand)),         // onCommand
-		nil, // (C.onStreamEntry_t)(unsafe.Pointer(C.c_onStreamEntry)), // onStreamEntry
+		nil,                                                // (C.onCommand_t)(unsafe.Pointer(C.c_onCommand)),         // onCommand
+		nil,                                                // (C.onStreamEntry_t)(unsafe.Pointer(C.c_onStreamEntry)), // onStreamEntry
 		(C.voidptr)(unsafe.Pointer(p.handle)),
 		(*C.byte)(unsafe.Pointer(p.rxBuf)),
 		C.uint(rxBufferSize))
@@ -154,62 +164,6 @@ func (p *EmberLib) GetFromState() ember.ElementCollection {
 	defer p.state.parsedMu.Unlock()
 
 	return out
-}
-
-func (p *EmberLib) Read(conn net.Conn) (ember.ElementCollection, error) {
-	const idleTimeout = 150 * time.Millisecond
-	buf := make([]byte, 4096)
-	lastActivity := time.Now()
-
-	err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to set read deadline")
-	}
-
-	for {
-		n, err := conn.Read(buf)
-		now := time.Now()
-		if n > 0 {
-			lastActivity = now
-			C.glowReader_readBytes(p.reader, (*C.byte)(unsafe.Pointer(&buf[0])), C.int(n))
-			err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-			if err != nil {
-				return nil, errs.Wrap(err, "failed to set read deadline on second read")
-			}
-
-		}
-
-		if err != nil {
-			// If timeout or EOF, break and produce collected JSON
-			// net.Error with Timeout() true indicates deadline exceeded — we can check idle time
-			ne, ok := err.(net.Error)
-			if ok && ne.Timeout() {
-				// if idle time > idleTimeout, and we've seen some elements, assume message done
-				if time.Since(lastActivity) > idleTimeout && len(p.state.parsed) > 0 {
-					break
-				}
-				// otherwise continue waiting
-				err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-				if err != nil {
-					return nil, errs.Wrap(err, "failed to set read deadline on third read")
-				}
-
-				continue
-			}
-			// EOF or other error: break
-			break
-		}
-
-		if p.state.stop {
-			break
-		}
-	}
-
-	p.state.parsedMu.Lock()
-	out := p.state.parsed
-	defer p.state.parsedMu.Unlock()
-
-	return out, nil
 }
 
 // sendGetDirectory encodes a GetDirectory request and writes to conn.
