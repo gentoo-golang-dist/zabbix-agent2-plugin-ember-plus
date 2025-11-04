@@ -3,6 +3,15 @@
 PACKAGE=zabbix-agent2-plugin-ember-plus
 TOPDIR := $(CURDIR)
 SHELL := /bin/bash
+LIBEMBER=$(TOPDIR)/libember
+
+LIBEMBER_BUILD=$(LIBEMBER)/build
+INCLUDES=-I$(LIBEMBER)/libember_slim/Source
+CGO_CFLAGS += $(INCLUDES)
+CGO_LDFLAGS += -L$(LIBEMBER_BUILD)
+
+#CC = gcc
+#AR = ar
 
 ifeq ($(OS),Windows_NT)
 GOOS := windows
@@ -75,7 +84,14 @@ DIST_SUBDIRS = \
 	ember \
 	plugin \
 	windres \
+	libember \
 	vendor
+
+ifeq ($(OS),Windows_NT)
+RM = del /Q
+else
+RM = rm -f
+endif
 
 .build_rc:
 ifneq ("$(WINDRES)","")
@@ -84,21 +100,51 @@ ifneq ("$(WINDRES)","")
 		-D _WINDOWS -o "$(TOPDIR)\$(PACKAGE).syso"
 endif
 
-build: .build_rc
+build: .build_rc libember_slim_cb.a libember_slim-static.a
 ifeq ($(OS),Windows_NT)
+	set CGO_CFLAGS=$(CGO_CFLAGS)
+	set CGO_LDFLAGS=$(CGO_LDFLAGS)
+	set CGO_ENABLED=1
 	set GOOS=$(GOOS)
 	set GOARCH=$(GOARCH)
 	go build -o "$(TOPDIR)/$(PACKAGE)"
 else
-	GOOS="$(GOOS)" GOARCH="$(GOARCH)" go build -o "$(TOPDIR)/$(PACKAGE)"
+	CGO_CFLAGS=$(CGO_CFLAGS) \
+	CGO_LDFLAGS=$(CGO_LDFLAGS) \
+	CGO_ENABLED=1 \
+	GOOS="$(GOOS)" \
+	GOARCH="$(GOARCH)" \
+	go build -o "$(TOPDIR)/$(PACKAGE)"
 endif
+
+$(LIBEMBER_BUILD)/libember_slim_cb.o: $(LIBEMBER)/libember_slim_cb.c
+	mkdir -p $(LIBEMBER_BUILD)
+	$(CC) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) -o $@ -c $^
+
+$(LIBEMBER_BUILD)/libember_slim_cb.a: $(LIBEMBER_BUILD)/libember_slim_cb.o
+	mkdir -p $(LIBEMBER_BUILD)
+	-$(RM) $@
+	$(AR) crs $@ $^
+
+libember_slim_cb.a: $(LIBEMBER_BUILD)/libember_slim_cb.a
+
+$(LIBEMBER_BUILD)/Makefile:
+	mkdir -p $(LIBEMBER_BUILD)
+	cd $(LIBEMBER_BUILD) && cmake $(LIBEMBER)/libember_slim
+
+$(LIBEMBER_BUILD)/libember_slim-static.a: $(LIBEMBER_BUILD)/Makefile
+	cd $(LIBEMBER_BUILD) && make
+
+libember_slim-static.a: $(LIBEMBER_BUILD)/libember_slim-static.a
 
 clean:
 ifeq ($(OS),Windows_NT)
 	if exist "$(TOPDIR)\vendor" rmdir /S /Q "$(TOPDIR)\vendor"
+	if exist "$(LIBEMBER_BUILD)" rmdir /S /Q "$(LIBEMBER_BUILD)"
 	del /F "$(TOPDIR)\$(PACKAGE)*"
 else
 	rm -rf "$(TOPDIR)/vendor"
+	rm -rf "$(LIBEMBER_BUILD)"
 	rm -rf "$(TOPDIR)/$(PACKAGE)"*
 endif
 	go clean "$(TOPDIR)/..."

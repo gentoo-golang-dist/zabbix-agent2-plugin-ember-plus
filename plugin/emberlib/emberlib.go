@@ -15,10 +15,8 @@
 package emberlib
 
 /*
-
-   #cgo CFLAGS: -I../../libember_slim/Source
-   #cgo LDFLAGS: ./libember_slim/Source/libember_slim-static.a
-   #cgo LDFLAGS: ./libember_slim/Source/go-sample/reader_callbacks.a
+   #cgo LDFLAGS: -lember_slim-static
+   #cgo LDFLAGS: -lember_slim_cb
 
    #include <stdlib.h>
    #include <stdint.h>
