@@ -43,13 +43,14 @@ var ErrElementNotFound = errs.New("element not found")
 
 // node hold information about node and qualified node parameter fields.
 type node struct {
-	Path        string     `json:"path"`
-	ElementType string     `json:"element_type"`
-	Children    []*Element `json:"children"`
-	Identifier  string     `json:"identifier"`
-	Description string     `json:"description"`
-	IsOnline    bool       `json:"is_online"`
-	IsRoot      bool       `json:"is_root"`
+	Path              string     `json:"path"`
+	ElementType       string     `json:"element_type"`
+	Children          []*Element `json:"children"`
+	Identifier        string     `json:"identifier"`
+	Description       string     `json:"description"`
+	SchemaIdentifiers string     `json:"schema_identifiers"`
+	IsOnline          bool       `json:"is_online"`
+	IsRoot            bool       `json:"is_root"`
 }
 
 // function hold information about function parameter fields.
@@ -82,22 +83,23 @@ type parameter struct {
 
 // Element contains all the values a glow element might contain.
 type Element struct {
-	Path        string
-	ElementType string
-	Identifier  string
-	Description string
-	Children    []*Element
-	IsOnline    bool
-	IsRoot      bool
-	Maximum     any
-	Minimum     any
-	Value       any
-	Access      int
-	Format      string
-	Enumeration string
-	Factor      int
-	Default     any
-	ValueType   int
+	Path              string
+	ElementType       string
+	Identifier        string
+	Description       string
+	SchemaIdentifiers string
+	Children          []*Element
+	IsOnline          bool
+	IsRoot            bool
+	Maximum           any
+	Minimum           any
+	Value             any
+	Access            int
+	Format            string
+	Enumeration       string
+	Factor            int
+	Default           any
+	ValueType         int
 }
 
 //nolint:gocyclo,cyclop

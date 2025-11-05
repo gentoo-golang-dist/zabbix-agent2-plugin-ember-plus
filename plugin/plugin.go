@@ -58,11 +58,6 @@ type EmberPlugin struct {
 	config  *pluginConfig
 	metrics map[emberMetricKey]*emberMetric
 	lib     emberlib.EmberLib
-
-	//rxBuf   unsafe.Pointer
-	//handle  cgo.Handle
-	//reader  *C.GlowReader
-	//state   *ReaderState
 }
 
 // HandlerFunc describes the signature all metric handler functions must have.
@@ -172,16 +167,6 @@ func (p *EmberPlugin) GetEmber(timeout time.Duration, metricParams map[string]st
 		return nil, errs.Wrap(err, "failed to handle request")
 	}
 
-	//c, err := p.conns.Get(timeout, connConf, &p.lib)
-	//if err != nil {
-	//	return nil, errs.Wrap(err, "failed to get conn")
-	//}
-	//emberlib.SendGetDirectory(c, "", asn1.NodeType)
-	//rootCollection, err := p.lib.Read(c)
-	//if err != nil {
-	//	return nil, errs.Wrap(err, "failed to get root response")
-	//}
-
 	path := metricParams[params.Path.Name()]
 	if path == "" {
 		//fmt.Println("out")
@@ -197,7 +182,7 @@ func (p *EmberPlugin) GetEmber(timeout time.Duration, metricParams map[string]st
 		return p.getCollectionByID(rootCollection, connConf, pathParts, timeout)
 	}
 
-	return p.getCollectionByPathNew(rootCollection, connConf, pathParts, timeout)
+	return p.getCollectionByPath(rootCollection, connConf, pathParts, timeout)
 }
 
 func (p *EmberPlugin) registerMetrics() error {
@@ -226,7 +211,7 @@ func (p *EmberPlugin) registerMetrics() error {
 	return nil
 }
 
-func (p *EmberPlugin) getCollectionByPathNew(
+func (p *EmberPlugin) getCollectionByPath(
 	collection ember.ElementCollection, connConf conn.ConnConfig, pathPart []string, timeout time.Duration,
 ) (ember.ElementCollection, error) {
 	var fullPath string
@@ -247,59 +232,26 @@ func (p *EmberPlugin) getCollectionByPathNew(
 	return collection, nil
 }
 
-//
-//func (p *EmberPlugin) getCollectionByPath(
-//	collection ember.ElementCollection, connConf conn.ConnConfig, pathPart []string, timeout time.Duration,
-//) (ember.ElementCollection, error) {
-//	var fullPath string
-//
-//	for _, part := range pathPart {
-//		fullPath = pathJoin(fullPath, part)
-//
-//		el, err := collection.GetElementByPath(fullPath)
-//		if err != nil {
-//			return nil, errs.Wrapf(err, "failed to retrieve element with path %s", fullPath)
-//		}
-//
-//		req, err := ember.GetRequestByType(el.ElementType, fullPath)
-//		if err != nil {
-//			return nil, errs.Wrap(err, "failed to get request by element type")
-//		}
-//
-//		collection, err = p.conns.HandleRequest(req, connConf, fullPath, timeout)
-//		if err != nil {
-//			return nil, errs.Wrap(err, "failed to handle request")
-//		}
-//	}
-//
-//	return collection, nil
-//}
-
 func (p *EmberPlugin) getCollectionByID(
 	collection ember.ElementCollection, connConf conn.ConnConfig, ids []string, timeout time.Duration,
 ) (ember.ElementCollection, error) {
-	return nil, errs.New("not implemented yet")
-	//for _, id := range ids {
-	//	el, fullPath, err := collection.GetElementByID(id)
-	//	if err != nil {
-	//		return nil, errs.Wrapf(
-	//			err,
-	//			"failed to retrieve element with id %s, path to element '%s'", id, el.Path,
-	//		)
-	//	}
-	//
-	//	req, err := ember.GetRequestByType(el.ElementType, fullPath)
-	//	if err != nil {
-	//		return nil, errs.Wrap(err, "failed to get request")
-	//	}
-	//
-	//	collection, err = p.conns.HandleRequest(req, connConf, fullPath, timeout)
-	//	if err != nil {
-	//		return nil, errs.Wrap(err, "failed to handle request")
-	//	}
-	//}
-	//
-	//return collection, nil
+	//return nil, errs.New("not implemented yet")
+	for _, id := range ids {
+		el, fullPath, err := collection.GetElementByID(id)
+		if err != nil {
+			return nil, errs.Wrapf(
+				err,
+				"failed to retrieve element with id %s, path to element '%s'", id, el.Path,
+			)
+		}
+
+		collection, err = p.conns.HandleRequestNew(el.ElementType, connConf, fullPath, timeout, &p.lib)
+		if err != nil {
+			return nil, errs.Wrap(err, "failed to handle request")
+		}
+	}
+
+	return collection, nil
 }
 
 func withJSONResponse(handler handlerFunc) handlerFunc {

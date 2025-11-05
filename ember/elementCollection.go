@@ -156,9 +156,10 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 				ElementType: v.ElementType,
 				Identifier:  v.Identifier,
 				Description: v.Description,
-				Children:    v.Children,
-				IsOnline:    v.IsOnline,
-				IsRoot:      v.IsRoot,
+				//Children:    v.Children,
+				IsOnline:          v.IsOnline,
+				IsRoot:            v.IsRoot,
+				SchemaIdentifiers: v.SchemaIdentifiers,
 			}
 		case asn1.ParameterType, asn1.QualifiedParameterType:
 			out[k.Path] = parameter{

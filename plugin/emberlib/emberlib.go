@@ -52,9 +52,13 @@ package emberlib
    // void c_onParameter(const GlowParameter *pParameter, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state) {
    // 	go_onParameter(state, (GlowParameter *)pParameter);
    // }
+
+   extern void c_onCommand(const GlowCommand *cmd, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
    // static void c_onCommand(void* state, GlowCommand* cmd) {
    //     go_onCommand(state, cmd);
    // }
+
+   extern void c_onStreamEntry(const GlowStreamEntry *entry, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
    // static void c_onStreamEntry(void* state, GlowStreamEntry* entry) {
    //     go_onStreamEntry(state, entry);
    // }
@@ -91,14 +95,6 @@ type EmberLib struct {
 	state  *ReaderState
 }
 
-// ParsedElement stores a JSON-serializable representation of a Glow element.
-type ParsedElement struct {
-	Type       string `json:"type"`
-	Identifier string `json:"identifier,omitempty"`
-	Path       []int  `json:"path,omitempty"`
-	// extend with Value, Children, etc. as needed
-}
-
 type ReaderState struct {
 	parsed   ember.ElementCollection
 	parsedMu sync.Mutex
@@ -131,10 +127,10 @@ func (p *EmberLib) EmberStart() error {
 	// We'll pass a nil state pointer (could be used to pass Go context if marshalled properly).
 	C.glowReader_init(
 		p.reader,
-		(C.onNode_t)(unsafe.Pointer(C.c_onNode)),           // onNode
-		(C.onParameter_t)(unsafe.Pointer(C.c_onParameter)), // onParameter
-		nil,                                                // (C.onCommand_t)(unsafe.Pointer(C.c_onCommand)),         // onCommand
-		nil,                                                // (C.onStreamEntry_t)(unsafe.Pointer(C.c_onStreamEntry)), // onStreamEntry
+		(C.onNode_t)(unsafe.Pointer(C.c_onNode)),
+		(C.onParameter_t)(unsafe.Pointer(C.c_onParameter)),
+		(C.onCommand_t)(unsafe.Pointer(C.c_onCommand)),
+		(C.onStreamEntry_t)(unsafe.Pointer(C.c_onStreamEntry)),
 		(C.voidptr)(unsafe.Pointer(p.handle)),
 		(*C.byte)(unsafe.Pointer(p.rxBuf)),
 		C.uint(rxBufferSize))
@@ -166,9 +162,7 @@ func (p *EmberLib) GetFromState() ember.ElementCollection {
 	return out
 }
 
-// sendGetDirectory encodes a GetDirectory request and writes to conn.
-// This function expects a C glowWriter API. If your version uses different names,
-// adapt calls below or implement your own encoder.
+// SendGetDirectory encodes a GetDirectory request and writes to conn.
 func SendGetDirectory(conn net.Conn, path string, request string) error {
 	// Simple approach: create C tx buffer and use glowWriter_* functions if present.
 	const txSize = 2048
@@ -206,10 +200,8 @@ func SendGetDirectory(conn net.Conn, path string, request string) error {
 	// bzero_item(command)
 	command.number = C.GlowCommandType_GetDirectory
 
-	//dirFieldMaskPtr := (*C.GlowFieldFlags)(unsafe.Pointer(&command.options[0]))
-	//
-	//// Set it
-	//*dirFieldMaskPtr = C.GlowFieldFlag_All
+	dirFieldMaskPtr := (*C.GlowFieldFlags)(unsafe.Pointer(&command.options[0]))
+	*dirFieldMaskPtr = C.GlowFieldFlag_All
 
 	switch request {
 	case asn1.NodeType:
@@ -263,10 +255,26 @@ func go_onNode(node *C.GlowNode, _ *C.GlowFieldFlags, pPath *C.berint, pathLengt
 		return
 	}
 
+	n := &ember.Element{
+		ElementType: asn1.NodeType,
+	}
+
 	// Access node->identifier (assumes char* identifier)
-	id := ""
-	if node != nil && node.pIdentifier != nil {
-		id = C.GoString(node.pIdentifier)
+	if node != nil {
+		if node.pIdentifier != nil {
+			n.Identifier = C.GoString(node.pIdentifier)
+		}
+
+		if node.pDescription != nil {
+			n.Description = C.GoString(node.pDescription)
+		}
+
+		if node.pSchemaIdentifiers != nil {
+			n.SchemaIdentifiers = C.GoString(node.pSchemaIdentifiers)
+		}
+
+		n.IsRoot = intToBool(int(node.isRoot))
+		n.IsOnline = intToBool(int(node.isOnline))
 	}
 
 	pathC := unsafe.Slice(pPath, pathLength)
@@ -275,19 +283,15 @@ func go_onNode(node *C.GlowNode, _ *C.GlowFieldFlags, pPath *C.berint, pathLengt
 		pathGo[i] = strconv.Itoa(int(v))
 	}
 
-	strPath := strings.Join(pathGo, ".")
+	n.Path = strings.Join(pathGo, ".")
 
 	k := ember.ElementKey{
-		ID:   id,
-		Path: strPath,
+		ID:   n.Identifier,
+		Path: n.Path,
 	}
 
 	rstate.parsedMu.Lock()
-	rstate.parsed[k] = &ember.Element{
-		Path:        strPath,
-		ElementType: asn1.NodeType,
-		Identifier:  id,
-	}
+	rstate.parsed[k] = n
 	rstate.parsedMu.Unlock()
 }
 
@@ -358,4 +362,12 @@ func splitPath(path string) []string {
 		res = append(res, path[start:])
 	}
 	return res
+}
+
+func intToBool(in int) bool {
+	if in == 1 {
+		return true
+	}
+
+	return false
 }
