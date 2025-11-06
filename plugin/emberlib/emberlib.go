@@ -65,6 +65,11 @@ import (
 	"unsafe"
 )
 
+const (
+	getDirCmd = 32
+	unSubCmd  = 31
+)
+
 type EmberLib struct {
 	rxBuf  unsafe.Pointer
 	handle cgo.Handle
@@ -77,6 +82,8 @@ type ReaderState struct {
 	parsedMu sync.Mutex
 	stop     bool
 }
+
+type emberCMD int
 
 func (p *EmberLib) EmberStart() error {
 	const rxBufferSize = 8192
@@ -142,6 +149,15 @@ func (p *EmberLib) GetFromState() ember.ElementCollection {
 
 // SendGetDirectory encodes a GetDirectory request and writes to conn.
 func SendGetDirectory(conn net.Conn, path string, request string) error {
+	return sendCommand(conn, path, request, getDirCmd)
+}
+
+func SendUnsubscribe(conn net.Conn, path string, request string) error {
+	return sendCommand(conn, path, request, unSubCmd)
+}
+
+// sendCommand encodes a request and writes to conn.
+func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error {
 	// Simple approach: create C tx buffer and use glowWriter_* functions if present.
 	const txSize = 2048
 	txBuf := C.malloc(C.size_t(txSize))
@@ -175,11 +191,18 @@ func SendGetDirectory(conn net.Conn, path string, request string) error {
 
 	C.glowOutput_beginPackage(&writer, C.true)
 	var command C.GlowCommand
-	// bzero_item(command)
-	command.number = C.GlowCommandType_GetDirectory
 
-	dirFieldMaskPtr := (*C.GlowFieldFlags)(unsafe.Pointer(&command.options[0]))
-	*dirFieldMaskPtr = C.GlowFieldFlag_All
+	switch cmd {
+	case getDirCmd:
+		command.number = C.GlowCommandType_GetDirectory
+
+		dirFieldMaskPtr := (*C.GlowFieldFlags)(unsafe.Pointer(&command.options[0]))
+		*dirFieldMaskPtr = C.GlowFieldFlag_All
+	case unSubCmd:
+		command.number = C.GlowCommandType_Unsubscribe
+	default:
+		return errs.New("unknown command")
+	}
 
 	switch request {
 	case asn1.NodeType:

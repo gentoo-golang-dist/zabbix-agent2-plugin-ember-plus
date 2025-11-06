@@ -115,6 +115,8 @@ func (c *ConnCollection) HandleRequestNew(
 		return nil, errs.Wrap(err, "failed to write to connection")
 	}
 
+	defer emberlib.SendUnsubscribe(ch.conn, path, req)
+
 	data := <-ch.parsedData
 	if data.err != nil {
 		return nil, errs.Wrapf(ember.ErrElementNotFound, "failed to find element, err %s", data.err.Error())
@@ -122,49 +124,6 @@ func (c *ConnCollection) HandleRequestNew(
 
 	return data.element, nil
 }
-
-//
-//// HandleRequest sends a request and reads response based on the provided connection parameters.
-//func (c *ConnCollection) HandleRequest(
-//	req []byte,
-//	conf ConnConfig,
-//	path string,
-//	reqTimeout time.Duration,
-//) (ember.ElementCollection, error) {
-//	ch, err := c.get(reqTimeout, conf)
-//	if err != nil {
-//		return nil, errs.Wrap(err, "failed to get conn")
-//	}
-//
-//	ch.mu.Lock()
-//	defer ch.mu.Unlock()
-//
-//	// turns on response expectation in the listener
-//
-//	ch.expectedPath <- path
-//
-//	err = ch.conn.SetWriteDeadline(time.Now().Add(reqTimeout))
-//	if err != nil {
-//		return nil, errs.Wrap(err, "failed to set write deadline for connection")
-//	}
-//
-//	_, err = ch.conn.Write(req)
-//	if err != nil {
-//		cerr := c.close(conf)
-//		if cerr != nil {
-//			c.logr.Errf("write connection clean-up failed, err: %w", cerr)
-//		}
-//
-//		return nil, errs.Wrap(err, "failed to write to connection")
-//	}
-//
-//	data := <-ch.parsedData
-//	if data.err != nil {
-//		return nil, errs.Wrapf(ember.ErrElementNotFound, "failed to find element, err %s", data.err.Error())
-//	}
-//
-//	return data.element, nil
-//}
 
 // CloseAll closes all connections in the collection.
 func (c *ConnCollection) CloseAll() {
@@ -395,7 +354,7 @@ func (ch *connHandler) readNew(lib *emberlib.EmberLib) (ember.ElementCollection,
 	for {
 		//nolint:makezero
 		// length taken from Ember+ documentation
-		response := make([]byte, 1290)
+		response := make([]byte, 1500)
 
 		n, err := ch.conn.Read(response)
 		if err != nil {
@@ -636,4 +595,6 @@ func filter(el ember.ElementCollection, path string) ember.ElementCollection {
 	}
 
 	return out
+
+	//return el
 }
