@@ -169,7 +169,6 @@ func (p *EmberPlugin) GetEmber(timeout time.Duration, metricParams map[string]st
 
 	path := metricParams[params.Path.Name()]
 	if path == "" {
-		//fmt.Println("out")
 		return rootCollection, nil
 	}
 

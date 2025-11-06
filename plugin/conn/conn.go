@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"golang.zabbix.com/plugin/ember-plus/ember"
-	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/sdk/errs"
 	"golang.zabbix.com/sdk/log"
 	"golang.zabbix.com/sdk/uri"
@@ -367,7 +366,7 @@ func (ch *connHandler) readNew(lib *emberlib.EmberLib) (ember.ElementCollection,
 		}
 	}
 
-	el := lib.GetFromState()
+	el := lib.TakeFromState()
 
 	return el, nil
 }
@@ -490,34 +489,6 @@ func (ch *connHandler) getPath(el ember.ElementCollection) ([]string, error) {
 	}
 
 	return gotPath, nil
-}
-
-func (ch *connHandler) getCollection(glow []byte) (ember.ElementCollection, []string, error) {
-	el := ember.NewElementCollection()
-
-	err := el.Populate(asn1.NewDecoder(glow))
-	if err != nil {
-		return ember.ElementCollection{}, nil, errs.Errorf("failed to populate glow response: %s", err.Error())
-	}
-
-	if len(el) == 0 {
-		return ember.ElementCollection{}, nil, errs.New("empty collection")
-	}
-
-	var gotPath []string
-
-	ch.logr.Tracef("got collection, %+v", el)
-
-	for k := range el {
-		// we care only about the path from the one element as it's a control value and every other element
-		// should have the same path prefix
-		gotPath = strings.Split(k.Path, ".")
-		ch.logr.Tracef("path from first element %s", gotPath)
-
-		break
-	}
-
-	return el, gotPath, nil
 }
 
 func (ch *connHandler) expectedData(expectedPath string, incomingPath []string) bool {

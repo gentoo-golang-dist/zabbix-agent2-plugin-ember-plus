@@ -139,9 +139,10 @@ func (p *EmberLib) EmberRead(buf []byte, n int) bool {
 	return false
 }
 
-func (p *EmberLib) GetFromState() ember.ElementCollection {
+func (p *EmberLib) TakeFromState() ember.ElementCollection {
 	p.state.parsedMu.Lock()
 	out := p.state.parsed
+	p.state.parsed = make(ember.ElementCollection)
 	defer p.state.parsedMu.Unlock()
 
 	return out
@@ -350,6 +351,7 @@ func go_onCommand(state unsafe.Pointer, cmd *C.GlowCommand) {
 	// parsedMu.Lock()
 	// parsed = append(parsed, ParsedElement{Type: "Command"})
 	// parsedMu.Unlock()
+
 }
 
 //export go_onStreamEntry
