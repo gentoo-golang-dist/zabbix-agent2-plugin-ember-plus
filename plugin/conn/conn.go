@@ -452,9 +452,7 @@ func (ch *connHandler) readExpected(path string, timeout time.Duration) parsedRe
 				return parsedResponse{nil, errs.Wrapf(resp.err, "failed to read Ember+ response")}
 			}
 
-			parsed := filter(resp.collection, path)
-
-			gotPath, err := ch.getPath(parsed)
+			gotPath, err := ch.getPath(resp.collection)
 			if err != nil {
 				ch.logr.Debugf("failed to read glow response: %s", err.Error())
 
@@ -467,7 +465,7 @@ func (ch *connHandler) readExpected(path string, timeout time.Duration) parsedRe
 
 			ch.logr.Tracef("found expected response with path %s", path)
 
-			return parsedResponse{parsed, nil}
+			return parsedResponse{resp.collection, nil}
 		}
 	}
 }
@@ -551,21 +549,4 @@ func newConn(timeout time.Duration, conf ConnConfig, logger log.Logger) (*connHa
 		parsedData:     make(chan parsedResponse),
 		expectedPath:   make(chan string),
 	}, nil
-}
-
-func filter(el ember.ElementCollection, path string) ember.ElementCollection {
-	if path == "" {
-		return el
-	}
-
-	out := make(ember.ElementCollection)
-	for k, v := range el {
-		if strings.HasPrefix(k.Path, path+".") || k.Path == path {
-			out[k] = v
-		}
-	}
-
-	return out
-
-	//return el
 }

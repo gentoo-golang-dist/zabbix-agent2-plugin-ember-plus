@@ -1113,29 +1113,3 @@ func Test_connHandler_readExpected(t *testing.T) {
 	//	})
 	//}
 }
-
-func Test_filter(t *testing.T) {
-	t.Parallel()
-
-	type args struct {
-		el   ember.ElementCollection
-		path string
-	}
-	tests := []struct {
-		name string
-		args args
-		want ember.ElementCollection
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := filter(tt.args.el, tt.args.path)
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Fatalf("connHandler.readExpected() = %s", diff)
-			}
-		})
-	}
-}
