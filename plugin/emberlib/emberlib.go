@@ -30,41 +30,20 @@ package emberlib
    // Global reader instance (single instance)
    extern GlowReader g_reader;
 
-   // Extern declarations of Go functions we will export to C.
-   // extern void go_onNode(void* state, GlowNode* node);
-   // extern void go_onParameter(void* state, GlowParameter* param);
-   // extern void go_onCommand(void* state, GlowCommand* cmd);
-   // extern void go_onStreamEntry(void* state, GlowStreamEntry* entry);
-   // extern void go_onLastPackageReceived(const byte *pPackage, int length, voidptr state);
-
-   // C wrapper functions that match the expected onNode_t etc. signatures.
-   // They simply call the exported Go functions.
-
-   extern void c_onLastPackageReceived(const byte *pPackage, int length, voidptr state);
-
-   extern void c_onNode(const GlowNode *pNode, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
-   // void c_onNode(const GlowNode *pNode, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state) {
-   // 	go_onNode(state, (GlowNode *)pNode);
-   // }
-   extern void c_onParameter(const GlowParameter *pParameter, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
-   // void c_onParameter(const GlowParameter *pParameter, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state) {
-   // 	go_onParameter(state, (GlowParameter *)pParameter);
-   // }
-
-   extern void c_onCommand(const GlowCommand *cmd, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
-   // static void c_onCommand(void* state, GlowCommand* cmd) {
-   //     go_onCommand(state, cmd);
-   // }
-
-   extern void c_onStreamEntry(const GlowStreamEntry *entry, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
-   // static void c_onStreamEntry(void* state, GlowStreamEntry* entry) {
-   //     go_onStreamEntry(state, entry);
-   // }
-
    // Return pointer to global reader
    static GlowReader* get_reader() {
    	return &g_reader;
    }
+
+   // Extern declarations of Go functions we will export to C.
+   extern void c_onLastPackageReceived(const byte *pPackage, int length, voidptr state);
+
+   extern void c_onNode(const GlowNode *pNode, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
+   extern void c_onParameter(const GlowParameter *pParameter, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
+   extern void c_onCommand(const GlowCommand *cmd, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
+   extern void c_onStreamEntry(const GlowStreamEntry *entry, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
+   extern void c_onFunction(const GlowFunction *pFunction, const berint *pPath, int pathLength, voidptr state);
+
 
    extern void onThrowError(int error, pcstr pMessage);
    extern void onFailAssertion(pcstr pFileName, int lineNumber);
@@ -130,10 +109,11 @@ func (p *EmberLib) EmberStart() error {
 		(C.onCommand_t)(unsafe.Pointer(C.c_onCommand)),
 		(C.onStreamEntry_t)(unsafe.Pointer(C.c_onStreamEntry)),
 		(C.voidptr)(unsafe.Pointer(p.handle)),
-		(*C.byte)(unsafe.Pointer(p.rxBuf)),
+		(*C.byte)(p.rxBuf),
 		C.uint(rxBufferSize))
 
 	p.reader.onLastPackageReceived = (C.onPackageReceived_t)(unsafe.Pointer(C.c_onLastPackageReceived))
+	p.reader.base.onFunction = (C.onFunction_t)(unsafe.Pointer(C.c_onFunction))
 
 	return nil
 }
@@ -211,13 +191,19 @@ func SendGetDirectory(conn net.Conn, path string, request string) error {
 			pathLen,
 			C.GlowElementType_Node)
 	case asn1.ParameterType:
-		// Build GetDirectory command
 		C.glow_writeQualifiedCommand(
 			&writer,
 			&command,
-			(*C.berint)(pathBuff), //cArray,
+			(*C.berint)(pathBuff),
 			pathLen,
 			C.GlowElementType_Parameter)
+	case asn1.FunctionType:
+		C.glow_writeQualifiedCommand(
+			&writer,
+			&command,
+			(*C.berint)(pathBuff),
+			pathLen,
+			C.GlowElementType_Function)
 	}
 
 	length := C.glowOutput_finishPackage(&writer)
@@ -301,9 +287,20 @@ func go_onParameter(param *C.GlowParameter, _ *C.GlowFieldFlags, pPath *C.berint
 		return
 	}
 
-	id := ""
-	if param != nil && param.pIdentifier != nil {
-		id = C.GoString(param.pIdentifier)
+	el := &ember.Element{
+		ElementType: asn1.ParameterType,
+	}
+
+	// Access node->identifier (assumes char* identifier)
+	if param != nil {
+		if param.pIdentifier != nil {
+			el.Identifier = C.GoString(param.pIdentifier)
+		}
+
+		if param.pDescription != nil {
+			el.Description = C.GoString(param.pDescription)
+		}
+
 	}
 
 	pathC := unsafe.Slice(pPath, pathLength)
@@ -312,20 +309,15 @@ func go_onParameter(param *C.GlowParameter, _ *C.GlowFieldFlags, pPath *C.berint
 		pathGo[i] = strconv.Itoa(int(v))
 	}
 
-	strPath := strings.Join(pathGo, ".")
+	el.Path = strings.Join(pathGo, ".")
 
 	k := ember.ElementKey{
-		ID:   id,
-		Path: strPath,
+		ID:   el.Identifier,
+		Path: el.Path,
 	}
 
 	rstate.parsedMu.Lock()
-	rstate.parsed[k] = &ember.Element{
-		Path:        strPath,
-		ElementType: asn1.ParameterType,
-		Identifier:  id,
-	}
-
+	rstate.parsed[k] = el
 	rstate.parsedMu.Unlock()
 }
 
@@ -342,6 +334,46 @@ func go_onStreamEntry(state unsafe.Pointer, entry *C.GlowStreamEntry) {
 	// parsedMu.Lock()
 	// parsed = append(parsed, ParsedElement{Type: "StreamEntry"})
 	// parsedMu.Unlock()
+}
+
+//export go_onFunction
+func go_onFunction(f *C.GlowFunction, pPath *C.berint, pathLength int, state unsafe.Pointer) {
+	h := cgo.Handle(state)
+	rstate, ok := h.Value().(*ReaderState)
+	if !ok {
+		return
+	}
+
+	el := &ember.Element{
+		ElementType: asn1.FunctionType,
+	}
+
+	if f != nil {
+		if f.pIdentifier != nil {
+			el.Identifier = C.GoString(f.pIdentifier)
+		}
+
+		if f.pDescription != nil {
+			el.Description = C.GoString(f.pDescription)
+		}
+	}
+
+	pathC := unsafe.Slice(pPath, pathLength)
+	pathGo := make([]string, pathLength)
+	for i, v := range pathC {
+		pathGo[i] = strconv.Itoa(int(v))
+	}
+
+	el.Path = strings.Join(pathGo, ".")
+
+	k := ember.ElementKey{
+		ID:   el.Identifier,
+		Path: el.Path,
+	}
+
+	rstate.parsedMu.Lock()
+	rstate.parsed[k] = el
+	rstate.parsedMu.Unlock()
 }
 
 // splitPath splits an Ember path "root/audio/volume" into parts (no empty parts)
