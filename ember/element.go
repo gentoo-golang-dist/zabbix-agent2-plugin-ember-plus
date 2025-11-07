@@ -62,6 +62,13 @@ type function struct {
 	Description string     `json:"description"`
 }
 
+type matrix struct {
+	Path        string `json:"path"`
+	ElementType string `json:"element_type"`
+	Identifier  string `json:"identifier"`
+	Description string `json:"description"`
+}
+
 // parameter hold information about parameter and qualified parameter fields.
 type parameter struct {
 	Path        string     `json:"path"`

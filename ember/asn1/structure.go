@@ -34,6 +34,8 @@ const (
 	NodeType = "node"
 	// FunctionType glow data field function type.
 	FunctionType = "function"
+	// MatrixType glow data field matrix type.
+	MatrixType = "matrix"
 
 	// EmberGetDirCommand integer for request dir command, based on S101 and glow protocol.
 	EmberGetDirCommand = 32

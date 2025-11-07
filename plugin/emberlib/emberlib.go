@@ -43,7 +43,7 @@ package emberlib
    extern void c_onCommand(const GlowCommand *cmd, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
    extern void c_onStreamEntry(const GlowStreamEntry *entry, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state);
    extern void c_onFunction(const GlowFunction *pFunction, const berint *pPath, int pathLength, voidptr state);
-
+   extern void c_onMatrix(const GlowMatrix *pMatrix, const berint *pPath, int pathLength, voidptr state);
 
    extern void onThrowError(int error, pcstr pMessage);
    extern void onFailAssertion(pcstr pFileName, int lineNumber);
@@ -121,6 +121,7 @@ func (p *EmberLib) EmberStart() error {
 
 	p.reader.onLastPackageReceived = (C.onPackageReceived_t)(unsafe.Pointer(C.c_onLastPackageReceived))
 	p.reader.base.onFunction = (C.onFunction_t)(unsafe.Pointer(C.c_onFunction))
+	p.reader.base.onMatrix = (C.onMatrix_t)(unsafe.Pointer(C.c_onMatrix))
 
 	return nil
 }
@@ -211,7 +212,7 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 		C.glow_writeQualifiedCommand(
 			&writer,
 			&command,
-			(*C.berint)(pathBuff), //cArray,
+			(*C.berint)(pathBuff),
 			pathLen,
 			C.GlowElementType_Node)
 	case asn1.ParameterType:
@@ -228,6 +229,13 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 			(*C.berint)(pathBuff),
 			pathLen,
 			C.GlowElementType_Function)
+	case asn1.MatrixType:
+		C.glow_writeQualifiedCommand(
+			&writer,
+			&command,
+			(*C.berint)(pathBuff),
+			pathLen,
+			C.GlowElementType_Matrix)
 	}
 
 	length := C.glowOutput_finishPackage(&writer)
@@ -380,6 +388,42 @@ func go_onFunction(f *C.GlowFunction, pPath *C.berint, pathLength int, state uns
 
 		if f.pDescription != nil {
 			el.Description = C.GoString(f.pDescription)
+		}
+	}
+
+	pathC := unsafe.Slice(pPath, pathLength)
+	pathGo := make([]string, pathLength)
+	for i, v := range pathC {
+		pathGo[i] = strconv.Itoa(int(v))
+	}
+
+	el.Path = strings.Join(pathGo, ".")
+
+	k := ember.ElementKey{
+		ID:   el.Identifier,
+		Path: el.Path,
+	}
+
+	rstate.parsedMu.Lock()
+	rstate.parsed[k] = el
+	rstate.parsedMu.Unlock()
+}
+
+//export go_onMatrix
+func go_onMatrix(m *C.GlowMatrix, pPath *C.berint, pathLength int, state unsafe.Pointer) {
+	h := cgo.Handle(state)
+	rstate, ok := h.Value().(*ReaderState)
+	if !ok {
+		return
+	}
+
+	el := &ember.Element{
+		ElementType: asn1.MatrixType,
+	}
+
+	if m != nil {
+		if m.pIdentifier != nil {
+			el.Identifier = C.GoString(m.pIdentifier)
 		}
 	}
 

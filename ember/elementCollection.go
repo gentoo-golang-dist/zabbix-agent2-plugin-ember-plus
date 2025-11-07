@@ -186,6 +186,13 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 				Identifier:  v.Identifier,
 				Description: v.Description,
 			}
+		case asn1.MatrixType:
+			out[k.Path] = matrix{
+				Path:        v.Path,
+				ElementType: v.ElementType,
+				Identifier:  v.Identifier,
+				Description: v.Description,
+			}
 		default:
 			return nil, errs.New("failed unknown element type")
 		}

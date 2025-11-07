@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"golang.zabbix.com/plugin/ember-plus/ember"
 	"golang.zabbix.com/sdk/log"
 )
 

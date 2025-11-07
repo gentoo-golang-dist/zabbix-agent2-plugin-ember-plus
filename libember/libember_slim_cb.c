@@ -8,6 +8,7 @@ extern void go_onNode(GlowNode *pNode, GlowFieldFlags fields, berint *pPath, int
 extern void go_onParameter(GlowParameter* param, GlowFieldFlags fields, berint *pPath, int pathLength, voidptr state);
 extern void go_onCommand(GlowCommand* param, GlowFieldFlags fields, berint *pPath, int pathLength, voidptr state);
 extern void go_onFunction(GlowFunction *pFunction, berint *pPath, int pathLength, voidptr state);
+extern void go_onMatrix(GlowMatrix *pMatrix, berint *pPath, int pathLength, voidptr state);
 extern void go_onStreamEntry(
 GlowStreamEntry* entry, GlowFieldFlags fields, berint *pPath, int pathLength, voidptr state
 );
@@ -34,6 +35,9 @@ const GlowStreamEntry *entry, GlowFieldFlags fields, const berint *pPath, int pa
 
 void c_onFunction(const GlowFunction *pFunction, const berint *pPath, int pathLength, voidptr state) {
 	go_onFunction((GlowFunction *)pFunction, (berint *)pPath, pathLength, state);
+}
+void c_onMatrix(const GlowMatrix *pMatrix, const berint *pPath, int pathLength, voidptr state) {
+	go_onMatrix((GlowMatrix *)pMatrix, (berint *)pPath, pathLength, state);
 }
 
 void c_onLastPackageReceived(const byte *pPackage, int length, voidptr state)
