@@ -323,7 +323,6 @@ func go_onParameter(param *C.GlowParameter, _ *C.GlowFieldFlags, pPath *C.berint
 		ElementType: asn1.ParameterType,
 	}
 
-	// Access node->identifier (assumes char* identifier)
 	if param != nil {
 		if param.pIdentifier != nil {
 			el.Identifier = C.GoString(param.pIdentifier)
@@ -333,6 +332,23 @@ func go_onParameter(param *C.GlowParameter, _ *C.GlowFieldFlags, pPath *C.berint
 			el.Description = C.GoString(param.pDescription)
 		}
 
+		if param.pFormat != nil {
+			el.Format = C.GoString(param.pFormat)
+		}
+
+		if param.pEnumeration != nil {
+			el.Enumeration = C.GoString(param.pEnumeration)
+		}
+
+		el.Access = int(param.access)
+		el.Factor = int(param.factor)
+
+		el.Value = GlowValueToGo(&param.value)
+		el.Default = GlowValueToGo(&param.defaultValue)
+		el.Minimum = GlowMinMaxToGo(&param.minimum)
+		el.Maximum = GlowMinMaxToGo(&param.maximum)
+
+		el.IsOnline = intToBool(int(param.isOnline))
 	}
 
 	pathC := unsafe.Slice(pPath, pathLength)
@@ -469,4 +485,63 @@ func intToBool(in int) bool {
 	}
 
 	return false
+}
+
+func GlowValueToGo(val *C.GlowValue) any {
+	if val == nil {
+		return nil
+	}
+
+	switch val.flag {
+	case C.GlowParameterType_Integer:
+		p := (*C.berlong)(unsafe.Pointer(&val.choice))
+		return int64(*p)
+
+	case C.GlowParameterType_Real:
+		p := (*C.double)(unsafe.Pointer(&val.choice))
+		return float64(*p)
+
+	case C.GlowParameterType_Boolean:
+		p := (*C.bool)(unsafe.Pointer(&val.choice))
+		return *p != 0
+
+	case C.GlowParameterType_String:
+		p := (**C.char)(unsafe.Pointer(&val.choice))
+		return C.GoString(*p)
+
+	//case C.GlowParameterType_Octets:
+	//	p := (*C.GlowOctetsValue)(unsafe.Pointer(&val.choice))
+	//	return C.GoBytes(unsafe.Pointer(p.pData), C.int(p.length))
+
+	case C.GlowParameterType_Trigger:
+		return "Trigger"
+
+	case C.GlowParameterType_Enum:
+		p := (*C.berlong)(unsafe.Pointer(&val.choice))
+		return int64(*p)
+
+	case C.GlowParameterType_None:
+		return nil
+	default:
+		return nil
+	}
+}
+
+func GlowMinMaxToGo(val *C.GlowMinMax) any {
+	if val == nil {
+		return nil
+	}
+
+	switch val.flag {
+	case C.GlowParameterType_Integer:
+		p := (*C.berlong)(unsafe.Pointer(&val.choice))
+		return int64(*p)
+	case C.GlowParameterType_Real:
+		p := (*C.double)(unsafe.Pointer(&val.choice))
+		return float64(*p)
+	case C.GlowParameterType_None:
+		return nil
+	default:
+		return nil
+	}
 }
