@@ -2,8 +2,6 @@
 #include <stdint.h>
 #include "emberplus.h"
 
-GlowReader g_reader;
-
 extern void go_onNode(GlowNode *pNode, GlowFieldFlags fields, berint *pPath, int pathLength, voidptr state);
 extern void go_onParameter(GlowParameter* param, GlowFieldFlags fields, berint *pPath, int pathLength, voidptr state);
 extern void go_onCommand(GlowCommand* param, GlowFieldFlags fields, berint *pPath, int pathLength, voidptr state);

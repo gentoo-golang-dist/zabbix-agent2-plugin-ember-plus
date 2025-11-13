@@ -22,18 +22,11 @@ package emberlib
    #include <stdint.h>
    #include <string.h>
    #include "emberplus.h"
+   #include "emberinternal.h"
 
 
    // The library sometimes uses 'byte' typedefs. Make sure it is available:
    typedef unsigned char byte;
-
-   // Global reader instance (single instance)
-   extern GlowReader g_reader;
-
-   // Return pointer to global reader
-   static GlowReader* get_reader() {
-   	return &g_reader;
-   }
 
    // Extern declarations of Go functions we will export to C.
    extern void c_onLastPackageReceived(const byte *pPackage, int length, voidptr state);
@@ -54,15 +47,16 @@ package emberlib
 import "C"
 
 import (
-	"golang.zabbix.com/plugin/ember-plus/ember"
-	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
-	"golang.zabbix.com/sdk/errs"
 	"net"
 	"runtime/cgo"
 	"strconv"
 	"strings"
 	"sync"
 	"unsafe"
+
+	"golang.zabbix.com/plugin/ember-plus/ember"
+	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
+	"golang.zabbix.com/sdk/errs"
 )
 
 const (
@@ -93,7 +87,7 @@ func (p *EmberLib) EmberStart() error {
 	}
 
 	// Get pointer to global reader
-	p.reader = C.get_reader()
+	p.reader = (*C.GlowReader)(C.malloc(C.size_t(unsafe.Sizeof(C.GlowReader{}))))
 
 	p.state = &ReaderState{
 		parsed: make(ember.ElementCollection),
@@ -128,6 +122,7 @@ func (p *EmberLib) EmberStart() error {
 
 func (p *EmberLib) EmberStop() {
 	C.free(p.rxBuf)
+	C.free(unsafe.Pointer(p.reader))
 	p.handle.Delete()
 }
 
