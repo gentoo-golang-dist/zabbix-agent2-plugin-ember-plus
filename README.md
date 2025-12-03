@@ -6,8 +6,8 @@ The plugin can monitor multiple Ember+ devices simultaneously, remote or local.
 
 ## Requirements
 
-- Zabbix Agent 2 version 6.0.0, Zabbix Agent 2 version 7.0.0 or newer
-- Go version 1.23 or newer (required only for building the plugin from the source)
+- Zabbix agent 2 version 6.0.0, Zabbix agent 2 version 7.0.0 or newer
+- If building from source: Latest or second-latest stable Go version (see go.mod for exact version requirements)
 
 ## Supported operating systems and architectures
 
