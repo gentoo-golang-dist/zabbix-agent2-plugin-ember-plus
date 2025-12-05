@@ -49,6 +49,14 @@ var (
 	ErrInvalidPath = errs.New("invalid path")
 )
 
+// EmberPlugin holds plugin parameters.
+type EmberPlugin struct {
+	plugin.Base
+	conns   *conn.ConnCollection
+	config  *pluginConfig
+	metrics map[emberMetricKey]*emberMetric
+}
+
 // HandlerFunc describes the signature all metric handler functions must have.
 type handlerFunc func(timeout time.Duration, metricParams map[string]string, extraParams ...string) (any, error)
 
@@ -59,13 +67,7 @@ type emberMetric struct {
 	handler handlerFunc
 }
 
-type EmberPlugin struct {
-	plugin.Base
-	conns   *conn.ConnCollection
-	config  *pluginConfig
-	metrics map[emberMetricKey]*emberMetric
-}
-
+// New creates new plugin implementation.
 func New() (*EmberPlugin, error) {
 	p := &EmberPlugin{
 		conns: &conn.ConnCollection{},
@@ -82,6 +84,7 @@ func New() (*EmberPlugin, error) {
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to register metrics")
 	}
+
 	return p, nil
 }
 
