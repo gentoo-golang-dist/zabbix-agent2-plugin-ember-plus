@@ -12,6 +12,8 @@ GlowStreamEntry* entry, GlowFieldFlags fields, berint *pPath, int pathLength, vo
 );
 
 extern void go_onLastPackageReceived(int length, void* state);
+extern void go_onThrowError(int error, const char* pMessage);
+extern void go_onFailAssertion(const char* pFileName, int lineNumber);
 
 void c_onNode(const GlowNode *pNode, GlowFieldFlags fields, const berint *pPath, int pathLength, voidptr state) {
 	go_onNode((GlowNode *)pNode, fields, (berint *)pPath, pathLength, state);
@@ -43,14 +45,14 @@ void c_onLastPackageReceived(const byte *pPackage, int length, voidptr state)
     go_onLastPackageReceived(length, state);
 }
 
-void onThrowError(int error, pcstr pMessage)
+void c_onThrowError(int error, pcstr pMessage)
 {
-   printf("ber error %d: '%s'\n", error, pMessage);
+go_onThrowError(error, pMessage);
 }
 
-void onFailAssertion(pcstr pFileName, int lineNumber)
+void c_onFailAssertion(pcstr pFileName, int lineNumber)
 {
-   printf("Debug assertion failed @ '%s' line %d", pFileName, lineNumber);
+go_onFailAssertion(pFileName, lineNumber);
 }
 
 

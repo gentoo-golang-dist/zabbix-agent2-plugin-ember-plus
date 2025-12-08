@@ -15,7 +15,6 @@
 package conn
 
 import (
-	"golang.zabbix.com/plugin/ember-plus/ember/s101"
 	"golang.zabbix.com/plugin/ember-plus/plugin/emberlib"
 	"net"
 	"net/url"
@@ -85,7 +84,7 @@ func (c *ConnCollection) HandleRequestNew(
 	conf ConnConfig,
 	path string,
 	reqTimeout time.Duration,
-	el *emberlib.EmberLib,
+	el *emberlib.Handler,
 ) (ember.ElementCollection, error) {
 	ch, err := c.get(reqTimeout, conf, el)
 	if err != nil {
@@ -170,8 +169,8 @@ func (c *ConnCollection) close(conf ConnConfig) error {
 	return nil
 }
 
-func (c *ConnCollection) Get(timeout time.Duration, conf ConnConfig, el *emberlib.EmberLib) (net.Conn, error) {
-	ch, err := c.get(timeout, conf, el)
+func (c *ConnCollection) Get(timeout time.Duration, conf ConnConfig, h *emberlib.Handler) (net.Conn, error) {
+	ch, err := c.get(timeout, conf, h)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
@@ -179,7 +178,7 @@ func (c *ConnCollection) Get(timeout time.Duration, conf ConnConfig, el *emberli
 	return ch.conn, nil
 }
 
-func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig, el *emberlib.EmberLib) (*connHandler, error) {
+func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig, h *emberlib.Handler) (*connHandler, error) {
 	c.logr.Debugf("looking for connection for %s", conf.URI)
 
 	ch := c.getConn(conf)
@@ -212,7 +211,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig, el *emberli
 		return existing, nil
 	}
 
-	go ch.pathReader(c, timeout, el)
+	go ch.pathReader(c, timeout, h)
 
 	return ch, nil
 }
@@ -285,70 +284,9 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) error {
 }
 
 //nolint:cyclop
-func (ch *connHandler) read() ([]byte, error) {
-	var (
-		s101s          [][]byte
-		incompleteS101 []byte
-		out            []byte
-		multi          bool
-	)
-
-	for {
-		//nolint:makezero
-		// length taken from Ember+ documentation
-		response := make([]byte, 1290)
-
-		n, err := ch.conn.Read(response)
-		if err != nil {
-			return nil, errs.Wrap(err, "failed to read from connection")
-		}
-
-		if len(incompleteS101) > 0 {
-			response = append(incompleteS101, response[:n]...)
-		}
-
-		s101s, incompleteS101, err = s101.GetS101s(response)
-		if err != nil {
-			return nil, errs.Wrap(err, "failed to get s101 data from read")
-		}
-
-		if len(incompleteS101) > 0 {
-			continue
-		}
-
-		glow, lastPacketType, err := s101.Decode(s101s)
-		if err != nil {
-			ch.logr.Debugf("failed to decode response: %s", err.Error())
-
-			continue
-		}
-
-		ch.logr.Tracef("got packet with last packet type %x and data %x", lastPacketType, response)
-
-		switch lastPacketType {
-		case s101.FirstMultiPacket, s101.BodyMultiPacket:
-			out = append(out, glow...)
-			multi = true
-
-			continue
-		case s101.LastMultiPacket:
-			out = append(out, glow...)
-
-			return out, nil
-		default:
-			if multi {
-				ch.logr.Errf("dropping message in the middle of a multi packet read %x", glow)
-
-				continue
-			}
-
-			return glow, nil
-		}
-	}
-}
 
 //nolint:cyclop
-func (ch *connHandler) readNew(lib *emberlib.EmberLib) (ember.ElementCollection, error) {
+func (ch *connHandler) read(h *emberlib.Handler) (ember.ElementCollection, error) {
 
 	for {
 		//nolint:makezero
@@ -360,13 +298,13 @@ func (ch *connHandler) readNew(lib *emberlib.EmberLib) (ember.ElementCollection,
 			return nil, errs.Wrap(err, "failed to read from connection")
 		}
 
-		stop := lib.EmberRead(response, n)
+		stop := h.EmberRead(response, n)
 		if stop {
 			break
 		}
 	}
 
-	el := lib.TakeFromState()
+	el := h.TakeFromState()
 
 	return el, nil
 }
@@ -387,8 +325,8 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 	return ch.lastAccessTime
 }
 
-func (ch *connHandler) pathReader(c *ConnCollection, timeout time.Duration, el *emberlib.EmberLib) {
-	go ch.reader(c, el)
+func (ch *connHandler) pathReader(c *ConnCollection, timeout time.Duration, h *emberlib.Handler) {
+	go ch.reader(c, h)
 
 	for {
 		select {
@@ -413,10 +351,10 @@ func (ch *connHandler) pathReader(c *ConnCollection, timeout time.Duration, el *
 	}
 }
 
-func (ch *connHandler) reader(c *ConnCollection, el *emberlib.EmberLib) {
+func (ch *connHandler) reader(c *ConnCollection, h *emberlib.Handler) {
 	for {
 
-		emberCollection, err := ch.readNew(el)
+		emberCollection, err := ch.read(h)
 
 		ch.readData <- readResponse{emberCollection, err}
 

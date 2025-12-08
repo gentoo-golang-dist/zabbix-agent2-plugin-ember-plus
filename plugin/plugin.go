@@ -57,11 +57,15 @@ type EmberPlugin struct {
 	conns   *conn.ConnCollection
 	config  *pluginConfig
 	metrics map[emberMetricKey]*emberMetric
-	lib     emberlib.EmberLib
 }
 
 // HandlerFunc describes the signature all metric handler functions must have.
-type handlerFunc func(timeout time.Duration, metricParams map[string]string, extraParams ...string) (any, error)
+type handlerFunc func(
+	timeout time.Duration,
+	handler *emberlib.Handler,
+	metricParams map[string]string,
+	extraParams ...string,
+) (any, error)
 
 type emberMetricKey string
 
@@ -108,17 +112,20 @@ func (p *EmberPlugin) Run() error {
 
 // Start initiates the connection handler.
 func (p *EmberPlugin) Start() {
-	err := p.lib.EmberStart()
-	if err != nil {
-		p.Logger.Errf("pugin Start failed: %v", err)
-	}
+
+	emberlib.Init(p.Logger)
+
+	//err := p.lib.EmberStart()
+	//if err != nil {
+	//	p.Logger.Errf("pugin Start failed: %v", err)
+	//}
 
 	p.conns.Init(p.config.KeepAlive, p)
 }
 
 // Stop stops the mssql plugin, closing all the connections.
 func (p *EmberPlugin) Stop() {
-	p.lib.EmberStop()
+	//p.lib.EmberStop()
 
 	p.conns.CloseAll()
 }
@@ -146,7 +153,14 @@ func (p *EmberPlugin) Export(key string, rawParams []string, pluginCtx plugin.Co
 		timeout = time.Second * time.Duration(pluginCtx.Timeout())
 	}
 
-	res, err := m.handler(timeout, metricParams, extraParams...)
+	handler, err := emberlib.InitHandler()
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to init ember handler")
+	}
+
+	defer handler.CleanUp()
+
+	res, err := m.handler(timeout, handler, metricParams, extraParams...)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to execute handler")
 	}
@@ -156,13 +170,13 @@ func (p *EmberPlugin) Export(key string, rawParams []string, pluginCtx plugin.Co
 
 // GetEmber handles ember.get metric, returns collection data based on request metrics, response needs to be handled,
 // otherwise it is not possible to json marshal it.
-func (p *EmberPlugin) GetEmber(timeout time.Duration, metricParams map[string]string, _ ...string) (any, error) {
+func (p *EmberPlugin) GetEmber(timeout time.Duration, handler *emberlib.Handler, metricParams map[string]string, _ ...string) (any, error) {
 	connConf, err := conn.NewConnConfig(metricParams[params.URI.Name()])
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create connection config")
 	}
 
-	rootCollection, err := p.conns.HandleRequestNew(asn1.NodeType, connConf, "", timeout, &p.lib)
+	rootCollection, err := p.conns.HandleRequestNew(asn1.NodeType, connConf, "", timeout, handler)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to handle request")
 	}
@@ -178,10 +192,10 @@ func (p *EmberPlugin) GetEmber(timeout time.Duration, metricParams map[string]st
 	}
 
 	if byID {
-		return p.getCollectionByID(rootCollection, connConf, pathParts, timeout)
+		return p.getCollectionByID(handler, rootCollection, connConf, pathParts, timeout)
 	}
 
-	return p.getCollectionByPath(rootCollection, connConf, pathParts, timeout)
+	return p.getCollectionByPath(handler, rootCollection, connConf, pathParts, timeout)
 }
 
 func (p *EmberPlugin) registerMetrics() error {
@@ -211,7 +225,7 @@ func (p *EmberPlugin) registerMetrics() error {
 }
 
 func (p *EmberPlugin) getCollectionByPath(
-	collection ember.ElementCollection, connConf conn.ConnConfig, pathPart []string, timeout time.Duration,
+	handler *emberlib.Handler, collection ember.ElementCollection, connConf conn.ConnConfig, pathPart []string, timeout time.Duration,
 ) (ember.ElementCollection, error) {
 	var fullPath string
 
@@ -222,7 +236,7 @@ func (p *EmberPlugin) getCollectionByPath(
 			return nil, errs.Wrapf(err, "failed to retrieve element with path %s", fullPath)
 		}
 
-		collection, err = p.conns.HandleRequestNew(el.ElementType, connConf, fullPath, timeout, &p.lib)
+		collection, err = p.conns.HandleRequestNew(el.ElementType, connConf, fullPath, timeout, handler)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to handle request")
 		}
@@ -232,7 +246,7 @@ func (p *EmberPlugin) getCollectionByPath(
 }
 
 func (p *EmberPlugin) getCollectionByID(
-	collection ember.ElementCollection, connConf conn.ConnConfig, ids []string, timeout time.Duration,
+	handler *emberlib.Handler, collection ember.ElementCollection, connConf conn.ConnConfig, ids []string, timeout time.Duration,
 ) (ember.ElementCollection, error) {
 	//return nil, errs.New("not implemented yet")
 	for _, id := range ids {
@@ -244,7 +258,7 @@ func (p *EmberPlugin) getCollectionByID(
 			)
 		}
 
-		collection, err = p.conns.HandleRequestNew(el.ElementType, connConf, fullPath, timeout, &p.lib)
+		collection, err = p.conns.HandleRequestNew(el.ElementType, connConf, fullPath, timeout, handler)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to handle request")
 		}
@@ -255,9 +269,9 @@ func (p *EmberPlugin) getCollectionByID(
 
 func withJSONResponse(handler handlerFunc) handlerFunc {
 	return func(
-		timeout time.Duration, metricParams map[string]string, extraParams ...string,
+		timeout time.Duration, h *emberlib.Handler, metricParams map[string]string, extraParams ...string,
 	) (any, error) {
-		res, err := handler(timeout, metricParams, extraParams...)
+		res, err := handler(timeout, h, metricParams, extraParams...)
 		if err != nil {
 			return nil, errs.Wrap(err, "handler failed")
 		}

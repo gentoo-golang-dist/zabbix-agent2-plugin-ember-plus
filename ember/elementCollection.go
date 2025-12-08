@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
-	"golang.zabbix.com/plugin/ember-plus/ember/s101"
 	"golang.zabbix.com/sdk/errs"
 )
 
@@ -35,78 +34,6 @@ type ElementCollection map[ElementKey]*Element
 // NewElementCollection creates a empty element collection.
 func NewElementCollection() ElementCollection {
 	return make(ElementCollection)
-}
-
-// Populate fills in collection with data from the decoder.
-//
-//nolint:gocyclo,cyclop
-func (ec ElementCollection) Populate(data *asn1.Decoder) error {
-	var end bool
-
-	app0Codec, _, err := data.Read(asn1.RootElementCollectionTag, asn1.ApplicationByte)
-	if err != nil {
-		return errs.Wrap(err, "failed to read element root collection tag")
-	}
-
-	app11Codec, _, err := app0Codec.Read(asn1.RootElementTag, asn1.ApplicationByte)
-	if err != nil {
-		return errs.Wrap(err, "failed to read element tag")
-	}
-
-	for {
-		var context0 *asn1.Decoder
-
-		context0, _, err = app11Codec.Read(asn1.ContextZeroTag, asn1.ContextByte)
-		if err != nil {
-			return errs.Wrap(err, "failed to read top level context 0")
-		}
-
-		var (
-			decoder *asn1.Decoder
-			el      *Element
-		)
-
-		el, decoder, err = getElement(context0)
-		if err != nil {
-			return errs.Wrap(err, "failed to read element")
-		}
-
-		ec[ElementKey{ID: el.Identifier, Path: el.Path}] = el
-
-		_, err = decoder.ReadEnd() // current context end
-		if err != nil {
-			return errs.Wrap(err, "failed to decode context end")
-		}
-
-		_, err = decoder.ReadEnd() // current elements end
-		if err != nil {
-			return errs.Wrap(err, "failed to decode current sequence end")
-		}
-
-		if decoder.Len() > 0 {
-			app11Codec = asn1.NewDecoder(append(decoder.Bytes(), app11Codec.Bytes()...))
-		}
-
-		end, err = app11Codec.ReadEnd() // all  element end
-		if err != nil {
-			return errs.Wrap(err, "failed to decode element sequence end")
-		}
-
-		if end {
-			break
-		}
-	}
-
-	end, err = app0Codec.ReadEnd() // end of the whole element
-	if err != nil {
-		return errs.Wrap(err, "failed to read sequence end of application 0 (the whole payload)")
-	}
-
-	if !end {
-		return errs.Wrap(err, "main application decoder still has data remaining")
-	}
-
-	return nil
 }
 
 // GetElementByPath returns element from collection with the provided path OID.
@@ -152,11 +79,11 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 		switch v.ElementType {
 		case asn1.NodeType, asn1.QualifiedNodeType:
 			out[k.Path] = node{
-				Path:        v.Path,
-				ElementType: v.ElementType,
-				Identifier:  v.Identifier,
-				Description: v.Description,
-				//Children:    v.Children,
+				Path:              v.Path,
+				ElementType:       v.ElementType,
+				Identifier:        v.Identifier,
+				Description:       v.Description,
+				Children:          v.Children,
 				IsOnline:          v.IsOnline,
 				IsRoot:            v.IsRoot,
 				SchemaIdentifiers: v.SchemaIdentifiers,
@@ -204,33 +131,4 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 	}
 
 	return bytes, nil
-}
-
-// GetRootRequest returns a S101 request packet with an encoded request for root collection.
-func GetRootRequest() ([]byte, error) {
-	encoder := asn1.NewEncoder()
-
-	err := encoder.WriteRootTreeRequest()
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to write root command request")
-	}
-
-	return s101.Encode(encoder.GetData(), s101.FirstMultiPacket), nil
-}
-
-// GetRequestByType returns S101 packet with an encoded request for element with the provided type and path.
-func GetRequestByType(et string, path string) ([]byte, error) {
-	encoder := asn1.NewEncoder()
-
-	parsed, err := parsePath(path)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to parse path")
-	}
-
-	err = encoder.WriteRequest(parsed, string(et), asn1.EmberGetDirCommand)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to write request")
-	}
-
-	return s101.Encode(encoder.GetData(), s101.FirstMultiPacket), nil
 }

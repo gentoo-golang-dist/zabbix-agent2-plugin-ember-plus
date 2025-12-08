@@ -38,8 +38,8 @@ package emberlib
    extern void c_onFunction(const GlowFunction *pFunction, const berint *pPath, int pathLength, voidptr state);
    extern void c_onMatrix(const GlowMatrix *pMatrix, const berint *pPath, int pathLength, voidptr state);
 
-   extern void onThrowError(int error, pcstr pMessage);
-   extern void onFailAssertion(pcstr pFileName, int lineNumber);
+   extern void c_onThrowError(int error, pcstr pMessage);
+   extern void c_onFailAssertion(pcstr pFileName, int lineNumber);
    extern void *allocMemoryImpl(size_t size);
    extern void freeMemoryImpl(void *pMemory);
 
@@ -57,6 +57,7 @@ import (
 	"golang.zabbix.com/plugin/ember-plus/ember"
 	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/sdk/errs"
+	"golang.zabbix.com/sdk/log"
 )
 
 const (
@@ -64,11 +65,11 @@ const (
 	unSubCmd  = 31
 )
 
-type EmberLib struct {
-	rxBuf  unsafe.Pointer
-	handle cgo.Handle
-	reader *C.GlowReader
-	state  *ReaderState
+type Handler struct {
+	rxBuf   unsafe.Pointer
+	cHandle cgo.Handle
+	reader  *C.GlowReader
+	state   *ReaderState
 }
 
 type ReaderState struct {
@@ -79,69 +80,87 @@ type ReaderState struct {
 
 type emberCMD int
 
-func (p *EmberLib) EmberStart() error {
+var emberLogger log.Logger
+
+func Init(log log.Logger) {
+	C.ember_init(
+		(C.throwError_t)(unsafe.Pointer(C.c_onThrowError)),
+		(C.failAssertion_t)(unsafe.Pointer(C.c_onFailAssertion)),
+		(C.allocMemory_t)(unsafe.Pointer(C.allocMemoryImpl)),
+		(C.freeMemory_t)(unsafe.Pointer(C.freeMemoryImpl)))
+
+	emberLogger = log
+}
+
+func InitHandler() (*Handler, error) {
+	var h Handler
+
 	const rxBufferSize = 8192
-	p.rxBuf = C.malloc(C.size_t(rxBufferSize))
-	if p.rxBuf == nil {
-		return errs.New("C.malloc failed")
+	h.rxBuf = C.malloc(C.size_t(rxBufferSize))
+	if h.rxBuf == nil {
+		return nil, errs.New("C.malloc failed")
 	}
 
 	// Get pointer to global reader
-	p.reader = (*C.GlowReader)(C.malloc(C.size_t(unsafe.Sizeof(C.GlowReader{}))))
+	h.reader = (*C.GlowReader)(C.malloc(C.size_t(unsafe.Sizeof(C.GlowReader{}))))
 
-	p.state = &ReaderState{
+	h.state = &ReaderState{
 		parsed: make(ember.ElementCollection),
 	}
 
-	p.handle = cgo.NewHandle(p.state)
-
-	C.ember_init(
-		(C.throwError_t)(unsafe.Pointer(C.onThrowError)),
-		(C.failAssertion_t)(unsafe.Pointer(C.onFailAssertion)),
-		(C.allocMemory_t)(unsafe.Pointer(C.allocMemoryImpl)),
-		(C.freeMemory_t)(unsafe.Pointer(C.freeMemoryImpl)))
+	h.cHandle = cgo.NewHandle(h.state)
 
 	// Initialize reader with the C wrapper callbacks and our state pointer.
 	// We'll pass a nil state pointer (could be used to pass Go context if marshalled properly).
 	C.glowReader_init(
-		p.reader,
+		h.reader,
 		(C.onNode_t)(unsafe.Pointer(C.c_onNode)),
 		(C.onParameter_t)(unsafe.Pointer(C.c_onParameter)),
 		(C.onCommand_t)(unsafe.Pointer(C.c_onCommand)),
 		(C.onStreamEntry_t)(unsafe.Pointer(C.c_onStreamEntry)),
-		(C.voidptr)(unsafe.Pointer(p.handle)),
-		(*C.byte)(p.rxBuf),
+		(C.voidptr)(unsafe.Pointer(h.cHandle)),
+		(*C.byte)(h.rxBuf),
 		C.uint(rxBufferSize))
 
-	p.reader.onLastPackageReceived = (C.onPackageReceived_t)(unsafe.Pointer(C.c_onLastPackageReceived))
-	p.reader.base.onFunction = (C.onFunction_t)(unsafe.Pointer(C.c_onFunction))
-	p.reader.base.onMatrix = (C.onMatrix_t)(unsafe.Pointer(C.c_onMatrix))
+	h.reader.onLastPackageReceived = (C.onPackageReceived_t)(unsafe.Pointer(C.c_onLastPackageReceived))
+	h.reader.base.onFunction = (C.onFunction_t)(unsafe.Pointer(C.c_onFunction))
+	h.reader.base.onMatrix = (C.onMatrix_t)(unsafe.Pointer(C.c_onMatrix))
 
-	return nil
+	return &h, nil
 }
 
-func (p *EmberLib) EmberStop() {
-	C.free(p.rxBuf)
-	C.free(unsafe.Pointer(p.reader))
-	p.handle.Delete()
+func (h *Handler) CleanUp() {
+	C.free(h.rxBuf)
+	C.free(unsafe.Pointer(h.reader))
+	h.cHandle.Delete()
 }
 
-func (p *EmberLib) EmberRead(buf []byte, n int) bool {
-	C.glowReader_readBytes(p.reader, (*C.byte)(unsafe.Pointer(&buf[0])), C.int(n))
-	if p.state.stop {
+func (h *Handler) EmberRead(buf []byte, n int) bool {
+	C.glowReader_readBytes(h.reader, (*C.byte)(unsafe.Pointer(&buf[0])), C.int(n))
+	if h.state.stop {
 		return true
 	}
 
 	return false
 }
 
-func (p *EmberLib) TakeFromState() ember.ElementCollection {
-	p.state.parsedMu.Lock()
-	out := p.state.parsed
-	p.state.parsed = make(ember.ElementCollection)
-	defer p.state.parsedMu.Unlock()
+func (h *Handler) TakeFromState() ember.ElementCollection {
+	h.state.parsedMu.Lock()
+	out := h.state.parsed
+	h.state.parsed = make(ember.ElementCollection)
+	defer h.state.parsedMu.Unlock()
 
 	return out
+}
+
+func (h *Handler) setReader() {
+	h.reader = (*C.GlowReader)(C.malloc(C.size_t(unsafe.Sizeof(C.GlowReader{}))))
+
+	h.state = &ReaderState{
+		parsed: make(ember.ElementCollection),
+	}
+
+	h.cHandle = cgo.NewHandle(h.state)
 }
 
 // SendGetDirectory encodes a GetDirectory request and writes to conn.
@@ -248,16 +267,6 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 	return nil
 }
 
-//export go_onLastPackageReceived
-func go_onLastPackageReceived(length int, state unsafe.Pointer) {
-	h := cgo.Handle(state)
-	rstate, ok := h.Value().(*ReaderState)
-	if !ok {
-		return
-	}
-	rstate.stop = true
-}
-
 //export go_onNode
 func go_onNode(node *C.GlowNode, _ *C.GlowFieldFlags, pPath *C.berint, pathLength int, state unsafe.Pointer) {
 	h := cgo.Handle(state)
@@ -338,10 +347,10 @@ func go_onParameter(param *C.GlowParameter, _ *C.GlowFieldFlags, pPath *C.berint
 		el.Access = int(param.access)
 		el.Factor = int(param.factor)
 
-		el.Value = GlowValueToGo(&param.value)
-		el.Default = GlowValueToGo(&param.defaultValue)
-		el.Minimum = GlowMinMaxToGo(&param.minimum)
-		el.Maximum = GlowMinMaxToGo(&param.maximum)
+		el.Value = glowValueToGo(&param.value)
+		el.Default = glowValueToGo(&param.defaultValue)
+		el.Minimum = glowMinMaxToGo(&param.minimum)
+		el.Maximum = glowMinMaxToGo(&param.maximum)
 
 		el.IsOnline = intToBool(int(param.isOnline))
 	}
@@ -456,6 +465,26 @@ func go_onMatrix(m *C.GlowMatrix, pPath *C.berint, pathLength int, state unsafe.
 	rstate.parsedMu.Unlock()
 }
 
+//export go_onLastPackageReceived
+func go_onLastPackageReceived(_ int, state unsafe.Pointer) {
+	h := cgo.Handle(state)
+	rstate, ok := h.Value().(*ReaderState)
+	if !ok {
+		return
+	}
+	rstate.stop = true
+}
+
+//export go_onThrowError
+func go_onThrowError(error int, message *C.char) {
+	emberLogger.Errf("ember error code %d: %s", error, string(C.GoString(message)))
+}
+
+//export go_onFailAssertion
+func go_onFailAssertion(fileName *C.char, line int) {
+	emberLogger.Errf("ember assertion error on line %d: %s", line, string(C.GoString(fileName)))
+}
+
 // splitPath splits an Ember path "root/audio/volume" into parts (no empty parts)
 func splitPath(path string) []string {
 	var res []string
@@ -482,7 +511,7 @@ func intToBool(in int) bool {
 	return false
 }
 
-func GlowValueToGo(val *C.GlowValue) any {
+func glowValueToGo(val *C.GlowValue) any {
 	if val == nil {
 		return nil
 	}
@@ -506,7 +535,7 @@ func GlowValueToGo(val *C.GlowValue) any {
 
 	//case C.GlowParameterType_Octets:
 	//	p := (*C.GlowOctetsValue)(unsafe.Pointer(&val.choice))
-	//	return C.GoBytes(unsafe.Pointer(p.pData), C.int(p.length))
+	//	return C.GoBytes(unsafe.Pointer(h.pData), C.int(h.length))
 
 	case C.GlowParameterType_Trigger:
 		return "Trigger"
@@ -522,7 +551,7 @@ func GlowValueToGo(val *C.GlowValue) any {
 	}
 }
 
-func GlowMinMaxToGo(val *C.GlowMinMax) any {
+func glowMinMaxToGo(val *C.GlowMinMax) any {
 	if val == nil {
 		return nil
 	}
