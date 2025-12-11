@@ -21,6 +21,16 @@ import (
 	"golang.zabbix.com/sdk/errs"
 )
 
+const (
+	TypeInt = iota + 1
+	TypeReal
+	TypeString
+	TypeBool
+	TypeTrigger
+	TypeEnum
+	TypeOctets
+)
+
 // ErrElementNotFound error when element is not found.
 var ErrElementNotFound = errs.New("element not found")
 
@@ -42,19 +52,21 @@ type Element struct {
 	Enumeration       string
 	Factor            int
 	Default           any
+	StreamValue       any
+	StreamIdentifier  int
 	ValueType         int
+	Number            int
 }
 
 // node hold information about node and qualified node parameter fields.
 type node struct {
-	Path              string     `json:"path"`
-	ElementType       string     `json:"element_type"`
-	Children          []*Element `json:"children"`
-	Identifier        string     `json:"identifier"`
-	Description       string     `json:"description"`
-	SchemaIdentifiers string     `json:"schema_identifiers"`
-	IsOnline          bool       `json:"is_online"`
-	IsRoot            bool       `json:"is_root"`
+	Path              string `json:"path"`
+	ElementType       string `json:"element_type"`
+	Identifier        string `json:"identifier"`
+	Description       string `json:"description"`
+	SchemaIdentifiers string `json:"schema_identifiers"`
+	IsOnline          bool   `json:"is_online"`
+	IsRoot            bool   `json:"is_root"`
 }
 
 // function hold information about function parameter fields.
@@ -73,23 +85,36 @@ type matrix struct {
 	Description string `json:"description"`
 }
 
+type command struct {
+	Path        string `json:"path"`
+	ElementType string `json:"element_type"`
+	Number      int    `json:"number"`
+}
+
+type stream struct {
+	Path             string `json:"path"`
+	ElementType      string `json:"element_type"`
+	Identifier int    `json:"stream_identifier"`
+	Value      any    `json:"stream_value"`
+	ValueType        int    `json:"type,omitempty"`
+}
+
 // parameter hold information about parameter and qualified parameter fields.
 type parameter struct {
-	Path        string     `json:"path"`
-	ElementType string     `json:"element_type"`
-	Children    []*Element `json:"children,omitempty"`
-	Identifier  string     `json:"identifier,omitempty"`
-	Description string     `json:"description,omitempty"`
-	Value       any        `json:"value,omitempty"`
-	Minimum     any        `json:"minimum,omitempty"`
-	Maximum     any        `json:"maximum,omitempty"`
-	Access      int        `json:"access,omitempty"`
-	Format      string     `json:"format,omitempty"`
-	Enumeration string     `json:"enumeration,omitempty"`
-	Factor      int        `json:"factor,omitempty"`
-	IsOnline    bool       `json:"is_online,omitempty"`
-	Default     any        `json:"default,omitempty"`
-	ValueType   int        `json:"type,omitempty"`
+	Path        string `json:"path"`
+	ElementType string `json:"element_type"`
+	Identifier  string `json:"identifier,omitempty"`
+	Description string `json:"description,omitempty"`
+	Value       any    `json:"value,omitempty"`
+	Minimum     any    `json:"minimum,omitempty"`
+	Maximum     any    `json:"maximum,omitempty"`
+	Access      int    `json:"access,omitempty"`
+	Format      string `json:"format,omitempty"`
+	Enumeration string `json:"enumeration,omitempty"`
+	Factor      int    `json:"factor,omitempty"`
+	IsOnline    bool   `json:"is_online,omitempty"`
+	Default     any    `json:"default,omitempty"`
+	ValueType   int    `json:"type,omitempty"`
 }
 
 // parsePath returns string oid path as integer array.

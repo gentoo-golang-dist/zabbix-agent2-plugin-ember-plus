@@ -77,22 +77,20 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 
 	for k, v := range ec {
 		switch v.ElementType {
-		case asn1.NodeType, asn1.QualifiedNodeType:
+		case asn1.NodeType:
 			out[k.Path] = node{
 				Path:              v.Path,
 				ElementType:       v.ElementType,
 				Identifier:        v.Identifier,
 				Description:       v.Description,
-				Children:          v.Children,
 				IsOnline:          v.IsOnline,
 				IsRoot:            v.IsRoot,
 				SchemaIdentifiers: v.SchemaIdentifiers,
 			}
-		case asn1.ParameterType, asn1.QualifiedParameterType:
+		case asn1.ParameterType:
 			out[k.Path] = parameter{
 				Path:        v.Path,
 				ElementType: v.ElementType,
-				Children:    v.Children,
 				Identifier:  v.Identifier,
 				Description: v.Description,
 				Value:       v.Value,
@@ -119,6 +117,20 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 				ElementType: v.ElementType,
 				Identifier:  v.Identifier,
 				Description: v.Description,
+			}
+		case asn1.CommandType:
+			out[k.Path] = command{
+				Path:        v.Path,
+				ElementType: v.ElementType,
+				Number:      v.Number,
+			}
+		case asn1.StreamType:
+			out[k.Path] = stream{
+				Path:        v.Path,
+				ElementType: v.ElementType,
+				Value:       v.StreamValue,
+				Identifier:  v.StreamIdentifier,
+				ValueType:   v.ValueType,
 			}
 		default:
 			return nil, errs.New("failed unknown element type")

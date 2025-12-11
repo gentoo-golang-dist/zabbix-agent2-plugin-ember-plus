@@ -153,16 +153,6 @@ func (h *Handler) TakeFromState() ember.ElementCollection {
 	return out
 }
 
-func (h *Handler) setReader() {
-	h.reader = (*C.GlowReader)(C.malloc(C.size_t(unsafe.Sizeof(C.GlowReader{}))))
-
-	h.state = &ReaderState{
-		parsed: make(ember.ElementCollection),
-	}
-
-	h.cHandle = cgo.NewHandle(h.state)
-}
-
 // SendGetDirectory encodes a GetDirectory request and writes to conn.
 func SendGetDirectory(conn net.Conn, path string, request string) error {
 	return sendCommand(conn, path, request, getDirCmd)
@@ -269,60 +259,34 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 
 //export go_onNode
 func go_onNode(node *C.GlowNode, _ *C.GlowFieldFlags, pPath *C.berint, pathLength int, state unsafe.Pointer) {
-	h := cgo.Handle(state)
-	rstate, ok := h.Value().(*ReaderState)
-	if !ok {
-		return
-	}
-
-	n := &ember.Element{
+	el := &ember.Element{
 		ElementType: asn1.NodeType,
 	}
 
 	// Access node->identifier (assumes char* identifier)
 	if node != nil {
 		if node.pIdentifier != nil {
-			n.Identifier = C.GoString(node.pIdentifier)
+			el.Identifier = C.GoString(node.pIdentifier)
 		}
 
 		if node.pDescription != nil {
-			n.Description = C.GoString(node.pDescription)
+			el.Description = C.GoString(node.pDescription)
 		}
 
 		if node.pSchemaIdentifiers != nil {
-			n.SchemaIdentifiers = C.GoString(node.pSchemaIdentifiers)
+			el.SchemaIdentifiers = C.GoString(node.pSchemaIdentifiers)
 		}
 
-		n.IsRoot = intToBool(int(node.isRoot))
-		n.IsOnline = intToBool(int(node.isOnline))
+		el.IsRoot = intToBool(int(node.isRoot))
+		el.IsOnline = intToBool(int(node.isOnline))
 	}
 
-	pathC := unsafe.Slice(pPath, pathLength)
-	pathGo := make([]string, pathLength)
-	for i, v := range pathC {
-		pathGo[i] = strconv.Itoa(int(v))
-	}
-
-	n.Path = strings.Join(pathGo, ".")
-
-	k := ember.ElementKey{
-		ID:   n.Identifier,
-		Path: n.Path,
-	}
-
-	rstate.parsedMu.Lock()
-	rstate.parsed[k] = n
-	rstate.parsedMu.Unlock()
+	setPath(el, pPath, pathLength)
+	setIntoState(el, state)
 }
 
 //export go_onParameter
 func go_onParameter(param *C.GlowParameter, _ *C.GlowFieldFlags, pPath *C.berint, pathLength int, state unsafe.Pointer) {
-	h := cgo.Handle(state)
-	rstate, ok := h.Value().(*ReaderState)
-	if !ok {
-		return
-	}
-
 	el := &ember.Element{
 		ElementType: asn1.ParameterType,
 	}
@@ -347,56 +311,52 @@ func go_onParameter(param *C.GlowParameter, _ *C.GlowFieldFlags, pPath *C.berint
 		el.Access = int(param.access)
 		el.Factor = int(param.factor)
 
-		el.Value = glowValueToGo(&param.value)
-		el.Default = glowValueToGo(&param.defaultValue)
+		el.Value, el.ValueType = glowValueToGo(&param.value)
+		el.Default, _ = glowValueToGo(&param.defaultValue)
 		el.Minimum = glowMinMaxToGo(&param.minimum)
 		el.Maximum = glowMinMaxToGo(&param.maximum)
 
 		el.IsOnline = intToBool(int(param.isOnline))
 	}
 
-	pathC := unsafe.Slice(pPath, pathLength)
-	pathGo := make([]string, pathLength)
-	for i, v := range pathC {
-		pathGo[i] = strconv.Itoa(int(v))
-	}
-
-	el.Path = strings.Join(pathGo, ".")
-
-	k := ember.ElementKey{
-		ID:   el.Identifier,
-		Path: el.Path,
-	}
-
-	rstate.parsedMu.Lock()
-	rstate.parsed[k] = el
-	rstate.parsedMu.Unlock()
+	setPath(el, pPath, pathLength)
+	setIntoState(el, state)
 }
 
 //export go_onCommand
-func go_onCommand(state unsafe.Pointer, cmd *C.GlowCommand) {
-	// Minimal handling; extend as needed
-	// parsedMu.Lock()
-	// parsed = append(parsed, ParsedElement{Type: "Command"})
-	// parsedMu.Unlock()
+func go_onCommand(glow *C.GlowCommand, _ *C.GlowFieldFlags, pPath *C.berint, pathLength int, state unsafe.Pointer) {
+	el := &ember.Element{
+		ElementType: asn1.CommandType,
+		Number:      int(glow.number),
+	}
 
+	setPath(el, pPath, pathLength)
+	setIntoState(el, state)
 }
 
 //export go_onStreamEntry
-func go_onStreamEntry(state unsafe.Pointer, entry *C.GlowStreamEntry) {
-	// parsedMu.Lock()
-	// parsed = append(parsed, ParsedElement{Type: "StreamEntry"})
-	// parsedMu.Unlock()
+func go_onStreamEntry(
+	entry *C.GlowStreamEntry,
+	_ *C.GlowFieldFlags,
+	pPath *C.berint,
+	pathLength int,
+	state unsafe.Pointer,
+) {
+	el := &ember.Element{
+		ElementType: asn1.StreamType,
+	}
+
+	if entry != nil {
+		el.StreamIdentifier = int(entry.streamIdentifier)
+		el.StreamValue, el.ValueType = glowValueToGo(&entry.streamValue)
+	}
+
+	setPath(el, pPath, pathLength)
+	setIntoState(el, state)
 }
 
 //export go_onFunction
 func go_onFunction(f *C.GlowFunction, pPath *C.berint, pathLength int, state unsafe.Pointer) {
-	h := cgo.Handle(state)
-	rstate, ok := h.Value().(*ReaderState)
-	if !ok {
-		return
-	}
-
 	el := &ember.Element{
 		ElementType: asn1.FunctionType,
 	}
@@ -411,32 +371,12 @@ func go_onFunction(f *C.GlowFunction, pPath *C.berint, pathLength int, state uns
 		}
 	}
 
-	pathC := unsafe.Slice(pPath, pathLength)
-	pathGo := make([]string, pathLength)
-	for i, v := range pathC {
-		pathGo[i] = strconv.Itoa(int(v))
-	}
-
-	el.Path = strings.Join(pathGo, ".")
-
-	k := ember.ElementKey{
-		ID:   el.Identifier,
-		Path: el.Path,
-	}
-
-	rstate.parsedMu.Lock()
-	rstate.parsed[k] = el
-	rstate.parsedMu.Unlock()
+	setPath(el, pPath, pathLength)
+	setIntoState(el, state)
 }
 
 //export go_onMatrix
 func go_onMatrix(m *C.GlowMatrix, pPath *C.berint, pathLength int, state unsafe.Pointer) {
-	h := cgo.Handle(state)
-	rstate, ok := h.Value().(*ReaderState)
-	if !ok {
-		return
-	}
-
 	el := &ember.Element{
 		ElementType: asn1.MatrixType,
 	}
@@ -445,24 +385,14 @@ func go_onMatrix(m *C.GlowMatrix, pPath *C.berint, pathLength int, state unsafe.
 		if m.pIdentifier != nil {
 			el.Identifier = C.GoString(m.pIdentifier)
 		}
+
+		if m.pDescription != nil {
+			el.Description = C.GoString(m.pDescription)
+		}
 	}
 
-	pathC := unsafe.Slice(pPath, pathLength)
-	pathGo := make([]string, pathLength)
-	for i, v := range pathC {
-		pathGo[i] = strconv.Itoa(int(v))
-	}
-
-	el.Path = strings.Join(pathGo, ".")
-
-	k := ember.ElementKey{
-		ID:   el.Identifier,
-		Path: el.Path,
-	}
-
-	rstate.parsedMu.Lock()
-	rstate.parsed[k] = el
-	rstate.parsedMu.Unlock()
+	setPath(el, pPath, pathLength)
+	setIntoState(el, state)
 }
 
 //export go_onLastPackageReceived
@@ -511,43 +441,72 @@ func intToBool(in int) bool {
 	return false
 }
 
-func glowValueToGo(val *C.GlowValue) any {
+func setPath(el *ember.Element, pPath *C.berint, pathLength int) {
+	pathC := unsafe.Slice(pPath, pathLength)
+	pathGo := make([]string, pathLength)
+	for i, v := range pathC {
+		pathGo[i] = strconv.Itoa(int(v))
+	}
+
+	el.Path = strings.Join(pathGo, ".")
+}
+
+func setIntoState(el *ember.Element, state unsafe.Pointer) {
+	h := cgo.Handle(state)
+	rstate, ok := h.Value().(*ReaderState)
+	if !ok {
+		log.Errf("failed to set state with element path: %s and id %s", el.Path, el.Identifier)
+		return
+	}
+
+	k := ember.ElementKey{
+		ID:   el.Identifier,
+		Path: el.Path,
+	}
+
+	rstate.parsedMu.Lock()
+	rstate.parsed[k] = el
+	rstate.parsedMu.Unlock()
+}
+
+func glowValueToGo(val *C.GlowValue) (any, int) {
 	if val == nil {
-		return nil
+		return nil, 0
 	}
 
 	switch val.flag {
 	case C.GlowParameterType_Integer:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
-		return int64(*p)
+		return int64(*p), ember.TypeInt
 
 	case C.GlowParameterType_Real:
 		p := (*C.double)(unsafe.Pointer(&val.choice))
-		return float64(*p)
+		return float64(*p), ember.TypeReal
 
 	case C.GlowParameterType_Boolean:
 		p := (*C.bool)(unsafe.Pointer(&val.choice))
-		return *p != 0
+		return *p != 0, ember.TypeBool
 
 	case C.GlowParameterType_String:
 		p := (**C.char)(unsafe.Pointer(&val.choice))
-		return C.GoString(*p)
+		return C.GoString(*p), ember.TypeString
 
-	//case C.GlowParameterType_Octets:
-	//	p := (*C.GlowOctetsValue)(unsafe.Pointer(&val.choice))
-	//	return C.GoBytes(unsafe.Pointer(h.pData), C.int(h.length))
+	case C.GlowParameterType_Octets:
+		octets := (*C.GlowOctetsValue)(unsafe.Pointer(&val.choice))
+		length := int(octets.length)
 
+		return C.GoBytes(unsafe.Pointer(octets.pOctets), C.int(length)), ember.TypeOctets
 	case C.GlowParameterType_Trigger:
-		return "Trigger"
+		return "Trigger", ember.TypeTrigger
 
 	case C.GlowParameterType_Enum:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
-		return int64(*p)
+		return int64(*p), ember.TypeEnum
 
 	case C.GlowParameterType_None:
-		return nil
+		return nil, 0
 	default:
-		return nil
+		return nil, 0
 	}
 }
 

@@ -19,14 +19,14 @@ const (
 
 	// ParameterType glow data field parameter type.
 	ParameterType = "parameter"
-	// QualifiedParameterType glow data field qualified parameter type.
-	QualifiedParameterType = "qualified_parameter"
-	// QualifiedNodeType glow data field qualified node type.
-	QualifiedNodeType = "qualified_node"
 	// NodeType glow data field node type.
 	NodeType = "node"
 	// FunctionType glow data field function type.
 	FunctionType = "function"
 	// MatrixType glow data field matrix type.
 	MatrixType = "matrix"
+	// CommandType glow data field command type.
+	CommandType = "command"
+	// StreamType glow data field stream type.
+	StreamType = "stream"
 )
