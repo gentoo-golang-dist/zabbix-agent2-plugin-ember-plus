@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 )
- 
+
 func Test_parsePath(t *testing.T) {
 	t.Parallel()
 

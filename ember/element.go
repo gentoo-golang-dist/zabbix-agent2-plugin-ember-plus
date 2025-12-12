@@ -21,6 +21,7 @@ import (
 	"golang.zabbix.com/sdk/errs"
 )
 
+// holds data about Glow value types.
 const (
 	TypeInt = iota + 1
 	TypeReal
@@ -92,11 +93,11 @@ type command struct {
 }
 
 type stream struct {
-	Path             string `json:"path"`
-	ElementType      string `json:"element_type"`
-	Identifier int    `json:"stream_identifier"`
-	Value      any    `json:"stream_value"`
-	ValueType        int    `json:"type,omitempty"`
+	Path        string `json:"path"`
+	ElementType string `json:"element_type"`
+	Identifier  int    `json:"stream_identifier"`
+	Value       any    `json:"stream_value"`
+	ValueType   int    `json:"type,omitempty"`
 }
 
 // parameter hold information about parameter and qualified parameter fields.

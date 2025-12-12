@@ -65,6 +65,11 @@ const (
 	unSubCmd  = 31
 )
 
+//nolint:gochecknoglobals // using global logger, to pass it to emberlib c function wrappers.
+var emberLogger log.Logger
+
+// Handler is the main stucter used to wrap around C data structures and readers.
+// Should be created with InitHandler()
 type Handler struct {
 	rxBuf   unsafe.Pointer
 	cHandle cgo.Handle
@@ -72,6 +77,7 @@ type Handler struct {
 	state   *ReaderState
 }
 
+// ReaderState holds information about a read state and it's mutexes.
 type ReaderState struct {
 	parsed   ember.ElementCollection
 	parsedMu sync.Mutex
@@ -80,18 +86,19 @@ type ReaderState struct {
 
 type emberCMD int
 
-var emberLogger log.Logger
-
-func Init(log log.Logger) {
+// Init initializes global ember library with required functions and sets the global logger.
+func Init(l log.Logger) {
 	C.ember_init(
-		(C.throwError_t)(unsafe.Pointer(C.c_onThrowError)),
-		(C.failAssertion_t)(unsafe.Pointer(C.c_onFailAssertion)),
-		(C.allocMemory_t)(unsafe.Pointer(C.allocMemoryImpl)),
-		(C.freeMemory_t)(unsafe.Pointer(C.freeMemoryImpl)))
+		C.throwError_t(C.c_onThrowError),
+		C.failAssertion_t(C.c_onFailAssertion),
+		C.allocMemory_t(C.allocMemoryImpl),
+		C.freeMemory_t(C.freeMemoryImpl),
+	)
 
-	emberLogger = log
+	emberLogger = l
 }
 
+// InitHandler returns a handler with all ember lib readers and functions initialized.
 func InitHandler() (*Handler, error) {
 	var h Handler
 
@@ -114,36 +121,38 @@ func InitHandler() (*Handler, error) {
 	// We'll pass a nil state pointer (could be used to pass Go context if marshalled properly).
 	C.glowReader_init(
 		h.reader,
-		(C.onNode_t)(unsafe.Pointer(C.c_onNode)),
-		(C.onParameter_t)(unsafe.Pointer(C.c_onParameter)),
-		(C.onCommand_t)(unsafe.Pointer(C.c_onCommand)),
-		(C.onStreamEntry_t)(unsafe.Pointer(C.c_onStreamEntry)),
-		(C.voidptr)(unsafe.Pointer(h.cHandle)),
+		C.onNode_t(C.c_onNode),
+		C.onParameter_t(C.c_onParameter),
+		C.onCommand_t(C.c_onCommand),
+		C.onStreamEntry_t(C.c_onStreamEntry),
+		C.voidptr(h.cHandle),
 		(*C.byte)(h.rxBuf),
-		C.uint(rxBufferSize))
+		C.uint(rxBufferSize),
+	)
 
-	h.reader.onLastPackageReceived = (C.onPackageReceived_t)(unsafe.Pointer(C.c_onLastPackageReceived))
-	h.reader.base.onFunction = (C.onFunction_t)(unsafe.Pointer(C.c_onFunction))
-	h.reader.base.onMatrix = (C.onMatrix_t)(unsafe.Pointer(C.c_onMatrix))
+	h.reader.onLastPackageReceived = (C.onPackageReceived_t)(C.c_onLastPackageReceived)
+	h.reader.base.onFunction = (C.onFunction_t)(C.c_onFunction)
+	h.reader.base.onMatrix = (C.onMatrix_t)(C.c_onMatrix)
 
 	return &h, nil
 }
 
+// CleanUp cleans up c data and removes c handler.
 func (h *Handler) CleanUp() {
 	C.free(h.rxBuf)
 	C.free(unsafe.Pointer(h.reader))
 	h.cHandle.Delete()
 }
 
+// EmberRead reads data from ember glow reader, returns true is reading state is done.
+// If true is returned it means that data is read into state and it can be extracted.
 func (h *Handler) EmberRead(buf []byte, n int) bool {
 	C.glowReader_readBytes(h.reader, (*C.byte)(unsafe.Pointer(&buf[0])), C.int(n))
-	if h.state.stop {
-		return true
-	}
 
-	return false
+	return h.state.stop
 }
 
+// TakeFromState returns element collection stored in handler state.
 func (h *Handler) TakeFromState() ember.ElementCollection {
 	h.state.parsedMu.Lock()
 	out := h.state.parsed
@@ -158,6 +167,7 @@ func SendGetDirectory(conn net.Conn, path string, request string) error {
 	return sendCommand(conn, path, request, getDirCmd)
 }
 
+// SendUnsubscribe sends an command with an unsubscribe request.
 func SendUnsubscribe(conn net.Conn, path string, request string) error {
 	return sendCommand(conn, path, request, unSubCmd)
 }
@@ -170,6 +180,7 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 	if txBuf == nil {
 		return errs.New("C.malloc failed, for txBuf")
 	}
+
 	defer C.free(txBuf)
 
 	// initialize writer on txBuf
@@ -184,6 +195,7 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 	if pathBuff == nil {
 		return errs.New("C.malloc failed, pathBuff")
 	}
+
 	defer C.free(pathBuff)
 
 	cParts := (*[1 << 30]C.int)(pathBuff)[:pathLen:pathLen]
@@ -248,7 +260,7 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 	}
 
 	// Create Go slice referencing txBuf
-	txSlice := ((*[1 << 20]byte)(unsafe.Pointer(txBuf)))[:int(length):int(length)]
+	txSlice := ((*[1 << 20]byte)(txBuf))[:int(length):int(length)]
 	_, err := conn.Write(txSlice)
 	if err != nil {
 		return errs.Wrap(err, "failed to write GetDirectory request")
@@ -286,7 +298,13 @@ func go_onNode(node *C.GlowNode, _ *C.GlowFieldFlags, pPath *C.berint, pathLengt
 }
 
 //export go_onParameter
-func go_onParameter(param *C.GlowParameter, _ *C.GlowFieldFlags, pPath *C.berint, pathLength int, state unsafe.Pointer) {
+func go_onParameter(
+	param *C.GlowParameter,
+	_ *C.GlowFieldFlags,
+	pPath *C.berint,
+	pathLength int,
+	state unsafe.Pointer,
+	) {
 	el := &ember.Element{
 		ElementType: asn1.ParameterType,
 	}
@@ -406,12 +424,14 @@ func go_onLastPackageReceived(_ int, state unsafe.Pointer) {
 }
 
 //export go_onThrowError
-func go_onThrowError(error int, message *C.char) {
-	emberLogger.Errf("ember error code %d: %s", error, string(C.GoString(message)))
+func go_onThrowError(errCode int, message *C.char) {
+	//nolint:unconvert // string() conversion is needed other Errf does not understand that it's the correct type.
+	emberLogger.Errf("ember error code %d: %s", errCode, string(C.GoString(message)))
 }
 
 //export go_onFailAssertion
 func go_onFailAssertion(fileName *C.char, line int) {
+	//nolint:unconvert // string() conversion is needed other Errf does not understand that it's the correct type.
 	emberLogger.Errf("ember assertion error on line %d: %s", line, string(C.GoString(fileName)))
 }
 
@@ -430,22 +450,20 @@ func splitPath(path string) []string {
 	if start < len(path) {
 		res = append(res, path[start:])
 	}
+
 	return res
 }
 
 func intToBool(in int) bool {
-	if in == 1 {
-		return true
-	}
-
-	return false
+	return in == 1
 }
 
 func setPath(el *ember.Element, pPath *C.berint, pathLength int) {
 	pathC := unsafe.Slice(pPath, pathLength)
-	pathGo := make([]string, pathLength)
-	for i, v := range pathC {
-		pathGo[i] = strconv.Itoa(int(v))
+	var pathGo []string
+
+	for _, v := range pathC {
+		pathGo = append(pathGo, strconv.Itoa(int(v)))
 	}
 
 	el.Path = strings.Join(pathGo, ".")
@@ -456,6 +474,7 @@ func setIntoState(el *ember.Element, state unsafe.Pointer) {
 	rstate, ok := h.Value().(*ReaderState)
 	if !ok {
 		log.Errf("failed to set state with element path: %s and id %s", el.Path, el.Identifier)
+
 		return
 	}
 
@@ -469,6 +488,7 @@ func setIntoState(el *ember.Element, state unsafe.Pointer) {
 	rstate.parsedMu.Unlock()
 }
 
+//nolint:cyclop // function has a single select will all options so real way to reduce.
 func glowValueToGo(val *C.GlowValue) (any, int) {
 	if val == nil {
 		return nil, 0
@@ -477,20 +497,23 @@ func glowValueToGo(val *C.GlowValue) (any, int) {
 	switch val.flag {
 	case C.GlowParameterType_Integer:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
+
 		return int64(*p), ember.TypeInt
 
 	case C.GlowParameterType_Real:
 		p := (*C.double)(unsafe.Pointer(&val.choice))
+
 		return float64(*p), ember.TypeReal
 
 	case C.GlowParameterType_Boolean:
 		p := (*C.bool)(unsafe.Pointer(&val.choice))
+
 		return *p != 0, ember.TypeBool
 
 	case C.GlowParameterType_String:
 		p := (**C.char)(unsafe.Pointer(&val.choice))
-		return C.GoString(*p), ember.TypeString
 
+		return C.GoString(*p), ember.TypeString
 	case C.GlowParameterType_Octets:
 		octets := (*C.GlowOctetsValue)(unsafe.Pointer(&val.choice))
 		length := int(octets.length)
@@ -498,11 +521,10 @@ func glowValueToGo(val *C.GlowValue) (any, int) {
 		return C.GoBytes(unsafe.Pointer(octets.pOctets), C.int(length)), ember.TypeOctets
 	case C.GlowParameterType_Trigger:
 		return "Trigger", ember.TypeTrigger
-
 	case C.GlowParameterType_Enum:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
-		return int64(*p), ember.TypeEnum
 
+		return int64(*p), ember.TypeEnum
 	case C.GlowParameterType_None:
 		return nil, 0
 	default:
@@ -518,9 +540,11 @@ func glowMinMaxToGo(val *C.GlowMinMax) any {
 	switch val.flag {
 	case C.GlowParameterType_Integer:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
+
 		return int64(*p)
 	case C.GlowParameterType_Real:
 		p := (*C.double)(unsafe.Pointer(&val.choice))
+
 		return float64(*p)
 	case C.GlowParameterType_None:
 		return nil

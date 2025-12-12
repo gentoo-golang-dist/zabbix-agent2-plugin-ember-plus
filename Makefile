@@ -120,11 +120,40 @@ else
 endif
 	go clean "$(TOPDIR)/..."
 
-check:
+check: $(LIBEMBER) .build_rc
+ifeq ($(OS),Windows_NT)
+	set CGO_CFLAGS=$(CGO_CFLAGS)
+	set CGO_LDFLAGS=$(CGO_LDFLAGS)
+	set CGO_ENABLED=1
+	set GOOS=$(GOOS)
+	set GOARCH=$(GOARCH)
 	go test -v "$(TOPDIR)/..."
+else
+	CGO_CFLAGS=$(CGO_CFLAGS) \
+	CGO_LDFLAGS=$(CGO_LDFLAGS) \
+	CGO_ENABLED=1 \
+	GOOS="$(GOOS)" \
+	GOARCH="$(GOARCH)" \
+	go test -v "$(TOPDIR)/..."
+endif
 
-style:
-	golangci-lint run --new-from-rev=$(NEW_FROM_REV) "$(TOPDIR)/..."
+
+style: $(LIBEMBER) .build_rc
+ifeq ($(OS),Windows_NT)
+	set CGO_CFLAGS=$(CGO_CFLAGS)
+	set CGO_LDFLAGS=$(CGO_LDFLAGS)
+	set CGO_ENABLED=1
+	set GOOS=$(GOOS)
+	set GOARCH=$(GOARCH)
+	golangci-lint run "$(TOPDIR)/..."
+else
+	CGO_CFLAGS=$(CGO_CFLAGS) \
+	CGO_LDFLAGS=$(CGO_LDFLAGS) \
+	CGO_ENABLED=1 \
+	GOOS="$(GOOS)" \
+	GOARCH="$(GOARCH)" \
+	golangci-lint run "$(TOPDIR)/..."
+endif
 
 format:
 	go fmt "$(TOPDIR)/..."

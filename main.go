@@ -78,9 +78,11 @@ func main() {
 
 func exitWithError(err error) {
 	fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+	//nolint:revive // called in main.
 	os.Exit(1)
 }
 
 func exitGracefully() {
+	//nolint:revive // called in main.
 	os.Exit(0)
 }

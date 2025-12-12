@@ -15,7 +15,6 @@
 package conn
 
 import (
-	"golang.zabbix.com/plugin/ember-plus/plugin/emberlib"
 	"net"
 	"net/url"
 	"strings"
@@ -23,6 +22,7 @@ import (
 	"time"
 
 	"golang.zabbix.com/plugin/ember-plus/ember"
+	"golang.zabbix.com/plugin/ember-plus/plugin/emberlib"
 	"golang.zabbix.com/sdk/errs"
 	"golang.zabbix.com/sdk/log"
 	"golang.zabbix.com/sdk/uri"
@@ -79,7 +79,7 @@ func (c *ConnCollection) Init(keepAlive int, logr log.Logger) {
 }
 
 // HandleRequest sends a request and reads response based on the provided connection parameters.
-func (c *ConnCollection) HandleRequestNew(
+func (c *ConnCollection) HandleRequest(
 	req string,
 	conf ConnConfig,
 	path string,
@@ -113,7 +113,12 @@ func (c *ConnCollection) HandleRequestNew(
 		return nil, errs.Wrap(err, "failed to write to connection")
 	}
 
-	defer emberlib.SendUnsubscribe(ch.conn, path, req)
+	defer func() {
+		err := emberlib.SendUnsubscribe(ch.conn, path, req)
+		if err != nil {
+			c.logr.Errf("failed to send unsubscribe, %s", err.Error())
+		}
+	}()
 
 	data := <-ch.parsedData
 	if data.err != nil {
@@ -149,26 +154,7 @@ func NewConnConfig(rawURI string) (ConnConfig, error) {
 	return ConnConfig{URI: parsed.Addr()}, nil
 }
 
-// close closes the connection with the provided configuration.
-func (c *ConnCollection) close(conf ConnConfig) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	ch, ok := c.conns[conf]
-	if !ok {
-		return nil
-	}
-
-	err := ch.conn.Close()
-	if err != nil {
-		return errs.Wrap(err, "failed to close connection")
-	}
-
-	delete(c.conns, conf)
-
-	return nil
-}
-
+// Get returns specific connection from the collection based on config and handler.
 func (c *ConnCollection) Get(timeout time.Duration, conf ConnConfig, h *emberlib.Handler) (net.Conn, error) {
 	ch, err := c.get(timeout, conf, h)
 	if err != nil {
@@ -214,6 +200,26 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig, h *emberlib
 	go ch.pathReader(c, timeout, h)
 
 	return ch, nil
+}
+
+// close closes the connection with the provided configuration.
+func (c *ConnCollection) close(conf ConnConfig) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ch, ok := c.conns[conf]
+	if !ok {
+		return nil
+	}
+
+	err := ch.conn.Close()
+	if err != nil {
+		return errs.Wrap(err, "failed to close connection")
+	}
+
+	delete(c.conns, conf)
+
+	return nil
 }
 
 // housekeeper repeatedly checks for unused connections and closes them.
@@ -283,11 +289,7 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) error {
 	return nil
 }
 
-//nolint:cyclop
-
-//nolint:cyclop
 func (ch *connHandler) read(h *emberlib.Handler) (ember.ElementCollection, error) {
-
 	for {
 		//nolint:makezero
 		// length taken from Ember+ documentation
@@ -353,7 +355,6 @@ func (ch *connHandler) pathReader(c *ConnCollection, timeout time.Duration, h *e
 
 func (ch *connHandler) reader(c *ConnCollection, h *emberlib.Handler) {
 	for {
-
 		emberCollection, err := ch.read(h)
 
 		ch.readData <- readResponse{emberCollection, err}
