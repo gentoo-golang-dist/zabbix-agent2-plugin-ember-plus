@@ -18,8 +18,24 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/sdk/errs"
+)
+
+const (
+	// Parameter types for Glow parameters.
+
+	// ParameterType glow data field parameter type.
+	ParameterType = "parameter"
+	// NodeType glow data field node type.
+	NodeType = "node"
+	// FunctionType glow data field function type.
+	FunctionType = "function"
+	// MatrixType glow data field matrix type.
+	MatrixType = "matrix"
+	// CommandType glow data field command type.
+	CommandType = "command"
+	// StreamType glow data field stream type.
+	StreamType = "stream"
 )
 
 // ElementKey used for element identification based on either element id or path.
@@ -77,7 +93,7 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 
 	for k, v := range ec {
 		switch v.ElementType {
-		case asn1.NodeType:
+		case NodeType:
 			out[k.Path] = node{
 				Path:              v.Path,
 				ElementType:       v.ElementType,
@@ -87,7 +103,7 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 				IsRoot:            v.IsRoot,
 				SchemaIdentifiers: v.SchemaIdentifiers,
 			}
-		case asn1.ParameterType:
+		case ParameterType:
 			out[k.Path] = parameter{
 				Path:        v.Path,
 				ElementType: v.ElementType,
@@ -104,27 +120,27 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 				Default:     v.Default,
 				ValueType:   v.ValueType,
 			}
-		case asn1.FunctionType:
+		case FunctionType:
 			out[k.Path] = function{
 				Path:        v.Path,
 				ElementType: v.ElementType,
 				Identifier:  v.Identifier,
 				Description: v.Description,
 			}
-		case asn1.MatrixType:
+		case MatrixType:
 			out[k.Path] = matrix{
 				Path:        v.Path,
 				ElementType: v.ElementType,
 				Identifier:  v.Identifier,
 				Description: v.Description,
 			}
-		case asn1.CommandType:
+		case CommandType:
 			out[k.Path] = command{
 				Path:        v.Path,
 				ElementType: v.ElementType,
 				Number:      v.Number,
 			}
-		case asn1.StreamType:
+		case StreamType:
 			out[k.Path] = stream{
 				Path:        v.Path,
 				ElementType: v.ElementType,

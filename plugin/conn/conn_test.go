@@ -15,12 +15,13 @@
 package conn
 
 import (
+	"testing"
+	"time"
+
 	"github.com/google/go-cmp/cmp"
 	"golang.zabbix.com/plugin/ember-plus/ember"
 	_ "golang.zabbix.com/sdk/errs"
 	"golang.zabbix.com/sdk/log"
-	"testing"
-	"time"
 )
 
 func Test_connHandler_readExpected(t *testing.T) {

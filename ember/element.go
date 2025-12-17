@@ -72,11 +72,10 @@ type node struct {
 
 // function hold information about function parameter fields.
 type function struct {
-	Path        string     `json:"path"`
-	ElementType string     `json:"element_type"`
-	Children    []*Element `json:"children"`
-	Identifier  string     `json:"identifier"`
-	Description string     `json:"description"`
+	Path        string `json:"path"`
+	ElementType string `json:"element_type"`
+	Identifier  string `json:"identifier"`
+	Description string `json:"description"`
 }
 
 type matrix struct {

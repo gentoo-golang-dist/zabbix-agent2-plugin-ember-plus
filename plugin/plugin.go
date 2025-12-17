@@ -19,8 +19,11 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"golang.zabbix.com/plugin/ember-plus/ember"
-	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/plugin/ember-plus/plugin/conn"
 	"golang.zabbix.com/plugin/ember-plus/plugin/emberlib"
 	"golang.zabbix.com/plugin/ember-plus/plugin/params"
@@ -30,9 +33,6 @@ import (
 	"golang.zabbix.com/sdk/plugin"
 	"golang.zabbix.com/sdk/plugin/container"
 	"golang.zabbix.com/sdk/zbxerr"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -170,13 +170,13 @@ func (p *EmberPlugin) GetEmber(
 	handler *emberlib.Handler,
 	metricParams map[string]string,
 	_ ...string,
-	) (any, error) {
+) (any, error) {
 	connConf, err := conn.NewConnConfig(metricParams[params.URI.Name()])
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create connection config")
 	}
 
-	rootCollection, err := p.conns.HandleRequest(asn1.NodeType, connConf, "", timeout, handler)
+	rootCollection, err := p.conns.HandleRequest(ember.NodeType, connConf, "", timeout, handler)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to handle request")
 	}

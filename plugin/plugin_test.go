@@ -60,8 +60,8 @@ func Test_withJSONResponse(t *testing.T) {
 					return coll, nil
 				},
 			},
-			`{"1.2.3":` + `{"path":"1.2.3","element_type":"node","children":null,"identifier":"","description":"",` +
-				`"is_online":true,"is_root":false}}`,
+			`{"1.2.3":{"path":"1.2.3","element_type":"node","identifier":"","description":"",` +
+				`"schema_identifiers":"","is_online":true,"is_root":false}}`,
 			false,
 		},
 		{

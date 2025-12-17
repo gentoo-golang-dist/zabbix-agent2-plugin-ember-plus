@@ -55,7 +55,6 @@ import (
 	"unsafe"
 
 	"golang.zabbix.com/plugin/ember-plus/ember"
-	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
 	"golang.zabbix.com/sdk/errs"
 	"golang.zabbix.com/sdk/log"
 )
@@ -69,7 +68,7 @@ const (
 var emberLogger log.Logger
 
 // Handler is the main stucter used to wrap around C data structures and readers.
-// Should be created with InitHandler()
+// Should be created with InitHandler().
 type Handler struct {
 	rxBuf   unsafe.Pointer
 	cHandle cgo.Handle
@@ -124,15 +123,15 @@ func InitHandler() (*Handler, error) {
 		C.onNode_t(C.c_onNode),
 		C.onParameter_t(C.c_onParameter),
 		C.onCommand_t(C.c_onCommand),
-		C.onStreamEntry_t(C.c_onStreamEntry),
+		C.onStreamEntry_t(C.c_onStreamEntry), //nolint:govet // false positive
 		C.voidptr(h.cHandle),
 		(*C.byte)(h.rxBuf),
 		C.uint(rxBufferSize),
 	)
 
-	h.reader.onLastPackageReceived = (C.onPackageReceived_t)(C.c_onLastPackageReceived)
-	h.reader.base.onFunction = (C.onFunction_t)(C.c_onFunction)
-	h.reader.base.onMatrix = (C.onMatrix_t)(C.c_onMatrix)
+	h.reader.onLastPackageReceived = C.onPackageReceived_t(C.c_onLastPackageReceived)
+	h.reader.base.onFunction = C.onFunction_t(C.c_onFunction)
+	h.reader.base.onMatrix = C.onMatrix_t(C.c_onMatrix)
 
 	return &h, nil
 }
@@ -163,17 +162,19 @@ func (h *Handler) TakeFromState() ember.ElementCollection {
 }
 
 // SendGetDirectory encodes a GetDirectory request and writes to conn.
-func SendGetDirectory(conn net.Conn, path string, request string) error {
+func SendGetDirectory(conn net.Conn, path, request string) error {
 	return sendCommand(conn, path, request, getDirCmd)
 }
 
 // SendUnsubscribe sends an command with an unsubscribe request.
-func SendUnsubscribe(conn net.Conn, path string, request string) error {
+func SendUnsubscribe(conn net.Conn, path, request string) error {
 	return sendCommand(conn, path, request, unSubCmd)
 }
 
 // sendCommand encodes a request and writes to conn.
-func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error {
+//
+//nolint:gocyclo,cyclop // more readable and easy to understand as a single function because of C go.
+func sendCommand(conn net.Conn, path, request string, cmd emberCMD) error {
 	// Simple approach: create C tx buffer and use glowWriter_* functions if present.
 	const txSize = 2048
 	txBuf := C.malloc(C.size_t(txSize))
@@ -181,21 +182,23 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 		return errs.New("C.malloc failed, for txBuf")
 	}
 
+	//nolint:nlreturn // false positive.
 	defer C.free(txBuf)
 
 	// initialize writer on txBuf
 	var writer C.GlowOutput
-	C.glowOutput_init(&writer, (*C.byte)(txBuf), C.uint(txSize), 0)
+	C.glowOutput_init(&writer, (*C.byte)(txBuf), C.uint(txSize), 0) //nolint:gocritic // false positive.
 
 	// Split path
 	parts := splitPath(path)
-	pathLen := (C.int)(len(parts))
+	pathLen := C.int(len(parts))
 	pathBuffSize := C.size_t(pathLen * C.int(unsafe.Sizeof(C.int(0))))
 	pathBuff := C.malloc(pathBuffSize)
 	if pathBuff == nil {
 		return errs.New("C.malloc failed, pathBuff")
 	}
 
+	//nolint:nlreturn // false positive.
 	defer C.free(pathBuff)
 
 	cParts := (*[1 << 30]C.int)(pathBuff)[:pathLen:pathLen]
@@ -207,7 +210,7 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 		cParts[i] = C.int(num)
 	}
 
-	C.glowOutput_beginPackage(&writer, C.true)
+	C.glowOutput_beginPackage(&writer, C.true) //nolint:gocritic // false positive.
 	var command C.GlowCommand
 
 	switch cmd {
@@ -223,38 +226,38 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 	}
 
 	switch request {
-	case asn1.NodeType:
+	case ember.NodeType:
 		// Build GetDirectory command
 		C.glow_writeQualifiedCommand(
 			&writer,
 			&command,
 			(*C.berint)(pathBuff),
 			pathLen,
-			C.GlowElementType_Node)
-	case asn1.ParameterType:
+			C.GlowElementType_Node) //nolint:gocritic // false positive.
+	case ember.ParameterType:
 		C.glow_writeQualifiedCommand(
 			&writer,
 			&command,
 			(*C.berint)(pathBuff),
 			pathLen,
-			C.GlowElementType_Parameter)
-	case asn1.FunctionType:
+			C.GlowElementType_Parameter) //nolint:gocritic // false positive.
+	case ember.FunctionType:
 		C.glow_writeQualifiedCommand(
 			&writer,
 			&command,
 			(*C.berint)(pathBuff),
 			pathLen,
-			C.GlowElementType_Function)
-	case asn1.MatrixType:
+			C.GlowElementType_Function) //nolint:gocritic // false positive.
+	case ember.MatrixType:
 		C.glow_writeQualifiedCommand(
 			&writer,
 			&command,
 			(*C.berint)(pathBuff),
 			pathLen,
-			C.GlowElementType_Matrix)
+			C.GlowElementType_Matrix) //nolint:gocritic // false positive.
 	}
 
-	length := C.glowOutput_finishPackage(&writer)
+	length := C.glowOutput_finishPackage(&writer) //nolint:gocritic,nlreturn // false positive.
 	if length == 0 {
 		return errs.New("glowWriter_getLength returned 0")
 	}
@@ -272,7 +275,7 @@ func sendCommand(conn net.Conn, path string, request string, cmd emberCMD) error
 //export go_onNode
 func go_onNode(node *C.GlowNode, _ *C.GlowFieldFlags, pPath *C.berint, pathLength int, state unsafe.Pointer) {
 	el := &ember.Element{
-		ElementType: asn1.NodeType,
+		ElementType: ember.NodeType,
 	}
 
 	// Access node->identifier (assumes char* identifier)
@@ -304,9 +307,9 @@ func go_onParameter(
 	pPath *C.berint,
 	pathLength int,
 	state unsafe.Pointer,
-	) {
+) {
 	el := &ember.Element{
-		ElementType: asn1.ParameterType,
+		ElementType: ember.ParameterType,
 	}
 
 	if param != nil {
@@ -344,7 +347,7 @@ func go_onParameter(
 //export go_onCommand
 func go_onCommand(glow *C.GlowCommand, _ *C.GlowFieldFlags, pPath *C.berint, pathLength int, state unsafe.Pointer) {
 	el := &ember.Element{
-		ElementType: asn1.CommandType,
+		ElementType: ember.CommandType,
 		Number:      int(glow.number),
 	}
 
@@ -361,7 +364,7 @@ func go_onStreamEntry(
 	state unsafe.Pointer,
 ) {
 	el := &ember.Element{
-		ElementType: asn1.StreamType,
+		ElementType: ember.StreamType,
 	}
 
 	if entry != nil {
@@ -376,7 +379,7 @@ func go_onStreamEntry(
 //export go_onFunction
 func go_onFunction(f *C.GlowFunction, pPath *C.berint, pathLength int, state unsafe.Pointer) {
 	el := &ember.Element{
-		ElementType: asn1.FunctionType,
+		ElementType: ember.FunctionType,
 	}
 
 	if f != nil {
@@ -396,7 +399,7 @@ func go_onFunction(f *C.GlowFunction, pPath *C.berint, pathLength int, state uns
 //export go_onMatrix
 func go_onMatrix(m *C.GlowMatrix, pPath *C.berint, pathLength int, state unsafe.Pointer) {
 	el := &ember.Element{
-		ElementType: asn1.MatrixType,
+		ElementType: ember.MatrixType,
 	}
 
 	if m != nil {
@@ -435,11 +438,11 @@ func go_onFailAssertion(fileName *C.char, line int) {
 	emberLogger.Errf("ember assertion error on line %d: %s", line, string(C.GoString(fileName)))
 }
 
-// splitPath splits an Ember path "root/audio/volume" into parts (no empty parts)
+// splitPath splits an Ember path into parts (no empty parts).
 func splitPath(path string) []string {
 	var res []string
 	start := 0
-	for i := 0; i < len(path); i++ {
+	for i := range len(path) {
 		if path[i] == '.' {
 			if i > start {
 				res = append(res, path[start:i])
@@ -447,6 +450,7 @@ func splitPath(path string) []string {
 			start = i + 1
 		}
 	}
+
 	if start < len(path) {
 		res = append(res, path[start:])
 	}
@@ -460,7 +464,7 @@ func intToBool(in int) bool {
 
 func setPath(el *ember.Element, pPath *C.berint, pathLength int) {
 	pathC := unsafe.Slice(pPath, pathLength)
-	var pathGo []string
+	pathGo := []string{}
 
 	for _, v := range pathC {
 		pathGo = append(pathGo, strconv.Itoa(int(v)))
@@ -518,6 +522,7 @@ func glowValueToGo(val *C.GlowValue) (any, int) {
 		octets := (*C.GlowOctetsValue)(unsafe.Pointer(&val.choice))
 		length := int(octets.length)
 
+		//nolint:nlreturn // false positive.
 		return C.GoBytes(unsafe.Pointer(octets.pOctets), C.int(length)), ember.TypeOctets
 	case C.GlowParameterType_Trigger:
 		return "Trigger", ember.TypeTrigger
