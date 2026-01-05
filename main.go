@@ -1,6 +1,6 @@
 /*
 ** Zabbix
-** Copyright (C) 2001-2025 Zabbix SIA
+** Copyright (C) 2001-2026 Zabbix SIA
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ const (
 	PLUGIN_VERSION_MAJOR = 6
 	PLUGIN_VERSION_MINOR = 0
 	PLUGIN_VERSION_PATCH = 44
-	PLUGIN_LICENSE_YEAR  = 2025
+	PLUGIN_LICENSE_YEAR  = 2026
 	PLUGIN_VERSION_RC    = "rc1"
 )
 
