@@ -24,6 +24,13 @@ package emberlib
    #include "emberplus.h"
    #include "emberinternal.h"
 
+   #ifdef BOOL_DEFINED
+   static inline _Bool EMBER_TRUE(void)  { return (_Bool)1; }
+   static inline _Bool EMBER_FALSE(void) { return (_Bool)0; }
+   #else
+   static inline bool EMBER_TRUE(void)  { return (bool)1; }
+   static inline bool EMBER_FALSE(void) { return (bool)0; }
+   #endif
 
    // The library sometimes uses 'byte' typedefs. Make sure it is available:
    typedef unsigned char byte;
@@ -209,8 +216,7 @@ func sendCommand(conn net.Conn, path, request string, cmd emberCMD) error {
 		}
 		cParts[i] = C.int(num)
 	}
-
-	C.glowOutput_beginPackage(&writer, C.true) //nolint:gocritic // false positive.
+	C.glowOutput_beginPackage(&writer, C.EMBER_TRUE()) //nolint:gocritic // false positive.
 	var command C.GlowCommand
 
 	switch cmd {
@@ -292,8 +298,8 @@ func go_onNode(node *C.GlowNode, _ *C.GlowFieldFlags, pPath *C.berint, pathLengt
 			el.SchemaIdentifiers = C.GoString(node.pSchemaIdentifiers)
 		}
 
-		el.IsRoot = intToBool(int(node.isRoot))
-		el.IsOnline = intToBool(int(node.isOnline))
+		el.IsRoot = node.isRoot != C.EMBER_FALSE()
+		el.IsOnline = node.isOnline != C.EMBER_FALSE()
 	}
 
 	setPath(el, pPath, pathLength)
@@ -337,7 +343,7 @@ func go_onParameter(
 		el.Minimum = glowMinMaxToGo(&param.minimum)
 		el.Maximum = glowMinMaxToGo(&param.maximum)
 
-		el.IsOnline = intToBool(int(param.isOnline))
+		el.IsOnline = param.isOnline != C.EMBER_FALSE()
 	}
 
 	setPath(el, pPath, pathLength)
@@ -512,7 +518,7 @@ func glowValueToGo(val *C.GlowValue) (any, int) {
 	case C.GlowParameterType_Boolean:
 		p := (*C.bool)(unsafe.Pointer(&val.choice))
 
-		return *p != 0, ember.TypeBool
+		return *p != C.EMBER_FALSE(), ember.TypeBool
 
 	case C.GlowParameterType_String:
 		p := (**C.char)(unsafe.Pointer(&val.choice))
