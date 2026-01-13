@@ -233,7 +233,7 @@ func (p *emberPlugin) getCollectionByID(
 		if err != nil {
 			return nil, errs.Wrapf(
 				err,
-				"failed to retrieve element with id %s", id,
+				"failed to retrieve element with id %s, path to element '%s'", id, el.Path,
 			)
 		}
 
