@@ -157,7 +157,7 @@ func (p *EmberPlugin) Export(key string, rawParams []string, pluginCtx plugin.Co
 
 	res, err := m.handler(timeout, handler, metricParams, extraParams...)
 	if err != nil {
-		return nil, errs.Wrap(err, "failed to execute handler")
+		return nil, errs.Wrap(err, "failed to get response")
 	}
 
 	return res, nil
@@ -237,7 +237,7 @@ func (p *EmberPlugin) getCollectionByPath(
 		fullPath = pathJoin(fullPath, part)
 		el, err := collection.GetElementByPath(fullPath)
 		if err != nil {
-			return nil, errs.Wrapf(err, "failed to retrieve element with path %s", fullPath)
+			return nil, errs.Wrapf(err, "failed to get element with path %s", fullPath)
 		}
 
 		collection, err = p.conns.HandleRequest(el.ElementType, connConf, fullPath, timeout, handler)
@@ -280,7 +280,7 @@ func withJSONResponse(handler handlerFunc) handlerFunc {
 	) (any, error) {
 		res, err := handler(timeout, h, metricParams, extraParams...)
 		if err != nil {
-			return nil, errs.Wrap(err, "handler failed")
+			return nil, errs.Wrap(err, "handler function failed")
 		}
 
 		jsonRes, err := json.Marshal(res)

@@ -57,7 +57,7 @@ func main() {
 
 	p, err := plugin.New()
 	if err != nil {
-		exitWithError(errs.Wrap(err, "failed to initialize plugin: "))
+		exitWithError(errs.Wrap(err, "failed to initialize plugin"))
 	}
 
 	err = flag.DecideActionFromFlags(args, p, pluginInfo, nil)
@@ -67,12 +67,12 @@ func main() {
 			exitGracefully()
 		}
 
-		exitWithError(errs.Wrap(err, "failed to execute plugin functions: "))
+		exitWithError(errs.Wrap(err, "failed to execute plugin functions"))
 	}
 
 	err = p.Run()
 	if err != nil {
-		exitWithError(errs.Wrap(err, "failed to run plugin: "))
+		exitWithError(errs.Wrap(err, "failed to run plugin"))
 	}
 }
 
