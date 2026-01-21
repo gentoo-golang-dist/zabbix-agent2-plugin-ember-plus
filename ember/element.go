@@ -105,7 +105,7 @@ type parameter struct {
 	ElementType       string `json:"element_type"`
 	Identifier        string `json:"identifier,omitempty"`
 	Description       string `json:"description,omitempty"`
-	SchemaIdentifiers string `json:"schema_identifiers"`
+	SchemaIdentifiers string `json:"schema_identifiers,omitempty"`
 	Value             any    `json:"value,omitempty"`
 	Minimum           any    `json:"minimum,omitempty"`
 	Maximum           any    `json:"maximum,omitempty"`

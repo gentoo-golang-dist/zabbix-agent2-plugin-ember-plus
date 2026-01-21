@@ -300,8 +300,13 @@ func go_onNode(node *C.GlowNode, _ *C.GlowFieldFlags, pPath *C.berint, pathLengt
 			el.SchemaIdentifiers = C.GoString(node.pSchemaIdentifiers)
 		}
 
-		el.IsRoot = node.isRoot != C.EMBER_FALSE()
-		el.IsOnline = node.isOnline != C.EMBER_FALSE()
+		if node.isRoot == C.EMBER_TRUE() {
+			el.IsRoot = true
+		}
+
+		if node.isOnline == C.EMBER_TRUE() {
+			el.IsOnline = true
+		}
 	}
 
 	setPath(el, pPath, pathLength)
@@ -320,6 +325,7 @@ func go_onParameter(
 		ElementType: ember.ParameterType,
 	}
 
+	//nolint:nestif // complexity here is fine as we are simply setting fields
 	if param != nil {
 		if param.pIdentifier != nil {
 			el.Identifier = C.GoString(param.pIdentifier)
@@ -349,7 +355,9 @@ func go_onParameter(
 		el.Minimum = glowMinMaxToGo(&param.minimum)
 		el.Maximum = glowMinMaxToGo(&param.maximum)
 
-		el.IsOnline = param.isOnline != C.EMBER_FALSE()
+		if param.isOnline == C.EMBER_TRUE() {
+			el.IsOnline = true
+		}
 	}
 
 	setPath(el, pPath, pathLength)
