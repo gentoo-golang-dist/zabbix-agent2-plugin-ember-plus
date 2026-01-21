@@ -159,10 +159,12 @@ func (h *Handler) EmberRead(buf []byte, n int) bool {
 }
 
 // TakeFromState returns element collection stored in handler state.
+// Resets state stop to false, for next reads.
 func (h *Handler) TakeFromState() ember.ElementCollection {
 	h.state.parsedMu.Lock()
 	out := h.state.parsed
 	h.state.parsed = make(ember.ElementCollection)
+	h.state.stop = false
 	defer h.state.parsedMu.Unlock()
 
 	return out
