@@ -1,5 +1,5 @@
 /*
-** Copyright (C) 2001-2025 Zabbix SIA
+** Copyright (C) 2001-2026 Zabbix SIA
 **
 ** This program is free software: you can redistribute it and/or modify it under the terms of
 ** the GNU Affero General Public License as published by the Free Software Foundation, version 3.
@@ -75,7 +75,7 @@ const (
 var emberLogger log.Logger
 
 // Handler is the main stucter used to wrap around C data structures and readers.
-// Should be created with InitHandler().
+// Should be created with NewHandler().
 type Handler struct {
 	rxBuf   unsafe.Pointer
 	cHandle cgo.Handle
@@ -104,8 +104,8 @@ func Init(l log.Logger) {
 	emberLogger = l
 }
 
-// InitHandler returns a handler with all ember lib readers and functions initialized.
-func InitHandler() (*Handler, error) {
+// NewHandler returns a handler with all ember lib readers and functions initialized.
+func NewHandler() (*Handler, error) {
 	var h Handler
 
 	const rxBufferSize = 8192

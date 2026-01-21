@@ -148,14 +148,14 @@ func (p *EmberPlugin) Export(key string, rawParams []string, pluginCtx plugin.Co
 		timeout = time.Second * time.Duration(pluginCtx.Timeout())
 	}
 
-	handler, err := emberlib.InitHandler()
+	emberLibHandler, err := emberlib.NewHandler()
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to init ember handler")
 	}
 
-	defer handler.CleanUp()
+	defer emberLibHandler.CleanUp()
 
-	res, err := m.handler(timeout, handler, metricParams, extraParams...)
+	res, err := m.handler(timeout, emberLibHandler, metricParams, extraParams...)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get response")
 	}
