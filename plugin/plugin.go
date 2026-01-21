@@ -1,5 +1,5 @@
 /*
-** Copyright (C) 2001-2025 Zabbix SIA
+** Copyright (C) 2001-2026 Zabbix SIA
 **
 ** This program is free software: you can redistribute it and/or modify it under the terms of
 ** the GNU Affero General Public License as published by the Free Software Foundation, version 3.
@@ -75,7 +75,7 @@ type emberMetric struct {
 	handler handlerFunc
 }
 
-// New created a new ember plugin structure.
+// New creates new plugin implementation.
 func New() (*EmberPlugin, error) {
 	p := &EmberPlugin{
 		conns: &conn.ConnCollection{},
