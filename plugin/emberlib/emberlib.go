@@ -314,6 +314,7 @@ func go_onNode(node *C.GlowNode, _ *C.GlowFieldFlags, pPath *C.berint, pathLengt
 }
 
 //export go_onParameter
+//nolint:nestif // complexity here is fine as we are simply setting fields
 func go_onParameter(
 	param *C.GlowParameter,
 	_ *C.GlowFieldFlags,
@@ -325,7 +326,6 @@ func go_onParameter(
 		ElementType: ember.ParameterType,
 	}
 
-	//nolint:nestif // complexity here is fine as we are simply setting fields
 	if param != nil {
 		if param.pIdentifier != nil {
 			el.Identifier = C.GoString(param.pIdentifier)

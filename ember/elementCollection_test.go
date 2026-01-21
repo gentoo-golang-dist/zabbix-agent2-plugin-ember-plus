@@ -369,7 +369,7 @@ func TestElementCollection_MarshalJSON(t *testing.T) {
 				},
 			},
 			[]byte(`{"1":{"path":"1","element_type":"parameter","identifier":"test","description":"foobar",` +
-				`"schema_identifiers":"","value":true,"type":4}}`),
+				`"value":true,"type":4}}`),
 			false,
 		},
 		{
