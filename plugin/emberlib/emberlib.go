@@ -337,6 +337,10 @@ func go_onParameter(
 			el.Enumeration = C.GoString(param.pEnumeration)
 		}
 
+		if param.pSchemaIdentifiers != nil {
+			el.SchemaIdentifiers = C.GoString(param.pSchemaIdentifiers)
+		}
+
 		el.Access = int(param.access)
 		el.Factor = int(param.factor)
 

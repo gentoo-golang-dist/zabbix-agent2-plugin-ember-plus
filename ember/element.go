@@ -101,20 +101,21 @@ type stream struct {
 
 // parameter hold information about parameter and qualified parameter fields.
 type parameter struct {
-	Path        string `json:"path"`
-	ElementType string `json:"element_type"`
-	Identifier  string `json:"identifier,omitempty"`
-	Description string `json:"description,omitempty"`
-	Value       any    `json:"value,omitempty"`
-	Minimum     any    `json:"minimum,omitempty"`
-	Maximum     any    `json:"maximum,omitempty"`
-	Access      int    `json:"access,omitempty"`
-	Format      string `json:"format,omitempty"`
-	Enumeration string `json:"enumeration,omitempty"`
-	Factor      int    `json:"factor,omitempty"`
-	IsOnline    bool   `json:"is_online,omitempty"`
-	Default     any    `json:"default,omitempty"`
-	ValueType   int    `json:"type,omitempty"`
+	Path              string `json:"path"`
+	ElementType       string `json:"element_type"`
+	Identifier        string `json:"identifier,omitempty"`
+	Description       string `json:"description,omitempty"`
+	SchemaIdentifiers string `json:"schema_identifiers"`
+	Value             any    `json:"value,omitempty"`
+	Minimum           any    `json:"minimum,omitempty"`
+	Maximum           any    `json:"maximum,omitempty"`
+	Access            int    `json:"access,omitempty"`
+	Format            string `json:"format,omitempty"`
+	Enumeration       string `json:"enumeration,omitempty"`
+	Factor            int    `json:"factor,omitempty"`
+	IsOnline          bool   `json:"is_online,omitempty"`
+	Default           any    `json:"default,omitempty"`
+	ValueType         int    `json:"type,omitempty"`
 }
 
 // parsePath returns string oid path as integer array.

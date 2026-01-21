@@ -105,20 +105,21 @@ func (ec ElementCollection) MarshalJSON() ([]byte, error) {
 			}
 		case ParameterType:
 			out[k.Path] = parameter{
-				Path:        v.Path,
-				ElementType: v.ElementType,
-				Identifier:  v.Identifier,
-				Description: v.Description,
-				Value:       v.Value,
-				Minimum:     v.Minimum,
-				Maximum:     v.Maximum,
-				Access:      v.Access,
-				Format:      v.Format,
-				Enumeration: v.Enumeration,
-				Factor:      v.Factor,
-				IsOnline:    v.IsOnline,
-				Default:     v.Default,
-				ValueType:   v.ValueType,
+				Path:              v.Path,
+				ElementType:       v.ElementType,
+				Identifier:        v.Identifier,
+				Description:       v.Description,
+				SchemaIdentifiers: v.SchemaIdentifiers,
+				Value:             v.Value,
+				Minimum:           v.Minimum,
+				Maximum:           v.Maximum,
+				Access:            v.Access,
+				Format:            v.Format,
+				Enumeration:       v.Enumeration,
+				Factor:            v.Factor,
+				IsOnline:          v.IsOnline,
+				Default:           v.Default,
+				ValueType:         v.ValueType,
 			}
 		case FunctionType:
 			out[k.Path] = function{
