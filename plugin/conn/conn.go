@@ -84,9 +84,8 @@ func (c *ConnCollection) HandleRequest(
 	conf ConnConfig,
 	path string,
 	reqTimeout time.Duration,
-	el *emberlib.Handler,
 ) (ember.ElementCollection, error) {
-	ch, err := c.get(reqTimeout, conf, el)
+	ch, err := c.get(reqTimeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
@@ -155,8 +154,8 @@ func NewConnConfig(rawURI string) (ConnConfig, error) {
 }
 
 // Get returns specific connection from the collection based on config and handler.
-func (c *ConnCollection) Get(timeout time.Duration, conf ConnConfig, h *emberlib.Handler) (net.Conn, error) {
-	ch, err := c.get(timeout, conf, h)
+func (c *ConnCollection) Get(timeout time.Duration, conf ConnConfig) (net.Conn, error) {
+	ch, err := c.get(timeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
@@ -164,7 +163,7 @@ func (c *ConnCollection) Get(timeout time.Duration, conf ConnConfig, h *emberlib
 	return ch.conn, nil
 }
 
-func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig, h *emberlib.Handler) (*connHandler, error) {
+func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandler, error) {
 	c.logr.Debugf("looking for connection for %s", conf.URI)
 
 	ch := c.getConn(conf)
@@ -197,7 +196,12 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig, h *emberlib
 		return existing, nil
 	}
 
-	go ch.pathReader(c, timeout, h)
+	emberLibHandler, err := emberlib.NewHandler()
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to init ember handler")
+	}
+
+	go ch.pathReader(c, timeout, emberLibHandler)
 
 	return ch, nil
 }
@@ -366,6 +370,8 @@ func (ch *connHandler) reader(c *ConnCollection, h *emberlib.Handler) {
 			if cerr != nil {
 				ch.logr.Errf("reader connection clean-up failed, err: %w", cerr)
 			}
+
+			h.CleanUp()
 
 			close(ch.readData)
 

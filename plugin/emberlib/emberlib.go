@@ -123,6 +123,7 @@ func NewHandler() (*Handler, error) {
 
 	h.cHandle = cgo.NewHandle(h.state)
 
+	emberLogger.Debugf("starting glow reader init")
 	// Initialize reader with the C wrapper callbacks and our state pointer.
 	// We'll pass a nil state pointer (could be used to pass Go context if marshalled properly).
 	C.glowReader_init(
@@ -136,6 +137,8 @@ func NewHandler() (*Handler, error) {
 		C.uint(rxBufferSize),
 	)
 
+	emberLogger.Debugf("done with glow reader init")
+
 	h.reader.onLastPackageReceived = C.onPackageReceived_t(C.c_onLastPackageReceived)
 	h.reader.base.onFunction = C.onFunction_t(C.c_onFunction)
 	h.reader.base.onMatrix = C.onMatrix_t(C.c_onMatrix)
@@ -143,16 +146,35 @@ func NewHandler() (*Handler, error) {
 	return &h, nil
 }
 
-// CleanUp cleans up c data and removes c handler.
+// CleanUp cleans up c data and removes c handler. After clean up handler is set to nil and must not
+// be used again.
 func (h *Handler) CleanUp() {
-	C.free(h.rxBuf)
-	C.free(unsafe.Pointer(h.reader))
-	h.cHandle.Delete()
+	if h.reader != nil {
+		C.glowReader_free(h.reader)
+	}
+
+	if h.cHandle != 0 {
+		h.cHandle.Delete()
+	}
+
+	if h.rxBuf != nil {
+		C.free(h.rxBuf)
+		h.rxBuf = nil
+	}
+
+	if h.reader != nil {
+		C.free(unsafe.Pointer(h.reader))
+		h.reader = nil
+	}
+
+	h = nil
 }
 
 // EmberRead reads data from ember glow reader, returns true is reading state is done.
 // If true is returned it means that data is read into state and it can be extracted.
 func (h *Handler) EmberRead(buf []byte, n int) bool {
+	emberLogger.Tracef("got amount:%d, got len buf:%d got buf:'%s'", n, len(buf), string(buf))
+
 	C.glowReader_readBytes(h.reader, (*C.byte)(unsafe.Pointer(&buf[0])), C.int(n))
 
 	return h.state.stop
