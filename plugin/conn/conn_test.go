@@ -15,6 +15,7 @@
 package conn
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
@@ -1103,7 +1104,9 @@ func Test_connHandler_readExpected(t *testing.T) {
 				}
 			}()
 
-			got := ch.readExpected(tt.args.path, time.Duration(tt.args.timeout)*time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), time.Duration(tt.args.timeout)*time.Second)
+
+			got := ch.readExpected(ctx, tt.args.path)
 			if (got.err != nil) != tt.wantErr {
 				t.Fatalf("connHandler.readExpected() error = %v, wantErr %v", got.err, tt.wantErr)
 			}

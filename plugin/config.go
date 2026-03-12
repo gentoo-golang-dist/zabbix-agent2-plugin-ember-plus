@@ -17,18 +17,19 @@ package plugin
 import (
 	"golang.zabbix.com/sdk/conf"
 	"golang.zabbix.com/sdk/errs"
+	"golang.zabbix.com/sdk/log"
 	"golang.zabbix.com/sdk/plugin"
 )
 
 type session struct {
-	URI string `conf:"name=Uri,optional"`
+	URI               string `conf:"name=Uri,optional"`
+	ConnectionTimeout int    `conf:"optional,range=1:30" json:"ConnectionTimeout,string"`
 }
 
 type pluginConfig struct {
 	System plugin.SystemOptions `conf:"optional"` //nolint:staticcheck
-	// Timeout is the amount of time to wait for a server to respond when
-	// first connecting and on follow-up operations in the session.
-	Timeout int `conf:"optional,range=1:30,default=3"`
+	// Deprecated old timeout value kept for compatibility.
+	LegacyTimeout int `conf:"name=Timeout,optional,range=1:30"`
 	// KeepAlive is a time to wait before unused connections will be closed.
 	KeepAlive int `conf:"optional,range=60:900,default=300"`
 	// Sessions stores pre-defined named sets of connections settings.
@@ -52,8 +53,20 @@ func (p *EmberPlugin) Configure(global *plugin.GlobalOptions, options any) {
 
 	p.config = pConfig
 
-	if p.config.Timeout == 0 {
-		p.config.Timeout = global.Timeout
+	if p.config.LegacyTimeout != 0 {
+		log.Debugf("[EmberPlus] Config value 'Plugins.EmberPlus.Timeout' is deprecated. Use 'Plugins.EmberPlus.Default.ConnectionTimeout' instead.")
+
+		if p.config.Default.ConnectionTimeout == 0 {
+			p.config.Default.ConnectionTimeout = p.config.LegacyTimeout
+		}
+	}
+
+	if p.config.Default.ConnectionTimeout == 0 {
+		p.config.Default.ConnectionTimeout = global.Timeout
+	}
+
+	if p.config.LegacyTimeout == 0 {
+		p.config.LegacyTimeout = global.Timeout
 	}
 }
 

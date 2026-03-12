@@ -15,6 +15,7 @@
 package conn
 
 import (
+	"context"
 	"net"
 	"net/url"
 	"strings"
@@ -81,12 +82,13 @@ func (c *ConnCollection) Init(keepAlive int, logr log.Logger) {
 
 // HandleRequest sends a request and reads response based on the provided connection parameters.
 func (c *ConnCollection) HandleRequest(
+	ctx context.Context,
+	connectionTimeout int,
 	req []byte,
 	conf ConnConfig,
 	path string,
-	reqTimeout time.Duration,
 ) (ember.ElementCollection, error) {
-	ch, err := c.get(reqTimeout, conf)
+	ch, err := c.get(ctx, connectionTimeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
@@ -98,7 +100,12 @@ func (c *ConnCollection) HandleRequest(
 
 	ch.expectedPath <- path
 
-	err = ch.conn.SetWriteDeadline(time.Now().Add(reqTimeout))
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return nil, errs.Wrap(err, "plugin context didn't have a deadline set")
+	}
+
+	err = ch.conn.SetWriteDeadline(deadline)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set write deadline for connection")
 	}
@@ -167,7 +174,7 @@ func (c *ConnCollection) close(conf ConnConfig) error {
 	return nil
 }
 
-func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandler, error) {
+func (c *ConnCollection) get(ctx context.Context, connectionTimeout int, conf ConnConfig) (*connHandler, error) {
 	c.logr.Debugf("looking for connection for %s", conf.URI)
 
 	ch := c.getConn(conf)
@@ -181,7 +188,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 
 	c.logr.Debugf("creating new connection for %s", conf.URI)
 
-	ch, err := newConn(timeout, conf, c.logr)
+	ch, err := newConn(connectionTimeout, conf, c.logr)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create conn")
 	}
@@ -200,7 +207,7 @@ func (c *ConnCollection) get(timeout time.Duration, conf ConnConfig) (*connHandl
 		return existing, nil
 	}
 
-	go ch.pathReader(c, timeout)
+	go ch.pathReader(ctx, c)
 
 	return ch, nil
 }
@@ -351,14 +358,14 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 	return ch.lastAccessTime
 }
 
-func (ch *connHandler) pathReader(c *ConnCollection, timeout time.Duration) {
+func (ch *connHandler) pathReader(ctx context.Context, c *ConnCollection) {
 	go ch.reader(c)
 
 	for {
 		select {
 		case path := <-ch.expectedPath:
 			ch.logr.Tracef("got path for request %s", path)
-			ch.parsedData <- ch.readExpected(path, timeout)
+			ch.parsedData <- ch.readExpected(ctx, path)
 		case resp, ok := <-ch.readData:
 			if !ok {
 				// incase we get an error in readExpected, then we will exit this function here. As ch.reader will be
@@ -397,13 +404,10 @@ func (ch *connHandler) reader(c *ConnCollection) {
 	}
 }
 
-func (ch *connHandler) readExpected(path string, timeout time.Duration) parsedResponse {
-	t := time.NewTimer(timeout)
-	defer t.Stop()
-
+func (ch *connHandler) readExpected(ctx context.Context, path string) parsedResponse {
 	for {
 		select {
-		case <-t.C:
+		case <-ctx.Done():
 			ch.logr.Debugf("failed to find Ember+ response in time for request with path %s", path)
 
 			return parsedResponse{nil, errs.New("failed to find Ember+ response in time")}
@@ -493,7 +497,7 @@ func parseExpectedLength(path string) ([]string, int) {
 	return splitExpectedPath, len(splitExpectedPath)
 }
 
-func newConn(timeout time.Duration, conf ConnConfig, logger log.Logger) (*connHandler, error) {
+func newConn(connectionTimeout int, conf ConnConfig, logger log.Logger) (*connHandler, error) {
 	connURI, err := uri.New(conf.URI, nil)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to set URI defaults")
@@ -504,7 +508,7 @@ func newConn(timeout time.Duration, conf ConnConfig, logger log.Logger) (*connHa
 		return nil, errs.Wrap(err, "failed to parse URI")
 	}
 
-	d := &net.Dialer{Timeout: timeout, KeepAlive: 4 * time.Second}
+	d := &net.Dialer{Timeout: time.Duration(connectionTimeout) * time.Second, KeepAlive: 4 * time.Second}
 
 	conn, err := d.Dial("tcp", u.Host)
 	if err != nil {

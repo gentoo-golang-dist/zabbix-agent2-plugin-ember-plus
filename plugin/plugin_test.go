@@ -15,8 +15,8 @@
 package plugin
 
 import (
+	"context"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"golang.zabbix.com/plugin/ember-plus/ember"
@@ -40,7 +40,7 @@ func Test_withJSONResponse(t *testing.T) {
 			"+valid",
 			args{
 				func(
-					timeout time.Duration, metricParams map[string]string, extraParams ...string,
+					ctx context.Context, connectionTimeout int, metricParams map[string]string, extraParams ...string,
 				) (any, error) {
 					coll := ember.ElementCollection{
 						ember.ElementKey{
@@ -67,7 +67,7 @@ func Test_withJSONResponse(t *testing.T) {
 			"-handlerErr",
 			args{
 				func(
-					timeout time.Duration, metricParams map[string]string, extraParams ...string,
+					ctx context.Context, connectionTimeout int, metricParams map[string]string, extraParams ...string,
 				) (any, error) {
 					return nil, errs.New("failed")
 				},
@@ -79,7 +79,7 @@ func Test_withJSONResponse(t *testing.T) {
 			"-marshalErr",
 			args{
 				func(
-					timeout time.Duration, metricParams map[string]string, extraParams ...string,
+					tctx context.Context, connectionTimeout int, metricParams map[string]string, extraParams ...string,
 				) (any, error) {
 					coll := ember.ElementCollection{
 						ember.ElementKey{
@@ -104,7 +104,9 @@ func Test_withJSONResponse(t *testing.T) {
 
 			handler := withJSONResponse(tt.args.handler)
 
-			got, err := handler(0, nil)
+			ctx, _ := context.WithTimeout(context.Background(), 0)
+
+			got, err := handler(ctx, 0, nil)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("withJSONResponse() error = %v, wantErr %v", err, tt.wantErr)
 			}
