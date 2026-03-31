@@ -22,8 +22,10 @@ import (
 )
 
 type session struct {
-	URI               string `conf:"name=Uri,optional"`
-	ConnectionTimeout int    `conf:"optional,range=1:30" json:"ConnectionTimeout,string"`
+	URI string `conf:"name=Uri,optional"`
+
+	// json tag is a temporary workaround until metric.SetDefaults() supports integers
+	ConnectionTimeout int `conf:"optional,range=1:30" json:"ConnectionTimeout,string"` //nolint:tagalign,tagliatelle
 }
 
 type pluginConfig struct {
@@ -54,7 +56,8 @@ func (p *EmberPlugin) Configure(global *plugin.GlobalOptions, options any) {
 	p.config = pConfig
 
 	if p.config.LegacyTimeout != 0 {
-		log.Debugf("[EmberPlus] Config value 'Plugins.EmberPlus.Timeout' is deprecated. Use 'Plugins.EmberPlus.Default.ConnectionTimeout' instead.")
+		log.Debugf("[EmberPlus] Config value 'Plugins.EmberPlus.Timeout' is deprecated." +
+			"Use 'Plugins.EmberPlus.Default.ConnectionTimeout' instead.")
 
 		if p.config.Default.ConnectionTimeout == 0 {
 			p.config.Default.ConnectionTimeout = p.config.LegacyTimeout

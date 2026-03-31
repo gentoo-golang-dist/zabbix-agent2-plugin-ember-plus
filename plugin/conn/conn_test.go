@@ -1104,7 +1104,8 @@ func Test_connHandler_readExpected(t *testing.T) {
 				}
 			}()
 
-			ctx, _ := context.WithTimeout(context.Background(), time.Duration(tt.args.timeout)*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), time.Duration(tt.args.timeout)*time.Second)
+			defer cancel()
 
 			got := ch.readExpected(ctx, tt.args.path)
 			if (got.err != nil) != tt.wantErr {

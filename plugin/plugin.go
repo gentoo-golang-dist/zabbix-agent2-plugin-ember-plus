@@ -58,7 +58,9 @@ type EmberPlugin struct {
 }
 
 // HandlerFunc describes the signature all metric handler functions must have.
-type handlerFunc func(ctx context.Context, connectionTimeout int, metricParams map[string]string, extraParams ...string) (any, error)
+type handlerFunc func(
+	ctx context.Context, connectionTimeout int, metricParams map[string]string, extraParams ...string,
+) (any, error)
 
 type emberMetricKey string
 
@@ -132,6 +134,7 @@ func (p *EmberPlugin) Export(key string, rawParams []string, ctx plugin.ContextP
 		return nil, errs.Wrap(err, "failed to set default params")
 	}
 
+	// temporary workaround until metric.SetDefaults() supports integers
 	connectionTimeout, err := strconv.Atoi(metricParams["ConnectionTimeout"])
 	if err != nil {
 		connectionTimeout = p.config.Default.ConnectionTimeout // shouldn't happen anyway
@@ -147,7 +150,9 @@ func (p *EmberPlugin) Export(key string, rawParams []string, ctx plugin.ContextP
 
 // GetEmber handles ember.get metric, returns collection data based on request metrics, response needs to be handled,
 // otherwise it is not possible to json marshal it.
-func (p *EmberPlugin) GetEmber(ctx context.Context, connectionTimeout int, metricParams map[string]string, _ ...string) (any, error) {
+func (p *EmberPlugin) GetEmber(
+	ctx context.Context, connectionTimeout int, metricParams map[string]string, _ ...string,
+) (any, error) {
 	connConf, err := conn.NewConnConfig(metricParams[params.URI.Name()])
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create connection config")

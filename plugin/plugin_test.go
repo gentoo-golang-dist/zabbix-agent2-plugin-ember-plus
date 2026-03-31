@@ -104,7 +104,8 @@ func Test_withJSONResponse(t *testing.T) {
 
 			handler := withJSONResponse(tt.args.handler)
 
-			ctx, _ := context.WithTimeout(context.Background(), 0)
+			ctx, cancel := context.WithTimeout(t.Context(), 0)
+			defer cancel()
 
 			got, err := handler(ctx, 0, nil)
 			if (err != nil) != tt.wantErr {
