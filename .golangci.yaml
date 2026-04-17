@@ -161,6 +161,10 @@ linters:
     generated: lax
     rules:
       - linters:
+          - gocritic
+        path: plugin/emberlib/emberlib.go
+        text: "dupImport"
+      - linters:
           - dupl
           - err113
           - errcheck
@@ -169,6 +173,10 @@ linters:
           - revive
           - wrapcheck
         path: _test\.go
+      - linters:
+          # can not no lint in code for C constants and it's more readable as single line.
+          - lll
+        path: plugin/emberlib/emberlib.go
     paths:
       - third_party$
       - builtin$

@@ -14,6 +14,8 @@
 
 package plugin
 
+import "C"
+
 import (
 	"encoding/json"
 	"fmt"
@@ -23,6 +25,7 @@ import (
 
 	"golang.zabbix.com/plugin/ember-plus/ember"
 	"golang.zabbix.com/plugin/ember-plus/plugin/conn"
+	"golang.zabbix.com/plugin/ember-plus/plugin/emberlib"
 	"golang.zabbix.com/plugin/ember-plus/plugin/params"
 	"golang.zabbix.com/sdk/errs"
 	"golang.zabbix.com/sdk/log"
@@ -49,7 +52,7 @@ var (
 	ErrInvalidPath = errs.New("invalid path")
 )
 
-// EmberPlugin holds plugin parameters.
+// EmberPlugin global ember plugin structure.
 type EmberPlugin struct {
 	plugin.Base
 	conns   *conn.ConnCollection
@@ -58,7 +61,11 @@ type EmberPlugin struct {
 }
 
 // HandlerFunc describes the signature all metric handler functions must have.
-type handlerFunc func(timeout time.Duration, metricParams map[string]string, extraParams ...string) (any, error)
+type handlerFunc func(
+	timeout time.Duration,
+	metricParams map[string]string,
+	extraParams ...string,
+) (any, error)
 
 type emberMetricKey string
 
@@ -107,6 +114,8 @@ func (p *EmberPlugin) Run() error {
 
 // Start initiates the connection handler.
 func (p *EmberPlugin) Start() {
+	emberlib.Init(p.Logger)
+
 	p.conns.Init(p.config.KeepAlive, p)
 }
 
@@ -140,7 +149,7 @@ func (p *EmberPlugin) Export(key string, rawParams []string, pluginCtx plugin.Co
 
 	res, err := m.handler(timeout, metricParams, extraParams...)
 	if err != nil {
-		return nil, errs.Wrap(err, "failed to execute handler")
+		return nil, errs.Wrap(err, "failed to get response")
 	}
 
 	return res, nil
@@ -148,20 +157,19 @@ func (p *EmberPlugin) Export(key string, rawParams []string, pluginCtx plugin.Co
 
 // GetEmber handles ember.get metric, returns collection data based on request metrics, response needs to be handled,
 // otherwise it is not possible to json marshal it.
-func (p *EmberPlugin) GetEmber(timeout time.Duration, metricParams map[string]string, _ ...string) (any, error) {
+func (p *EmberPlugin) GetEmber(
+	timeout time.Duration,
+	metricParams map[string]string,
+	_ ...string,
+) (any, error) {
 	connConf, err := conn.NewConnConfig(metricParams[params.URI.Name()])
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to create connection config")
 	}
 
-	req, err := ember.GetRootRequest()
+	rootCollection, err := p.conns.HandleRequest(ember.NodeType, connConf, "", timeout)
 	if err != nil {
-		return nil, errs.Wrap(err, "failed to get root collection request")
-	}
-
-	rootCollection, err := p.conns.HandleRequest(req, connConf, "", timeout)
-	if err != nil {
-		return nil, errs.Wrap(err, "failed to retrieve root collection")
+		return nil, errs.Wrap(err, "failed to handle request")
 	}
 
 	path := metricParams[params.Path.Name()]
@@ -208,24 +216,21 @@ func (p *EmberPlugin) registerMetrics() error {
 }
 
 func (p *EmberPlugin) getCollectionByPath(
-	collection ember.ElementCollection, connConf conn.ConnConfig, pathPart []string, timeout time.Duration,
+	collection ember.ElementCollection,
+	connConf conn.ConnConfig,
+	pathPart []string,
+	timeout time.Duration,
 ) (ember.ElementCollection, error) {
 	var fullPath string
 
 	for _, part := range pathPart {
 		fullPath = pathJoin(fullPath, part)
-
 		el, err := collection.GetElementByPath(fullPath)
 		if err != nil {
-			return nil, errs.Wrapf(err, "failed to retrieve element with path %s", fullPath)
+			return nil, errs.Wrapf(err, "failed to get element with path %s", fullPath)
 		}
 
-		req, err := ember.GetRequestByType(el.ElementType, fullPath)
-		if err != nil {
-			return nil, errs.Wrap(err, "failed to get request by element type")
-		}
-
-		collection, err = p.conns.HandleRequest(req, connConf, fullPath, timeout)
+		collection, err = p.conns.HandleRequest(el.ElementType, connConf, fullPath, timeout)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to handle request")
 		}
@@ -235,23 +240,21 @@ func (p *EmberPlugin) getCollectionByPath(
 }
 
 func (p *EmberPlugin) getCollectionByID(
-	collection ember.ElementCollection, connConf conn.ConnConfig, ids []string, timeout time.Duration,
+	collection ember.ElementCollection,
+	connConf conn.ConnConfig,
+	ids []string,
+	timeout time.Duration,
 ) (ember.ElementCollection, error) {
 	for _, id := range ids {
 		el, fullPath, err := collection.GetElementByID(id)
 		if err != nil {
 			return nil, errs.Wrapf(
 				err,
-				"failed to retrieve element with id %s, path to element '%s'", id, el.Path,
+				"failed to retrieve element with id %s", id,
 			)
 		}
 
-		req, err := ember.GetRequestByType(el.ElementType, fullPath)
-		if err != nil {
-			return nil, errs.Wrap(err, "failed to get request")
-		}
-
-		collection, err = p.conns.HandleRequest(req, connConf, fullPath, timeout)
+		collection, err = p.conns.HandleRequest(el.ElementType, connConf, fullPath, timeout)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to handle request")
 		}
@@ -266,7 +269,7 @@ func withJSONResponse(handler handlerFunc) handlerFunc {
 	) (any, error) {
 		res, err := handler(timeout, metricParams, extraParams...)
 		if err != nil {
-			return nil, errs.Wrap(err, "handler failed")
+			return nil, errs.Wrap(err, "handler function failed")
 		}
 
 		jsonRes, err := json.Marshal(res)

@@ -110,3 +110,4 @@ ember-plus
 
 # Jetbrains
 .idea
+libember/build
