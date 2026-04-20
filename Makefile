@@ -4,6 +4,9 @@ PACKAGE=zabbix-agent2-plugin-ember-plus
 TOPDIR := $(CURDIR)
 SHELL := /bin/bash
 
+LIBEMBER=$(abspath $(TOPDIR)/libember)
+include $(LIBEMBER)/Makefile.mk
+
 ifeq ($(OS),Windows_NT)
 GOOS := windows
 SHELL := cmd
@@ -75,7 +78,28 @@ DIST_SUBDIRS = \
 	ember \
 	plugin \
 	windres \
+	libember \
 	vendor
+
+.DEFAULT_GOAL := all
+all: build
+
+build: $(LIBEMBER) .build_rc
+ifeq ($(OS),Windows_NT)
+	set CGO_CFLAGS="$(CGO_CFLAGS)"
+	set CGO_LDFLAGS="$(CGO_LDFLAGS)"
+	set CGO_ENABLED=1
+	set GOOS=$(GOOS)
+	set GOARCH=$(GOARCH)
+	go build -o "$(TOPDIR)/$(PACKAGE)"
+else
+	CGO_CFLAGS="$(CGO_CFLAGS)" \
+	CGO_LDFLAGS="$(CGO_LDFLAGS)" \
+	CGO_ENABLED=1 \
+	GOOS="$(GOOS)" \
+	GOARCH="$(GOARCH)" \
+	go build -o "$(TOPDIR)/$(PACKAGE)"
+endif
 
 .build_rc:
 ifneq ("$(WINDRES)","")
@@ -84,30 +108,52 @@ ifneq ("$(WINDRES)","")
 		-D _WINDOWS -o "$(TOPDIR)\$(PACKAGE).syso"
 endif
 
-build: .build_rc
-ifeq ($(OS),Windows_NT)
-	set GOOS=$(GOOS)
-	set GOARCH=$(GOARCH)
-	go build -o "$(TOPDIR)/$(PACKAGE)"
-else
-	GOOS="$(GOOS)" GOARCH="$(GOARCH)" go build -o "$(TOPDIR)/$(PACKAGE)"
-endif
-
 clean:
 ifeq ($(OS),Windows_NT)
 	if exist "$(TOPDIR)\vendor" rmdir /S /Q "$(TOPDIR)\vendor"
+	if exist "$(LIBEMBER_BUILD)" rmdir /S /Q "$(LIBEMBER_BUILD)"
 	del /F "$(TOPDIR)\$(PACKAGE)*"
 else
 	rm -rf "$(TOPDIR)/vendor"
+	rm -rf "$(LIBEMBER_BUILD)"
 	rm -rf "$(TOPDIR)/$(PACKAGE)"*
 endif
 	go clean "$(TOPDIR)/..."
 
-check:
+check: $(LIBEMBER) .build_rc
+ifeq ($(OS),Windows_NT)
+	set CGO_CFLAGS="$(CGO_CFLAGS)"
+	set CGO_LDFLAGS="$(CGO_LDFLAGS)"
+	set CGO_ENABLED=1
+	set GOOS=$(GOOS)
+	set GOARCH=$(GOARCH)
 	go test -v "$(TOPDIR)/..."
+else
+	CGO_CFLAGS="$(CGO_CFLAGS)" \
+	CGO_LDFLAGS="$(CGO_LDFLAGS)" \
+	CGO_ENABLED=1 \
+	GOOS="$(GOOS)" \
+	GOARCH="$(GOARCH)" \
+	go test -v "$(TOPDIR)/..."
+endif
 
-style:
-	golangci-lint run --new-from-rev=$(NEW_FROM_REV) "$(TOPDIR)/..."
+
+style: $(LIBEMBER) .build_rc
+ifeq ($(OS),Windows_NT)
+	set CGO_CFLAGS="$(CGO_CFLAGS)"
+	set CGO_LDFLAGS="$(CGO_LDFLAGS)"
+	set CGO_ENABLED=1
+	set GOOS=$(GOOS)
+	set GOARCH=$(GOARCH)
+	golangci-lint run "$(TOPDIR)/..."
+else
+	CGO_CFLAGS="$(CGO_CFLAGS)" \
+	CGO_LDFLAGS="$(CGO_LDFLAGS)" \
+	CGO_ENABLED=1 \
+	GOOS="$(GOOS)" \
+	GOARCH="$(GOARCH)" \
+	golangci-lint run "$(TOPDIR)/..."
+endif
 
 format:
 	go fmt "$(TOPDIR)/..."
@@ -173,4 +219,4 @@ sbom.xml:
 
 sbom: sbom.json
 
-.PHONY: sbom
+.PHONY: all build clean sbom

@@ -3,6 +3,7 @@ Changes for 8.0.0beta1
 New features:
 
 Bug fixes:
+...G...... [ZBX-26156] migrated ember lib to C library, to fix multiple connection and data issues (esneiders)
 
 --------------------------------------------------------------------------------
 Changes for 8.0.0alpha2
@@ -15,11 +16,36 @@ Changes for 8.0.0alpha1
 7.4.4 was released as 8.0.0alpha1 without any changes
 
 --------------------------------------------------------------------------------
-Changes for 7.4.8rc2
+Changes for 7.4.10rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.4.9
+
+7.4.9rc1 was released as 7.4.9 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.4.9rc1
+
+7.4.8 was released as 7.4.9rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.4.8
+
+7.4.8rc3 was released as 7.4.8 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.4.8rc3
+
+7.4.8rc2 was released as 7.4.8rc3 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.4.8rc2
+
+7.4.8rc1 was released as 7.4.8rc2 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 7.4.8rc1
@@ -329,6 +355,33 @@ New features:
 [ZBXNEXT-9281] added configurable item timeout support (dgoloscapov)
 
 --------------------------------------------------------------------------------
+Changes for 7.0.26rc1
+
+New features:
+
+Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.0.25
+
+7.0.25rc1 was released as 7.0.25 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.25rc1
+
+7.0.24 was released as 7.0.25rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.24
+
+7.0.24rc3 was released as 7.0.24 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.24rc3
+
+7.0.24rc2 was released as 7.0.24rc3 without any changes
+
+--------------------------------------------------------------------------------
 Changes for 7.0.24rc2
 
 7.0.24rc1 was released as 7.0.24rc2 without any changes
@@ -629,6 +682,13 @@ Changes for 7.0.0rc1
 New features:
 [ZBXNEXT-9168] replaced the software license with AGPL-3.0-only (Sasha)
 [ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
+
+--------------------------------------------------------------------------------
+Changes for 6.0.46rc1
+
+New features:
+
+Bug fixes:
 
 --------------------------------------------------------------------------------
 Changes for 6.0.45

@@ -4,14 +4,23 @@ This plugin provides a native Zabbix solution to monitor devices that support th
 
 The plugin can monitor multiple Ember+ devices simultaneously, remote or local.
 
-## Requirements
-
-- Zabbix agent 2 version 6.0.0, Zabbix agent 2 version 7.0.0 or newer
-- If building from source: Latest or second-latest stable Go version (see go.mod for exact version requirements)
-
 ## Supported operating systems and architectures
 
 The plugin works on all operating systems and architectures that the Go programming language and Zabbix agent 2 supports.
+
+## Requirements
+Zabbix agent 2.
+
+## Build from Source
+
+To avoid errors during cross-compilation, it is recommended to build the plugin directly on the target operating system.
+
+To build the Ember Plus plugin for Zabbix agent 2 from source, ensure you have the following prerequisites.
+
+### Prerequisites
+- **Go Language**: If building from source: Latest or second-latest stable Go version (see go.mod for exact version requirements)
+- **CGO Enabled**: The build process requires `CGO_ENABLED=1` for proper compilation.
+- **C Compiler**: A C compiler is required for building with `CGO_ENABLED=1`.
 
 ## Installation
 

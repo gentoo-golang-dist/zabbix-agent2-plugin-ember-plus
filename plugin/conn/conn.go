@@ -23,8 +23,7 @@ import (
 	"time"
 
 	"golang.zabbix.com/plugin/ember-plus/ember"
-	"golang.zabbix.com/plugin/ember-plus/ember/asn1"
-	"golang.zabbix.com/plugin/ember-plus/ember/s101"
+	"golang.zabbix.com/plugin/ember-plus/plugin/emberlib"
 	"golang.zabbix.com/sdk/errs"
 	"golang.zabbix.com/sdk/log"
 	"golang.zabbix.com/sdk/uri"
@@ -66,8 +65,8 @@ type parsedResponse struct {
 }
 
 type readResponse struct {
-	data []byte
-	err  error
+	collection ember.ElementCollection
+	err        error
 }
 
 // Init initializes a pre-allocated connection collection.
@@ -84,7 +83,7 @@ func (c *ConnCollection) Init(keepAlive int, logr log.Logger) {
 func (c *ConnCollection) HandleRequest(
 	ctx context.Context,
 	connectionTimeout int,
-	req []byte,
+	req string,
 	conf ConnConfig,
 	path string,
 ) (ember.ElementCollection, error) {
@@ -110,15 +109,22 @@ func (c *ConnCollection) HandleRequest(
 		return nil, errs.Wrap(err, "failed to set write deadline for connection")
 	}
 
-	_, err = ch.conn.Write(req)
+	err = emberlib.SendGetDirectory(ch.conn, path, req)
 	if err != nil {
 		cerr := c.close(conf)
 		if cerr != nil {
-			c.logr.Errf("write connection clean-up failed, err: %w", cerr)
+			c.logr.Errf("connection failed %w, write connection clean-up failed, err: %w", err, cerr)
 		}
 
 		return nil, errs.Wrap(err, "failed to write to connection")
 	}
+
+	defer func() {
+		err := emberlib.SendUnsubscribe(ch.conn, path, req)
+		if err != nil {
+			c.logr.Errf("failed to send unsubscribe, %s", err.Error())
+		}
+	}()
 
 	data := <-ch.parsedData
 	if data.err != nil {
@@ -154,26 +160,6 @@ func NewConnConfig(rawURI string) (ConnConfig, error) {
 	return ConnConfig{URI: parsed.Addr()}, nil
 }
 
-// close closes the connection with the provided configuration.
-func (c *ConnCollection) close(conf ConnConfig) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	ch, ok := c.conns[conf]
-	if !ok {
-		return nil
-	}
-
-	err := ch.conn.Close()
-	if err != nil {
-		return errs.Wrap(err, "failed to close connection")
-	}
-
-	delete(c.conns, conf)
-
-	return nil
-}
-
 func (c *ConnCollection) get(ctx context.Context, connectionTimeout int, conf ConnConfig) (*connHandler, error) {
 	c.logr.Debugf("looking for connection for %s", conf.URI)
 
@@ -207,9 +193,34 @@ func (c *ConnCollection) get(ctx context.Context, connectionTimeout int, conf Co
 		return existing, nil
 	}
 
-	go ch.pathReader(ctx, c)
+	emberLibHandler, err := emberlib.NewHandler()
+	if err != nil {
+		return nil, errs.Wrap(err, "failed to init ember handler")
+	}
+
+	go ch.pathReader(ctx, c, emberLibHandler)
 
 	return ch, nil
+}
+
+// close closes the connection with the provided configuration.
+func (c *ConnCollection) close(conf ConnConfig) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ch, ok := c.conns[conf]
+	if !ok {
+		return nil
+	}
+
+	err := ch.conn.Close()
+	if err != nil {
+		return errs.Wrap(err, "failed to close connection")
+	}
+
+	delete(c.conns, conf)
+
+	return nil
 }
 
 // housekeeper repeatedly checks for unused connections and closes them.
@@ -279,67 +290,26 @@ func (c *ConnCollection) setConn(cc ConnConfig, ch *connHandler) error {
 	return nil
 }
 
-//nolint:cyclop
-func (ch *connHandler) read() ([]byte, error) {
-	var (
-		s101s          [][]byte
-		incompleteS101 []byte
-		out            []byte
-		multi          bool
-	)
-
+func (ch *connHandler) read(h *emberlib.Handler) (ember.ElementCollection, error) {
 	for {
 		//nolint:makezero
 		// length taken from Ember+ documentation
-		response := make([]byte, 1290)
+		response := make([]byte, 1500)
 
 		n, err := ch.conn.Read(response)
 		if err != nil {
 			return nil, errs.Wrap(err, "failed to read from connection")
 		}
 
-		if len(incompleteS101) > 0 {
-			response = append(incompleteS101, response[:n]...)
-		}
-
-		s101s, incompleteS101, err = s101.GetS101s(response)
-		if err != nil {
-			return nil, errs.Wrap(err, "failed to get s101 data from read")
-		}
-
-		if len(incompleteS101) > 0 {
-			continue
-		}
-
-		glow, lastPacketType, err := s101.Decode(s101s)
-		if err != nil {
-			ch.logr.Debugf("failed to decode response: %s", err.Error())
-
-			continue
-		}
-
-		ch.logr.Tracef("got packet with last packet type %x and data %x", lastPacketType, response)
-
-		switch lastPacketType {
-		case s101.FirstMultiPacket, s101.BodyMultiPacket:
-			out = append(out, glow...)
-			multi = true
-
-			continue
-		case s101.LastMultiPacket:
-			out = append(out, glow...)
-
-			return out, nil
-		default:
-			if multi {
-				ch.logr.Errf("dropping message in the middle of a multi packet read %x", glow)
-
-				continue
-			}
-
-			return glow, nil
+		stop := h.EmberRead(response, n)
+		if stop {
+			break
 		}
 	}
+
+	el := h.TakeFromState()
+
+	return el, nil
 }
 
 // updateLastAccessTime updates the last time a connection was accessed.
@@ -358,8 +328,8 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 	return ch.lastAccessTime
 }
 
-func (ch *connHandler) pathReader(ctx context.Context, c *ConnCollection) {
-	go ch.reader(c)
+func (ch *connHandler) pathReader(ctx context.Context, c *ConnCollection, h *emberlib.Handler) {
+	go ch.reader(c, h)
 
 	for {
 		select {
@@ -384,10 +354,11 @@ func (ch *connHandler) pathReader(ctx context.Context, c *ConnCollection) {
 	}
 }
 
-func (ch *connHandler) reader(c *ConnCollection) {
+func (ch *connHandler) reader(c *ConnCollection, h *emberlib.Handler) {
 	for {
-		data, err := ch.read()
-		ch.readData <- readResponse{data, err}
+		emberCollection, err := ch.read(h)
+
+		ch.readData <- readResponse{emberCollection, err}
 
 		if err != nil {
 			ch.logr.Debugf("stopping reader for connection %s, err: %s", ch.conf.URI, err.Error())
@@ -396,6 +367,8 @@ func (ch *connHandler) reader(c *ConnCollection) {
 			if cerr != nil {
 				ch.logr.Errf("reader connection clean-up failed, err: %w", cerr)
 			}
+
+			h.CleanUp()
 
 			close(ch.readData)
 
@@ -418,7 +391,7 @@ func (ch *connHandler) readExpected(ctx context.Context, path string) parsedResp
 				return parsedResponse{nil, errs.Wrapf(resp.err, "failed to read Ember+ response")}
 			}
 
-			el, gotPath, err := ch.getCollection(resp.data)
+			gotPath, err := ch.getPath(resp.collection)
 			if err != nil {
 				ch.logr.Debugf("failed to read glow response: %s", err.Error())
 
@@ -431,26 +404,17 @@ func (ch *connHandler) readExpected(ctx context.Context, path string) parsedResp
 
 			ch.logr.Tracef("found expected response with path %s", path)
 
-			return parsedResponse{el, nil}
+			return parsedResponse{resp.collection, nil}
 		}
 	}
 }
 
-func (ch *connHandler) getCollection(glow []byte) (ember.ElementCollection, []string, error) {
-	el := ember.NewElementCollection()
-
-	err := el.Populate(asn1.NewDecoder(glow))
-	if err != nil {
-		return ember.ElementCollection{}, nil, errs.Errorf("failed to populate glow response: %s", err.Error())
-	}
-
+func (ch *connHandler) getPath(el ember.ElementCollection) ([]string, error) {
 	if len(el) == 0 {
-		return ember.ElementCollection{}, nil, errs.New("empty collection")
+		return nil, errs.New("empty collection")
 	}
 
 	var gotPath []string
-
-	ch.logr.Tracef("got collection, %+v", el)
 
 	for k := range el {
 		// we care only about the path from the one element as it's a control value and every other element
@@ -461,7 +425,7 @@ func (ch *connHandler) getCollection(glow []byte) (ember.ElementCollection, []st
 		break
 	}
 
-	return el, gotPath, nil
+	return gotPath, nil
 }
 
 func (ch *connHandler) expectedData(expectedPath string, incomingPath []string) bool {
