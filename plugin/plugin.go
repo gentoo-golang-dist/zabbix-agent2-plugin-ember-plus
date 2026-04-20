@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.zabbix.com/plugin/ember-plus/ember"
 	"golang.zabbix.com/plugin/ember-plus/plugin/conn"
@@ -147,6 +148,15 @@ func (p *EmberPlugin) Export(key string, rawParams []string, ctx plugin.ContextP
 	if err != nil {
 		connectionTimeout = p.config.Default.ConnectionTimeout // shouldn't happen anyway
 	}
+
+	if ctx.LegacyTimeout() {
+		p.Debugf("using legacy timeout")
+
+		ctx = plugin.OverrideTimeout(ctx, time.Now(), p.config.LegacyTimeout)
+	}
+
+	p.Tracef("request timeout set to: %d", ctx.Timeout())
+	p.Tracef("connection timeout set to: %d", connectionTimeout)
 
 	res, err := m.handler(ctx, connectionTimeout, metricParams, extraParams...)
 	if err != nil {

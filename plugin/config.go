@@ -29,8 +29,11 @@ type session struct {
 }
 
 type pluginConfig struct {
-	System plugin.SystemOptions `conf:"optional"` //nolint:staticcheck
-	// Deprecated old timeout value kept for compatibility.
+	//nolint:staticcheck
+	System plugin.SystemOptions `conf:"optional"`
+	// LegacyTimeout timeout used for items.
+	//
+	// Deprecated: LegacyTimeout old timeout value kept for compatibility.
 	LegacyTimeout int `conf:"name=Timeout,optional,range=1:30"`
 	// KeepAlive is a time to wait before unused connections will be closed.
 	KeepAlive int `conf:"optional,range=60:900,default=300"`
@@ -56,8 +59,8 @@ func (p *EmberPlugin) Configure(global *plugin.GlobalOptions, options any) {
 	p.config = pConfig
 
 	if p.config.LegacyTimeout != 0 {
-		log.Debugf("[EmberPlus] Config value 'Plugins.EmberPlus.Timeout' is deprecated." +
-			"Use 'Plugins.EmberPlus.Default.ConnectionTimeout' instead.")
+		log.Debugf("config value 'Plugins.EmberPlus.Timeout' is deprecated." +
+			"Use 'Plugins.EmberPlus.Default.ConnectionTimeout' instead")
 
 		if p.config.Default.ConnectionTimeout == 0 {
 			p.config.Default.ConnectionTimeout = p.config.LegacyTimeout
