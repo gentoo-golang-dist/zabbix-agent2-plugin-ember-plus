@@ -14,7 +14,11 @@ AR = ar
 CMAKE_OPT=-G "MinGW Makefiles"
 endif
 
-ifeq ($(OS),Windows_NT)
+ifneq ($(MSYSTEM),)
+RM = rm -f
+NULDEV = /dev/null
+QUOTE = '
+else ifeq ($(OS),Windows_NT)
 RM = del /Q
 NULDEV = NUL
 QUOTE =
