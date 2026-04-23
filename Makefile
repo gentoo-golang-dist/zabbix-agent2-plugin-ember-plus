@@ -86,8 +86,8 @@ all: build
 
 build: $(LIBEMBER) .build_rc
 ifeq ($(OS),Windows_NT)
-	set CGO_CFLAGS="$(CGO_CFLAGS)"
-	set CGO_LDFLAGS="$(CGO_LDFLAGS)"
+	set CGO_CFLAGS=$(CGO_CFLAGS)
+	set CGO_LDFLAGS=$(CGO_LDFLAGS)
 	set CGO_ENABLED=1
 	set GOOS=$(GOOS)
 	set GOARCH=$(GOARCH)
