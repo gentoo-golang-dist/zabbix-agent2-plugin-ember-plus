@@ -64,6 +64,7 @@ type emberMetric struct {
 
 type emberPlugin struct {
 	plugin.Base
+
 	conns   *conn.ConnCollection
 	config  *pluginConfig
 	metrics map[emberMetricKey]*emberMetric
