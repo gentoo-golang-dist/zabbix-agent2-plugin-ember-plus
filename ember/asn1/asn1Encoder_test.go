@@ -185,7 +185,9 @@ func TestEncoder_WriteRequest(t *testing.T) {
 			c := &Encoder{
 				data: tt.fields.data,
 			}
-			if err := c.WriteRequest(tt.args.path, tt.args.tag, tt.args.cmd); (err != nil) != tt.wantErr {
+
+			err := c.WriteRequest(tt.args.path, tt.args.tag, tt.args.cmd)
+			if (err != nil) != tt.wantErr {
 				t.Fatalf("Encoder.WriteRequest() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -301,7 +303,9 @@ func TestEncoder_WriteRootTreeRequest(t *testing.T) {
 			c := &Encoder{
 				data: tt.fields.data,
 			}
-			if err := c.WriteRootTreeRequest(); (err != nil) != tt.wantErr {
+
+			err := c.WriteRootTreeRequest()
+			if (err != nil) != tt.wantErr {
 				t.Fatalf("Encoder.WriteRootTreeRequest() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -359,7 +363,9 @@ func TestEncoder_WriteGetDirCommand(t *testing.T) {
 			c := &Encoder{
 				data: tt.fields.data,
 			}
-			if err := c.WriteCommand(tt.args.cmd); (err != nil) != tt.wantErr {
+
+			err := c.WriteCommand(tt.args.cmd)
+			if (err != nil) != tt.wantErr {
 				t.Fatalf("Encoder.WriteGetDirCommand() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -418,7 +424,9 @@ func TestEncoder_writeInt(t *testing.T) {
 			c := &Encoder{
 				data: tt.fields.data,
 			}
-			if err := c.writeInt(tt.args.i, tt.args.cont); (err != nil) != tt.wantErr {
+
+			err := c.writeInt(tt.args.i, tt.args.cont)
+			if (err != nil) != tt.wantErr {
 				t.Fatalf("Encoder.writeInt() error = %v, wantErr %v", err, tt.wantErr)
 			}
 

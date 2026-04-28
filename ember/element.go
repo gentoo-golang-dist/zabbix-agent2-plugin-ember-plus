@@ -113,6 +113,7 @@ func (el *Element) handleApplication(decoder *asn1.Decoder) (*asn1.Decoder, erro
 
 		var decoders []*asn1.Decoder
 
+		//nolint:revive,nolintlint // more readable this way.
 		switch asn1.ContextByte(t) {
 		case asn1.ContextByte(asn1.ContextZeroTag):
 			decoders, err = el.handlePath(decoder)
@@ -258,6 +259,7 @@ func (el *Element) handleContentContext(decoder *asn1.Decoder) ([]*asn1.Decoder,
 		return nil, errs.Wrap(err, "failed to read context")
 	}
 
+	//nolint:revive,nolintlint // more readable this way.
 	switch el.ElementType {
 	case asn1.QualifiedParameterType, asn1.ParameterType:
 		context, err = el.handleParameterContext(context, t)
@@ -373,6 +375,7 @@ func (el *Element) handleFunctionContext(context *asn1.Decoder, tag byte) (*asn1
 		err error
 	)
 
+	//nolint:revive,nolintlint // more readable this way.
 	switch asn1.ContextByte(tag) {
 	case asn1.ContextByte(0):
 		var id string
@@ -421,6 +424,7 @@ func (el *Element) handleNodeContext(context *asn1.Decoder, tag byte) (*asn1.Dec
 		err error
 	)
 
+	//nolint:revive,nolintlint // more readable this way.
 	switch asn1.ContextByte(tag) {
 	case asn1.ContextByte(0):
 		var id string
@@ -489,6 +493,7 @@ func (el *Element) handleParameterContext(context *asn1.Decoder, tag byte) (*asn
 		err error
 	)
 
+	//nolint:revive,nolintlint // more readable this way.
 	switch asn1.ContextByte(tag) {
 	case asn1.ContextByte(0):
 		var id string
@@ -690,6 +695,7 @@ func (el *Element) setValue(context *asn1.Decoder) (any, int, error) {
 func (el *Element) setDefaultElementValue() {
 	// No default for enum data type as value for enum data type defines witch of string lines in enum field to use.
 	// and none should be used if there is no value
+	//nolint:revive,nolintlint // more readable this way.
 	if el.Value == nil {
 		switch el.ValueType {
 		case valueTypeInt, valueTypeReal:

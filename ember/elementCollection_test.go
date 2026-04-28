@@ -767,7 +767,8 @@ func TestElementCollection_Populate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if err := tt.ec.Populate(tt.args.data); (err != nil) != tt.wantErr {
+			err := tt.ec.Populate(tt.args.data)
+			if (err != nil) != tt.wantErr {
 				t.Fatalf("ElementCollection.Populate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
