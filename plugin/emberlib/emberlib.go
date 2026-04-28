@@ -255,7 +255,7 @@ func sendCommand(conn net.Conn, path, request string, cmd emberCMD) error {
 		return errs.New("unknown command")
 	}
 
-	//nolint:revive // more readable this way.
+	//nolint:revive,nolintlint // more readable this way.
 	switch request {
 	case ember.NodeType:
 		// Build GetDirectory command
@@ -542,7 +542,7 @@ func glowValueToGo(val *C.GlowValue) (any, int) {
 		return nil, 0
 	}
 
-	//nolint:revive // more readable this way.
+	//nolint:revive,nolintlint // more readable this way.
 	switch val.flag {
 	case C.GlowParameterType_Integer:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
@@ -587,7 +587,7 @@ func glowMinMaxToGo(val *C.GlowMinMax) any {
 		return nil
 	}
 
-	//nolint:revive // more readable this way.
+	//nolint:revive,nolintlint // more readable this way.
 	switch val.flag {
 	case C.GlowParameterType_Integer:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
