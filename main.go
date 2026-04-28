@@ -31,7 +31,7 @@ License AGPLv3: GNU Affero General Public License version 3 <https://www.gnu.org
 This is free software: you are free to change and redistribute it according to
 the license. There is NO WARRANTY, to the extent permitted by law.`
 
-//nolint:revive
+//nolint:revive,nolintlint // required constants and escaping false positives.
 const (
 	PLUGIN_VERSION_MAJOR = 8
 	PLUGIN_VERSION_MINOR = 0
@@ -83,5 +83,6 @@ func exitWithError(err error) {
 }
 
 func exitGracefully() {
-	os.Exit(0) //nolint:revive // used only in main.
+	//nolint:revive // used only in main.
+	os.Exit(0)
 }
