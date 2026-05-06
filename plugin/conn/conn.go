@@ -138,6 +138,7 @@ func (c *ConnCollection) HandleRequest(
 func (c *ConnCollection) CloseAll() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	close(c.done)
 
 	for conf, ch := range c.conns {
@@ -335,6 +336,7 @@ func (ch *connHandler) pathReader(ctx context.Context, c *ConnCollection, h *emb
 		select {
 		case path := <-ch.expectedPath:
 			ch.logr.Tracef("got path for request %s", path)
+
 			ch.parsedData <- ch.readExpected(ctx, path)
 		case resp, ok := <-ch.readData:
 			if !ok {

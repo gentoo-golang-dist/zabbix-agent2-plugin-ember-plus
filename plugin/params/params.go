@@ -31,6 +31,6 @@ var (
 	// Path to require ember collection, node or parameter.
 	Path = metric.NewParam("Path", "Path to require ember collection, node or parameter").WithDefault("")
 
-	// ConnTimeout the amount of time for Ember+ connection to be created
+	// ConnTimeout the amount of time for Ember+ connection to be created.
 	ConnTimeout = metric.NewSessionOnlyParam("ConnectionTimeout", "Connection timeout for Ember+ connections.")
 )

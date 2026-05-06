@@ -56,6 +56,7 @@ var (
 // EmberPlugin global ember plugin structure.
 type EmberPlugin struct {
 	plugin.Base
+
 	conns   *conn.ConnCollection
 	config  *pluginConfig
 	metrics map[emberMetricKey]*emberMetric
