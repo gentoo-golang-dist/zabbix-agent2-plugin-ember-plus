@@ -144,7 +144,7 @@ func (p *EmberPlugin) Export(key string, rawParams []string, ctx plugin.ContextP
 	}
 
 	// temporary workaround until metric.SetDefaults() supports integers
-	connectionTimeout, err := strconv.Atoi(metricParams["ConnectionTimeout"])
+	connectionTimeout, err := strconv.Atoi(metricParams[params.ConnTimeout.Name()])
 	if err != nil {
 		connectionTimeout = p.config.Default.ConnectionTimeout // shouldn't happen anyway
 	}
@@ -206,7 +206,7 @@ func (p *EmberPlugin) registerMetrics() error {
 		get: {
 			metric: metric.New(
 				"Returns the ember data based on path.",
-				[]*metric.Param{params.URI, params.Path},
+				[]*metric.Param{params.URI, params.Path, params.ConnTimeout},
 				false,
 			),
 			handler: withJSONResponse(p.GetEmber),
