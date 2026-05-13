@@ -1,10 +1,10 @@
 module golang.zabbix.com/plugin/ember-plus
 
-go 1.24.10
+go 1.25.9
 
 require (
 	github.com/google/go-cmp v0.6.0
-	golang.zabbix.com/sdk v1.2.2-0.20251205121608-d9643740a558
+	golang.zabbix.com/sdk v1.2.2-0.20260513084934-aa676675694e
 )
 
 require (
