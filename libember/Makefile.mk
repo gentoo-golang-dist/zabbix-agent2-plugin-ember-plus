@@ -62,6 +62,6 @@ $(LIBEMBER_BUILD)/Makefile: | $(LIBEMBER_BUILD)
 	$(CMAKE) $(LIBEMBER)/libember_slim $(CMAKE_OPT)
 
 $(LIBEMBER_BUILD)/libember_slim-static.a: $(LIBEMBER_BUILD)/Makefile
-	$(MAKE) -C $(LIBEMBER_BUILD)
+	$(MAKE) -C $(LIBEMBER_BUILD) ember_slim-static
 
 libember_slim-static.a: $(LIBEMBER_BUILD)/libember_slim-static.a
