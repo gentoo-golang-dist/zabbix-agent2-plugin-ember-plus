@@ -255,6 +255,7 @@ func sendCommand(conn net.Conn, path, request string, cmd emberCMD) error {
 		return errs.New("unknown command")
 	}
 
+	//nolint:revive,nolintlint // more readable this way.
 	switch request {
 	case ember.NodeType:
 		// Build GetDirectory command
@@ -506,6 +507,7 @@ func intToBool(in int) bool {
 
 func setPath(el *ember.Element, pPath *C.berint, pathLength int) {
 	pathC := unsafe.Slice(pPath, pathLength)
+	//nolint:prealloc // requires refactor to preallocating capacity
 	pathGo := []string{}
 
 	for _, v := range pathC {
@@ -540,6 +542,7 @@ func glowValueToGo(val *C.GlowValue) (any, int) {
 		return nil, 0
 	}
 
+	//nolint:revive,nolintlint // more readable this way.
 	switch val.flag {
 	case C.GlowParameterType_Integer:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
@@ -584,6 +587,7 @@ func glowMinMaxToGo(val *C.GlowMinMax) any {
 		return nil
 	}
 
+	//nolint:revive,nolintlint // more readable this way.
 	switch val.flag {
 	case C.GlowParameterType_Integer:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
