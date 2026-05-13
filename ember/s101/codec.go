@@ -120,7 +120,8 @@ func getS101s(in []uint8) ([][]uint8, []uint8) {
 			startFound = true
 
 			// a valid glow packet should not have multiple FE without FF, so we are interested in reading only the
-			// last valid glow data, incase there is some left over invalid data at the beginning of the frame.
+			// last valid glow data, in case there is some left over invalid data at the beginning of the frame.
+			//nolint:prealloc // should be refactored.
 			single = []uint8{}
 
 			single = append(single, b)
@@ -165,7 +166,7 @@ func createS101(payload []byte, pType uint8) []byte {
 // escapeBytesAboveBOFNE parses the message as based on Glow protocol all the bytes with bigger value then 0xf8 must
 // preceded with and 0xfd byte and XORed with 0x20 byte.
 func escapeBytesAboveBOFNE(message []byte) []byte {
-	//nolint:prealloc
+	//nolint:prealloc,nolintlint
 	var out []byte
 
 	for _, b := range message {
@@ -213,7 +214,7 @@ func getCRC(data []byte) []uint8 {
 
 // parseCRC bytes above 0xf8 must be preceded with and 0xfd byte and XORed with 0x20 byte.
 func parseCRC(in []uint8) []uint8 {
-	//nolint:prealloc
+	//nolint:prealloc,nolintlint
 	var out []uint8
 
 	for _, v := range in {
