@@ -4,7 +4,7 @@ go 1.25.9
 
 require (
 	github.com/google/go-cmp v0.6.0
-	golang.zabbix.com/sdk v1.2.2-0.20260421163505-7d8de5f27a58
+	golang.zabbix.com/sdk v1.2.2-0.20260513084949-98586186ba5d
 )
 
 require (
