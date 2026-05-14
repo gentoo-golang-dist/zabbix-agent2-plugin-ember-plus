@@ -16,11 +16,21 @@ Changes for 8.0.0alpha1
 7.4.4 was released as 8.0.0alpha1 without any changes
 
 --------------------------------------------------------------------------------
-Changes for 7.4.10rc1
+Changes for 7.4.11rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.4.10
+
+7.4.10rc1 was released as 7.4.10 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.4.10rc1
+
+7.4.9 was released as 7.4.10rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 7.4.9
@@ -355,11 +365,21 @@ New features:
 [ZBXNEXT-9281] added configurable item timeout support (dgoloscapov)
 
 --------------------------------------------------------------------------------
-Changes for 7.0.26rc1
+Changes for 7.0.27rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.0.26
+
+7.0.26rc1 was released as 7.0.26 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.26rc1
+
+7.0.25 was released as 7.0.26rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 7.0.25
@@ -684,11 +704,21 @@ New features:
 [ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
 
 --------------------------------------------------------------------------------
-Changes for 6.0.46rc1
+Changes for 6.0.47rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 6.0.46
+
+6.0.46rc1 was released as 6.0.46 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.46rc1
+
+6.0.45 was released as 6.0.46rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 6.0.45

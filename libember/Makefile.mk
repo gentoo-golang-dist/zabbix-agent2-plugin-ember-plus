@@ -14,7 +14,11 @@ AR = ar
 CMAKE_OPT=-G "MinGW Makefiles"
 endif
 
-ifeq ($(OS),Windows_NT)
+ifneq ($(MSYSTEM),)
+RM = rm -f
+NULDEV = /dev/null
+QUOTE = '
+else ifeq ($(OS),Windows_NT)
 RM = del /Q
 NULDEV = NUL
 QUOTE =
@@ -58,6 +62,6 @@ $(LIBEMBER_BUILD)/Makefile: | $(LIBEMBER_BUILD)
 	$(CMAKE) $(LIBEMBER)/libember_slim $(CMAKE_OPT)
 
 $(LIBEMBER_BUILD)/libember_slim-static.a: $(LIBEMBER_BUILD)/Makefile
-	$(MAKE) -C $(LIBEMBER_BUILD)
+	$(MAKE) -C $(LIBEMBER_BUILD) ember_slim-static
 
 libember_slim-static.a: $(LIBEMBER_BUILD)/libember_slim-static.a
