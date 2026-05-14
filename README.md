@@ -108,6 +108,8 @@ Specifies the wait time (in seconds) for a device to respond when first connecti
 Global item-type timeout (or individual item timeout) will override this value if it is greater.
 Range: 1-30 seconds. If not specified, the value defaults to a global timeout value defined in Zabbix agent 2 configuration file.
 
+The value is now *deprecated*, and used only for requests coming from Zabbix servers old than 7.0 version.
+
 Example:
 
 ```conf
@@ -141,6 +143,18 @@ Example:
 Plugins.EmberPlus.Sessions.exampleSession.Uri=localhost:9998
 ```
 
+#### `Plugins.EmberPlus.Sessions.*.ConnectionTimeout`
+
+Specifies the connection timeout for session `*`.
+
+Default: `<Global timeout>`
+
+Example:
+
+```conf
+Plugins.EmberPlus.Sessions.exampleSession.ConnectionTimeout=10
+```
+
 ### Default settings
 
 The `Plugins.EmberPlus.Default.*` fields define the default values that will be used if no other value is specified.
@@ -156,6 +170,18 @@ Example:
 
 ```conf
 Plugins.EmberPlus.Default.Uri=localhost:9998
+```
+
+#### `Plugins.EmberPlus.Default.ConnectionTimeout`
+
+Specifies the connection timeout for session `*`.
+
+Default: `<Global timeout>`
+
+Example:
+
+```conf
+Plugins.EmberPlus.Default.ConnectionTimeout=10
 ```
 
 ## Metric keys
