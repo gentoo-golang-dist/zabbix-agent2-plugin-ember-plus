@@ -507,12 +507,7 @@ func intToBool(in int) bool {
 
 func setPath(el *ember.Element, pPath *C.berint, pathLength int) {
 	pathC := unsafe.Slice(pPath, pathLength)
-<<<<<<< HEAD
-
-	//nolint:prealloc
-=======
 	//nolint:prealloc // requires refactor to preallocating capacity
->>>>>>> master
 	pathGo := []string{}
 
 	for _, v := range pathC {
@@ -547,11 +542,7 @@ func glowValueToGo(val *C.GlowValue) (any, int) {
 		return nil, 0
 	}
 
-<<<<<<< HEAD
-	//nolint:revive
-=======
 	//nolint:revive,nolintlint // more readable this way.
->>>>>>> master
 	switch val.flag {
 	case C.GlowParameterType_Integer:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
@@ -596,11 +587,7 @@ func glowMinMaxToGo(val *C.GlowMinMax) any {
 		return nil
 	}
 
-<<<<<<< HEAD
-	//nolint:revive
-=======
 	//nolint:revive,nolintlint // more readable this way.
->>>>>>> master
 	switch val.flag {
 	case C.GlowParameterType_Integer:
 		p := (*C.berlong)(unsafe.Pointer(&val.choice))
