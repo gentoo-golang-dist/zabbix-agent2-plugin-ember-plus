@@ -1,7 +1,5 @@
 Changes for 8.0.0beta1
 
-New features:
-
 Bug fixes:
 ...G...... [ZBX-26156] migrated ember lib to C library, to fix multiple connection and data issues (esneiders)
 
