@@ -56,7 +56,12 @@ type connHandler struct {
 	logr             log.Logger
 	readData         chan readResponse
 	parsedData       chan parsedResponse
-	expectedPath     chan string
+	pathRequest      chan expectedRequest
+}
+
+type expectedRequest struct {
+	ctx  context.Context
+	path string
 }
 
 type parsedResponse struct {
@@ -97,7 +102,7 @@ func (c *ConnCollection) HandleRequest(
 
 	// turns on response expectation in the listener
 
-	ch.expectedPath <- path
+	ch.pathRequest <- expectedRequest{ctx: ctx, path: path}
 
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -199,7 +204,7 @@ func (c *ConnCollection) get(ctx context.Context, connectionTimeout int, conf Co
 		return nil, errs.Wrap(err, "failed to init ember handler")
 	}
 
-	go ch.pathReader(ctx, c, emberLibHandler)
+	go ch.pathReader(c, emberLibHandler)
 
 	return ch, nil
 }
@@ -329,15 +334,15 @@ func (ch *connHandler) getLastAccessTime() time.Time {
 	return ch.lastAccessTime
 }
 
-func (ch *connHandler) pathReader(ctx context.Context, c *ConnCollection, h *emberlib.Handler) {
+func (ch *connHandler) pathReader(c *ConnCollection, h *emberlib.Handler) {
 	go ch.reader(c, h)
 
 	for {
 		select {
-		case path := <-ch.expectedPath:
-			ch.logr.Tracef("got path for request %s", path)
+		case req := <-ch.pathRequest:
+			ch.logr.Tracef("got path for request %s", req.path)
 
-			ch.parsedData <- ch.readExpected(ctx, path)
+			ch.parsedData <- ch.readExpected(req.ctx, req.path)
 		case resp, ok := <-ch.readData:
 			if !ok {
 				// incase we get an error in readExpected, then we will exit this function here. As ch.reader will be
@@ -488,6 +493,6 @@ func newConn(connectionTimeout int, conf ConnConfig, logger log.Logger) (*connHa
 		conf:           conf,
 		readData:       make(chan readResponse),
 		parsedData:     make(chan parsedResponse),
-		expectedPath:   make(chan string),
+		pathRequest:    make(chan expectedRequest),
 	}, nil
 }
