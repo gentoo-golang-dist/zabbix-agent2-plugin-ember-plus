@@ -108,7 +108,7 @@ Specifies the wait time (in seconds) for a device to respond when first connecti
 Global item-type timeout (or individual item timeout) will override this value if it is greater.
 Range: 1-30 seconds. If not specified, the value defaults to a global timeout value defined in Zabbix agent 2 configuration file.
 
-The value is now *deprecated*, and used only for requests coming from Zabbix servers old than 7.0 version.
+> The value is now *deprecated*, and used only for requests coming from Zabbix servers older than 7.0 version.
 
 Example:
 
