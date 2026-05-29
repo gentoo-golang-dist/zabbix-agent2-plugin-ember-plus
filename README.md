@@ -105,7 +105,6 @@ Plugins.EmberPlus.System.Path=/usr/libexec/zabbix/zabbix-agent2-plugin-ember-plu
 #### `Plugins.EmberPlus.Timeout`
 
 Specifies the wait time (in seconds) for a device to respond when first connecting and on follow-up operations in the session.
-Global item-type timeout (or individual item timeout) will override this value if it is greater.
 Range: 1-30 seconds. If not specified, the value defaults to a global timeout value defined in Zabbix agent 2 configuration file.
 
 > The value is now *deprecated*, and used only for requests coming from Zabbix servers older than 7.0 version.
@@ -158,7 +157,7 @@ Plugins.EmberPlus.Sessions.exampleSession.ConnectionTimeout=10
 ### Default settings
 
 The `Plugins.EmberPlus.Default.*` fields define the default values that will be used if no other value is specified.
-The `*` symbol implies a specific configuration field, currently only `Uri` is available.
+The `*` symbol implies a specific configuration field.
 
 #### `Plugins.EmberPlus.Default.Uri`
 
