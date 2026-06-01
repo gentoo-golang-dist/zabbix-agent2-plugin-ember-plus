@@ -15,6 +15,8 @@
 package plugin
 
 import (
+	"strconv"
+
 	"golang.zabbix.com/sdk/conf"
 	"golang.zabbix.com/sdk/errs"
 	"golang.zabbix.com/sdk/plugin"
@@ -23,8 +25,7 @@ import (
 type session struct {
 	URI string `conf:"name=Uri,optional"`
 
-	// json tag is a temporary workaround until metric.SetDefaults() supports integers
-	ConnectionTimeout int `conf:"optional,range=1:30" json:"ConnectionTimeout,string"` //nolint:tagalign,tagliatelle
+	ConnectionTimeout string `conf:"name=ConnectionTimeout,optional"`
 }
 
 type pluginConfig struct {
@@ -60,13 +61,13 @@ func (p *EmberPlugin) Configure(global *plugin.GlobalOptions, options any) {
 	if p.config.LegacyTimeout != 0 {
 		p.Debugf("config value 'Plugins.EmberPlus.Timeout' is deprecated")
 
-		if p.config.Default.ConnectionTimeout == 0 {
-			p.config.Default.ConnectionTimeout = p.config.LegacyTimeout
+		if p.config.Default.ConnectionTimeout == "" {
+			p.config.Default.ConnectionTimeout = strconv.Itoa(p.config.LegacyTimeout)
 		}
 	}
 
-	if p.config.Default.ConnectionTimeout == 0 {
-		p.config.Default.ConnectionTimeout = global.Timeout
+	if p.config.Default.ConnectionTimeout == "" {
+		p.config.Default.ConnectionTimeout = strconv.Itoa(global.Timeout)
 	}
 
 	if p.config.LegacyTimeout == 0 {
@@ -82,6 +83,44 @@ func (*EmberPlugin) Validate(options any) error {
 	err := conf.UnmarshalStrict(options, &opts)
 	if err != nil {
 		return errs.Wrap(err, "failed to unmarshal configuration options")
+	}
+
+	for k, s := range opts.Sessions {
+		if s.ConnectionTimeout != "" {
+			ct, err := strconv.Atoi(s.ConnectionTimeout)
+			if err != nil {
+				return errs.Errorf(
+					"connection timeout '%v' must be an integer for session %s",
+					s.ConnectionTimeout,
+					k,
+				)
+			}
+
+			if ct < 1 || ct > 30 {
+				return errs.Errorf(
+					"connection timeout '%v' for session %s must be between 1 and 30",
+					s.ConnectionTimeout,
+					k,
+				)
+			}
+		}
+	}
+
+	if opts.Default.ConnectionTimeout != "" {
+		ct, err := strconv.Atoi(opts.Default.ConnectionTimeout)
+		if err != nil {
+			return errs.Errorf(
+				"default connection timeout '%v' must be an integer",
+				opts.Default.ConnectionTimeout,
+			)
+		}
+
+		if ct < 1 || ct > 30 {
+			return errs.Errorf(
+				"default connection timeout '%v' must be between 1 and 30",
+				opts.Default.ConnectionTimeout,
+			)
+		}
 	}
 
 	return nil
