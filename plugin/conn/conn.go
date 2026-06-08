@@ -59,6 +59,7 @@ type connHandler struct {
 	pathRequest      chan expectedRequest
 }
 
+//nolint:containedctx // passed as a request via channel, so ctx is "first" parameter
 type expectedRequest struct {
 	ctx  context.Context
 	path string
@@ -92,7 +93,7 @@ func (c *ConnCollection) HandleRequest(
 	conf ConnConfig,
 	path string,
 ) (ember.ElementCollection, error) {
-	ch, err := c.get(ctx, connectionTimeout, conf)
+	ch, err := c.get(connectionTimeout, conf)
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to get conn")
 	}
@@ -166,7 +167,7 @@ func NewConnConfig(rawURI string) (ConnConfig, error) {
 	return ConnConfig{URI: parsed.Addr()}, nil
 }
 
-func (c *ConnCollection) get(ctx context.Context, connectionTimeout int, conf ConnConfig) (*connHandler, error) {
+func (c *ConnCollection) get(connectionTimeout int, conf ConnConfig) (*connHandler, error) {
 	c.logr.Debugf("looking for connection for %s", conf.URI)
 
 	ch := c.getConn(conf)

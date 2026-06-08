@@ -77,6 +77,8 @@ func (p *EmberPlugin) Configure(global *plugin.GlobalOptions, options any) {
 
 // Validate implements the Configurator interface.
 // Returns an error if validation of a plugin's configuration is failed.
+//
+//nolint:gocyclo,cyclop // will be removed once set defaults can handle ints
 func (*EmberPlugin) Validate(options any) error {
 	var opts pluginConfig
 
