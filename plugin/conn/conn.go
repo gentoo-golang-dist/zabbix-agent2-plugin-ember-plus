@@ -230,6 +230,7 @@ func (c *ConnCollection) close(conf ConnConfig) error {
 // housekeeper repeatedly checks for unused connections and closes them.
 func (c *ConnCollection) housekeeper(interval time.Duration) {
 	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 
 	c.logr.Debugf("starting housekeeper")
 
