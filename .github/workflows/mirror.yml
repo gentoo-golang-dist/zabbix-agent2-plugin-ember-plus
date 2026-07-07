@@ -16,4 +16,4 @@
           with:
             token: ${{ secrets.PUSH_TOKEN }}
             
-            upstream-repo: zabbix-agent2-plugin-ember-plus
+            upstream-repo: https://git.zabbix.com/scm/ap/ember-plus.git
