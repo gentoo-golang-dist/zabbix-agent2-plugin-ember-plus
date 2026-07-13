@@ -60,6 +60,7 @@ type emberMetric struct {
 
 type emberPlugin struct {
 	plugin.Base
+
 	conns   *conn.ConnCollection
 	config  *pluginConfig
 	metrics map[emberMetricKey]*emberMetric
@@ -123,11 +124,7 @@ func (p *emberPlugin) Export(key string, rawParams []string, pluginCtx plugin.Co
 		return nil, errs.Wrap(err, "failed to set default params")
 	}
 
-	timeout := time.Second * time.Duration(p.config.Timeout)
-
-	if timeout < time.Second*time.Duration(pluginCtx.Timeout()) {
-		timeout = time.Second * time.Duration(pluginCtx.Timeout())
-	}
+	timeout := max(time.Second*time.Duration(p.config.Timeout), time.Second*time.Duration(pluginCtx.Timeout()))
 
 	res, err := m.handler(timeout, metricParams, extraParams...)
 	if err != nil {
