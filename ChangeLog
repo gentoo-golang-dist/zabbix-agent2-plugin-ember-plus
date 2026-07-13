@@ -1,8 +1,83 @@
-Changes for 7.0.23rc1
+Changes for 7.0.29rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 7.0.28
+
+7.0.28rc1 was released as 7.0.28 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.28rc1
+
+7.0.27 was released as 7.0.28rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.27
+
+7.0.27rc1 was released as 7.0.27 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.27rc1
+
+7.0.26 was released as 7.0.27rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.26
+
+7.0.26rc1 was released as 7.0.26 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.26rc1
+
+7.0.25 was released as 7.0.26rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.25
+
+7.0.25rc1 was released as 7.0.25 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.25rc1
+
+7.0.24 was released as 7.0.25rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.24
+
+7.0.24rc3 was released as 7.0.24 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.24rc3
+
+7.0.24rc2 was released as 7.0.24rc3 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.24rc2
+
+7.0.24rc1 was released as 7.0.24rc2 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.24rc1
+
+7.0.23 was released as 7.0.24rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.23
+
+7.0.23rc2 was released as 7.0.23 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.23rc2
+
+7.0.23rc1 was released as 7.0.23rc2 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 7.0.23rc1
+
+7.0.22 was released as 7.0.23rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 7.0.22
@@ -282,11 +357,51 @@ New features:
 [ZBXNEXT-8997] initial implementation for Ember Plus loadable Zabbix agent 2 plugin (esneiders)
 
 --------------------------------------------------------------------------------
-Changes for 6.0.44rc1
+Changes for 6.0.48rc1
 
 New features:
 
 Bug fixes:
+
+--------------------------------------------------------------------------------
+Changes for 6.0.47
+
+6.0.47rc1 was released as 6.0.47 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.47rc1
+
+6.0.46 was released as 6.0.47rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.46
+
+6.0.46rc1 was released as 6.0.46 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.46rc1
+
+6.0.45 was released as 6.0.46rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.45
+
+6.0.45rc1 was released as 6.0.45 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.45rc1
+
+6.0.44 was released as 6.0.45rc1 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.44
+
+6.0.44rc1 was released as 6.0.44 without any changes
+
+--------------------------------------------------------------------------------
+Changes for 6.0.44rc1
+
+6.0.43 was released as 6.0.44rc1 without any changes
 
 --------------------------------------------------------------------------------
 Changes for 6.0.43
