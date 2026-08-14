@@ -3,6 +3,7 @@ Changes for 7.4.14rc1
 New features:
 
 Bug fixes:
+...G...... [ZBX-27291] fixed issue with ember plugin crashing at giving unparsable path at Zabbix agent 2 (opucka)
 
 --------------------------------------------------------------------------------
 Changes for 7.4.13
@@ -387,6 +388,7 @@ Changes for 7.0.30rc1
 New features:
 
 Bug fixes:
+...G...... [ZBX-27291] fixed issue with ember plugin crashing at giving unparsable path at Zabbix agent 2 (opucka)
 
 --------------------------------------------------------------------------------
 Changes for 7.0.29
